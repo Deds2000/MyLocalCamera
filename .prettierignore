@@ -1,0 +1,14 @@
+node_modules
+dist
+target
+pnpm-lock.yaml
+fixtures
+mobile/android
+
+# Documentos importados do plano (não reformatar)
+docs
+AGENTS.md
+CHEATSHEET.md
+LocalCamera-PLAN.md
+PROGRESS.md
+PROMPTS.md

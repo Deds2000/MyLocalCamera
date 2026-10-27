@@ -1,0 +1,4 @@
+packages:
+  - "desktop"
+  - "mobile"
+  - "packages/*"

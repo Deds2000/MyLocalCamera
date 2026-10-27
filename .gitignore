@@ -1,0 +1,17 @@
+node_modules/
+dist/
+target/
+fixtures/*
+!fixtures/.gitkeep
+*.log
+.env*
+desktop/src-tauri/target/
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/local.properties
+.idea/
+.vscode/*
+!.vscode/extensions.json
+docs/spikes/tmp/
+spikes/**/build/
