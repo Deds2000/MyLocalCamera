@@ -1,14 +1,13 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Protocolo LocalCamera (implementação nos próximos cartões).
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+mod infra_tests {
+    use proptest::prelude::*;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    proptest! {
+        #[test]
+        fn proptest_infra_works(a in any::<u32>(), b in any::<u32>()) {
+            prop_assert_eq!(a as u64 + b as u64, b as u64 + a as u64);
+        }
     }
 }

@@ -5,3 +5,7 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "time", "net", "io-util", "sync"] }
+
+[dev-dependencies]
+tokio = { version = "1.54.1", features = ["test-util"] }
