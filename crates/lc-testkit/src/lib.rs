@@ -1,4 +1,6 @@
 //! Utilitários compartilhados por testes e ferramentas.
+pub mod annexb;
+
 use std::net::TcpListener;
 
 /// Devolve uma porta TCP livre em 127.0.0.1 (a porta fica livre ao retornar).

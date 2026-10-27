@@ -1,0 +1,8 @@
+[package]
+name = "fixture-tool"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+lc-testkit = { path = "../../crates/lc-testkit" }

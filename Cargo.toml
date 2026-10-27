@@ -1,6 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["crates/lc-protocol", "tools/mock-sender", "desktop/src-tauri", "crates/lc-testkit"]
+members = [
+    "crates/lc-protocol",
+    "tools/mock-sender",
+    "tools/fixture-tool",
+    "desktop/src-tauri",
+    "crates/lc-testkit",
+]
 
 [workspace.package]
 edition = "2021"
