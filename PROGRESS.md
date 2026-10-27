@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F0-T09`  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-27
+**Próxima tarefa:** `F0-T11`  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-27
 
 ## Bloqueios
 (nenhum)
@@ -18,7 +18,8 @@
 - F0-T14: `new-report.ps1` lê o template como UTF-8 e grava sem BOM; sem isso o PowerShell 5.1 corrompia acentos e o separador `·`.
 - F0-T05: `desktop/src-tauri` mantém edition 2024 (template Tauri); demais crates em 2021.
 - F0-T05: Cargo avisa que `[profile.release]` em `desktop/src-tauri/Cargo.toml` é ignorado (pacote não-raiz); mover para o `Cargo.toml` raiz quando formos gerar release (Fase 4).
-- F0-T13: script `make-fixtures.ps1` checa `0` após cada ffmpeg/cargo; temporários ficam em `fixtures/` (PS 5.1 `Join-Path` com caminho absoluto quebra). Fixtures geradas e idempotentes (hashes conferidos).
+- F0-T13: script `make-fixtures.ps1` checa `$LASTEXITCODE` após cada ffmpeg/cargo; temporários ficam em `fixtures/` (PS 5.1 `Join-Path` com caminho absoluto quebra). Fixtures geradas e idempotentes (hashes conferidos).
+- F0-T09: Vitest 5 + jsdom 30; UT-0.04 usa identificador minúsculo porque `no-literal-string` ignora `const` MAIÚSCULAS (o exemplo do cartão não era reportado).
 
 ---
 
@@ -33,7 +34,7 @@ Ordem de execução (respeite as dependências):
 | [x] | F0-T02 | App desktop: Tauri 2 + React 19 + Tailwind 3.4 + shadcn | A | T04 | `docs/tasks/fase-0/F0-T02.md` |
 | [x] | F0-T03 | App mobile: Capacitor + React 19 + Tailwind 3.4 + shadcn | A+H | T04 | `docs/tasks/fase-0/F0-T03.md` |
 | [x] | F0-T05 | Workspace Rust (lc-protocol, mock-sender, toolchain) | A | T01 | `docs/tasks/fase-0/F0-T05.md` |
-| [ ] | F0-T09 | Infra de testes TypeScript (Vitest, RTL, testes UT-0.01–04) | A | T04 | `docs/tasks/fase-0/F0-T09.md` |
+| [x] | F0-T09 | Infra de testes TypeScript (Vitest, RTL, testes UT-0.01–04) | A | T04 | `docs/tasks/fase-0/F0-T09.md` |
 | [x] | F0-T12 | Infra de testes Rust (`lc-testkit`, proptest, tokio) | A | T05 | `docs/tasks/fase-0/F0-T12.md` |
 | [ ] | F0-T11 | Infra de testes Kotlin/Android (JUnit, coroutines-test) | A+H | T03 | `docs/tasks/fase-0/F0-T11.md` |
 | [ ] | F0-T06 | CI local (`scripts/ci.ps1`) e hook de `pre-push` | A | T09, T12 | `docs/tasks/fase-0/F0-T06.md` |
