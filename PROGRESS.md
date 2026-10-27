@@ -18,6 +18,7 @@
 - F0-T14: `new-report.ps1` lê o template como UTF-8 e grava sem BOM; sem isso o PowerShell 5.1 corrompia acentos e o separador `·`.
 - F0-T05: `desktop/src-tauri` mantém edition 2024 (template Tauri); demais crates em 2021.
 - F0-T05: Cargo avisa que `[profile.release]` em `desktop/src-tauri/Cargo.toml` é ignorado (pacote não-raiz); mover para o `Cargo.toml` raiz quando formos gerar release (Fase 4).
+- F0-T13: script `make-fixtures.ps1` checa `0` após cada ffmpeg/cargo; temporários ficam em `fixtures/` (PS 5.1 `Join-Path` com caminho absoluto quebra). Fixtures geradas e idempotentes (hashes conferidos).
 
 ---
 
@@ -36,7 +37,7 @@ Ordem de execução (respeite as dependências):
 | [x] | F0-T12 | Infra de testes Rust (`lc-testkit`, proptest, tokio) | A | T05 | `docs/tasks/fase-0/F0-T12.md` |
 | [ ] | F0-T11 | Infra de testes Kotlin/Android (JUnit, coroutines-test) | A+H | T03 | `docs/tasks/fase-0/F0-T11.md` |
 | [ ] | F0-T06 | CI local (`scripts/ci.ps1`) e hook de `pre-push` | A | T09, T12 | `docs/tasks/fase-0/F0-T06.md` |
-| [ ] | F0-T13 | Fixtures: `make-fixtures.ps1` e `fixture-tool` | A | T12 | `docs/tasks/fase-0/F0-T13.md` |
+| [x] | F0-T13 | Fixtures: `make-fixtures.ps1` e `fixture-tool` | A | T12 | `docs/tasks/fase-0/F0-T13.md` |
 | [x] | F0-T14 | Relatórios de teste (`new-report.ps1`) | A | T07 | `docs/tasks/fase-0/F0-T14.md` |
 | [ ] | F0-T10 | (opcional) Playwright para o catálogo de componentes | A | T02, T03 | `docs/tasks/fase-0/F0-T10.md` |
 | [ ] | F0-S1 | Spike S1 — câmera virtual × NVIDIA Broadcast | A+H | T01 | `docs/tasks/fase-0/F0-S1.md` |
