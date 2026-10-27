@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F0-T01`  ·  **Fase atual:** 0  ·  **Última atualização:** (preencher)
+**Próxima tarefa:** `F0-T07`  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-27
 
 ## Bloqueios
 (nenhum)
@@ -18,7 +18,7 @@ Ordem de execução (respeite as dependências):
 
 | St | ID | Título | Exec | Dep. | Cartão |
 |---|---|---|---|---|---|
-| [ ] | F0-T01 | Monorepo pnpm, ESLint, Prettier, tsconfig | A | — | `docs/tasks/fase-0/F0-T01.md` |
+| [x] | F0-T01 | Monorepo pnpm, ESLint, Prettier, tsconfig | A | — | `docs/tasks/fase-0/F0-T01.md` |
 | [ ] | F0-T07 | Estrutura de docs, ADR 0001, scripts de relatório | A | T01 | `docs/tasks/fase-0/F0-T07.md` |
 | [ ] | F0-T04 | Pacote `@localcamera/shared` (cn, preset, tokens, i18n) | A | T01 | `docs/tasks/fase-0/F0-T04.md` |
 | [ ] | F0-T02 | App desktop: Tauri 2 + React 19 + Tailwind 3.4 + shadcn | A | T04 | `docs/tasks/fase-0/F0-T02.md` |
