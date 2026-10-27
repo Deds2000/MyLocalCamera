@@ -1,0 +1,7 @@
+[package]
+name = "mock-sender"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
