@@ -1,0 +1,28 @@
+/* Tokens CSS — variáveis do shadcn (formato H S% L%, sem hsl()). Fonte: F0-T04. */
+:root {
+  --background: 221 49% 5%;
+  --foreground: 215 52% 94%;
+  --card: 221 48% 9%;
+  --card-foreground: 215 52% 94%;
+  --popover: 221 48% 9%;
+  --popover-foreground: 215 52% 94%;
+  --primary: 188 86% 53%;
+  --primary-foreground: 221 49% 5%;
+  --secondary: 221 30% 14%;
+  --secondary-foreground: 215 52% 94%;
+  --muted: 221 30% 14%;
+  --muted-foreground: 217 26% 65%;
+  --accent: 221 30% 18%;
+  --accent-foreground: 215 52% 94%;
+  --destructive: 350 89% 60%;
+  --destructive-foreground: 215 52% 94%;
+  --border: 225 16% 15%;
+  --input: 225 16% 15%;
+  --ring: 188 86% 53%;
+  --radius: 0.75rem;
+  color-scheme: dark;
+}
+
+html {
+  background: #070b14;
+}
