@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F0-T02`  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-27
+**Próxima tarefa:** `F0-T03`  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-27
 
 ## Bloqueios
 (nenhum)
@@ -11,6 +11,7 @@
 ## Observações
 (o agente anota aqui problemas fora do escopo da tarefa atual)
 - F0-T04: `typescript` do `packages/shared` ficou em `^7.0.2` (raiz usa `~6.0.3`); typecheck/lint passam. Alinhar versões se virar problema.
+- F0-T02: shadcn/ui criado manualmente (CLI que geraria Tailwind 4 foi pulada); `baseUrl` removido do tsconfig por TS5101; chave extra i18n `desktop.smoke.close` para o label do X do Dialog.
 
 ---
 
@@ -22,7 +23,7 @@ Ordem de execução (respeite as dependências):
 | [x] | F0-T01 | Monorepo pnpm, ESLint, Prettier, tsconfig | A | — | `docs/tasks/fase-0/F0-T01.md` |
 | [x] | F0-T07 | Estrutura de docs, ADR 0001, scripts de relatório | A | T01 | `docs/tasks/fase-0/F0-T07.md` |
 | [x] | F0-T04 | Pacote `@localcamera/shared` (cn, preset, tokens, i18n) | A | T01 | `docs/tasks/fase-0/F0-T04.md` |
-| [ ] | F0-T02 | App desktop: Tauri 2 + React 19 + Tailwind 3.4 + shadcn | A | T04 | `docs/tasks/fase-0/F0-T02.md` |
+| [x] | F0-T02 | App desktop: Tauri 2 + React 19 + Tailwind 3.4 + shadcn | A | T04 | `docs/tasks/fase-0/F0-T02.md` |
 | [ ] | F0-T03 | App mobile: Capacitor + React 19 + Tailwind 3.4 + shadcn | A+H | T04 | `docs/tasks/fase-0/F0-T03.md` |
 | [ ] | F0-T05 | Workspace Rust (lc-protocol, mock-sender, toolchain) | A | T01 | `docs/tasks/fase-0/F0-T05.md` |
 | [ ] | F0-T09 | Infra de testes TypeScript (Vitest, RTL, testes UT-0.01–04) | A | T04 | `docs/tasks/fase-0/F0-T09.md` |
