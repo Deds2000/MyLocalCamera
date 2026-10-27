@@ -14,5 +14,15 @@
       "dialogTitle": "Example dialog",
       "close": "Close"
     }
+  },
+  "mobile": {
+    "smoke": {
+      "title": "LocalCamera",
+      "open": "Open",
+      "tabA": "Tab A",
+      "tabB": "Tab B",
+      "dialogTitle": "Example dialog",
+      "close": "Close"
+    }
   }
 }
