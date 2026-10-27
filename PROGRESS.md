@@ -33,7 +33,7 @@ Ordem de execução (respeite as dependências):
 | [x] | F0-T03 | App mobile: Capacitor + React 19 + Tailwind 3.4 + shadcn | A+H | T04 | `docs/tasks/fase-0/F0-T03.md` |
 | [x] | F0-T05 | Workspace Rust (lc-protocol, mock-sender, toolchain) | A | T01 | `docs/tasks/fase-0/F0-T05.md` |
 | [ ] | F0-T09 | Infra de testes TypeScript (Vitest, RTL, testes UT-0.01–04) | A | T04 | `docs/tasks/fase-0/F0-T09.md` |
-| [ ] | F0-T12 | Infra de testes Rust (`lc-testkit`, proptest, tokio) | A | T05 | `docs/tasks/fase-0/F0-T12.md` |
+| [x] | F0-T12 | Infra de testes Rust (`lc-testkit`, proptest, tokio) | A | T05 | `docs/tasks/fase-0/F0-T12.md` |
 | [ ] | F0-T11 | Infra de testes Kotlin/Android (JUnit, coroutines-test) | A+H | T03 | `docs/tasks/fase-0/F0-T11.md` |
 | [ ] | F0-T06 | CI local (`scripts/ci.ps1`) e hook de `pre-push` | A | T09, T12 | `docs/tasks/fase-0/F0-T06.md` |
 | [ ] | F0-T13 | Fixtures: `make-fixtures.ps1` e `fixture-tool` | A | T12 | `docs/tasks/fase-0/F0-T13.md` |
