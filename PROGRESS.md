@@ -15,6 +15,7 @@
 - F0-T03: `@capacitor/app` estável existe só até 8.1.2; core/cli/android em 8.5.3, peer >=8 (compatível).
 - F0-T03: i18n passou a usar `I18nextProvider` em desktop e mobile; sem isso o APK mostrava as chaves literais.
 - F0-T03: APK instalado e validado por screenshot no Samsung SM-G781B; Moto G5 (API 27) ainda não testado.
+- F0-T14: `new-report.ps1` lê o template como UTF-8 e grava sem BOM; sem isso o PowerShell 5.1 corrompia acentos e o separador `·`.
 
 ---
 
@@ -34,7 +35,7 @@ Ordem de execução (respeite as dependências):
 | [ ] | F0-T11 | Infra de testes Kotlin/Android (JUnit, coroutines-test) | A+H | T03 | `docs/tasks/fase-0/F0-T11.md` |
 | [ ] | F0-T06 | CI local (`scripts/ci.ps1`) e hook de `pre-push` | A | T09, T12 | `docs/tasks/fase-0/F0-T06.md` |
 | [ ] | F0-T13 | Fixtures: `make-fixtures.ps1` e `fixture-tool` | A | T12 | `docs/tasks/fase-0/F0-T13.md` |
-| [ ] | F0-T14 | Relatórios de teste (`new-report.ps1`) | A | T07 | `docs/tasks/fase-0/F0-T14.md` |
+| [x] | F0-T14 | Relatórios de teste (`new-report.ps1`) | A | T07 | `docs/tasks/fase-0/F0-T14.md` |
 | [ ] | F0-T10 | (opcional) Playwright para o catálogo de componentes | A | T02, T03 | `docs/tasks/fase-0/F0-T10.md` |
 | [ ] | F0-S1 | Spike S1 — câmera virtual × NVIDIA Broadcast | A+H | T01 | `docs/tasks/fase-0/F0-S1.md` |
 | [ ] | F0-S2 | Spike S2 — canal Frame Server ↔ app | A+H | S1 | `docs/tasks/fase-0/F0-S2.md` |
