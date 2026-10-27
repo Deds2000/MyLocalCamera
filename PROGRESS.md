@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F0-T06`  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-27
+**Próxima tarefa:** `F0-S3`  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-27
 
 ## Bloqueios
 (nenhum)
@@ -22,6 +22,7 @@
 - F0-T09: Vitest 5 + jsdom 30; UT-0.04 usa identificador minúsculo porque `no-literal-string` ignora `const` MAIÚSCULAS (o exemplo do cartão não era reportado).
 - F0-T11: Kotlin 2.4.21 + coroutines-test 1.11.0. O `androidTest` do template esperava `com.getcapacitor.app`; corrigido para `com.localcamera.app`.
 - F0-T11: `gradlew connectedDebugAndroidTest` (raiz) falha em `:capacitor-cordova-android-plugins:checkDebugAndroidTestDuplicateClasses` (stdlib 1.8.22 + jdk7/jdk8 1.6.21, módulo gerado). Usar `gradlew :app:connectedDebugAndroidTest`; 2 testes passaram no Samsung.
+- F0-T06: `ci.ps1 -Fast` = 17,5 s; completo = 22,9 s; hook `pre-push` ativo. FT-0.01 a FT-0.05 verificados e revertidos (FT-0.01 parou no lint antes do typecheck; typecheck direto também falha).
 
 ---
 
@@ -39,7 +40,7 @@ Ordem de execução (respeite as dependências):
 | [x] | F0-T09 | Infra de testes TypeScript (Vitest, RTL, testes UT-0.01–04) | A | T04 | `docs/tasks/fase-0/F0-T09.md` |
 | [x] | F0-T12 | Infra de testes Rust (`lc-testkit`, proptest, tokio) | A | T05 | `docs/tasks/fase-0/F0-T12.md` |
 | [x] | F0-T11 | Infra de testes Kotlin/Android (JUnit, coroutines-test) | A+H | T03 | `docs/tasks/fase-0/F0-T11.md` |
-| [ ] | F0-T06 | CI local (`scripts/ci.ps1`) e hook de `pre-push` | A | T09, T12 | `docs/tasks/fase-0/F0-T06.md` |
+| [x] | F0-T06 | CI local (`scripts/ci.ps1`) e hook de `pre-push` | A | T09, T12 | `docs/tasks/fase-0/F0-T06.md` |
 | [x] | F0-T13 | Fixtures: `make-fixtures.ps1` e `fixture-tool` | A | T12 | `docs/tasks/fase-0/F0-T13.md` |
 | [x] | F0-T14 | Relatórios de teste (`new-report.ps1`) | A | T07 | `docs/tasks/fase-0/F0-T14.md` |
 | [ ] | F0-T10 | (opcional) Playwright para o catálogo de componentes | A | T02, T03 | `docs/tasks/fase-0/F0-T10.md` |
