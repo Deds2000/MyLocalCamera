@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F0-T05`  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-27
+**Próxima tarefa:** `F0-T09`  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-27
 
 ## Bloqueios
 (nenhum)
@@ -16,6 +16,8 @@
 - F0-T03: i18n passou a usar `I18nextProvider` em desktop e mobile; sem isso o APK mostrava as chaves literais.
 - F0-T03: APK instalado e validado por screenshot no Samsung SM-G781B; Moto G5 (API 27) ainda não testado.
 - F0-T14: `new-report.ps1` lê o template como UTF-8 e grava sem BOM; sem isso o PowerShell 5.1 corrompia acentos e o separador `·`.
+- F0-T05: `desktop/src-tauri` mantém edition 2024 (template Tauri); demais crates em 2021.
+- F0-T05: Cargo avisa que `[profile.release]` em `desktop/src-tauri/Cargo.toml` é ignorado (pacote não-raiz); mover para o `Cargo.toml` raiz quando formos gerar release (Fase 4).
 
 ---
 
@@ -29,7 +31,7 @@ Ordem de execução (respeite as dependências):
 | [x] | F0-T04 | Pacote `@localcamera/shared` (cn, preset, tokens, i18n) | A | T01 | `docs/tasks/fase-0/F0-T04.md` |
 | [x] | F0-T02 | App desktop: Tauri 2 + React 19 + Tailwind 3.4 + shadcn | A | T04 | `docs/tasks/fase-0/F0-T02.md` |
 | [x] | F0-T03 | App mobile: Capacitor + React 19 + Tailwind 3.4 + shadcn | A+H | T04 | `docs/tasks/fase-0/F0-T03.md` |
-| [ ] | F0-T05 | Workspace Rust (lc-protocol, mock-sender, toolchain) | A | T01 | `docs/tasks/fase-0/F0-T05.md` |
+| [x] | F0-T05 | Workspace Rust (lc-protocol, mock-sender, toolchain) | A | T01 | `docs/tasks/fase-0/F0-T05.md` |
 | [ ] | F0-T09 | Infra de testes TypeScript (Vitest, RTL, testes UT-0.01–04) | A | T04 | `docs/tasks/fase-0/F0-T09.md` |
 | [ ] | F0-T12 | Infra de testes Rust (`lc-testkit`, proptest, tokio) | A | T05 | `docs/tasks/fase-0/F0-T12.md` |
 | [ ] | F0-T11 | Infra de testes Kotlin/Android (JUnit, coroutines-test) | A+H | T03 | `docs/tasks/fase-0/F0-T11.md` |
