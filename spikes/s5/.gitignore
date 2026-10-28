@@ -5,3 +5,4 @@ src-tauri/gen
 *.err
 *.out
 pnpm-lock.yaml.bak
+auto-*.json

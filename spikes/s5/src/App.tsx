@@ -13,25 +13,30 @@ export default function App() {
   const [stats, setStats] = useState<UiStats>(INITIAL_STATS);
   const startedRef = useRef(false);
 
-  const start = useCallback((mode: Mode, seconds: number) => {
-    if (!canvasRef.current) return;
-    if (stats.running) stopFeed();
-    void run({
-      mode,
-      seconds,
-      canvas: canvasRef.current,
-      onTick: setStats,
-      onDone: setStats,
-    });
-  }, [stats.running]);
+  const start = useCallback(
+    (mode: Mode, seconds: number, jsonFinish = false) => {
+      if (!canvasRef.current) return;
+      if (stats.running) stopFeed();
+      void run({
+        mode,
+        seconds,
+        canvas: canvasRef.current,
+        onTick: setStats,
+        onDone: setStats,
+        jsonFinish,
+      });
+    },
+    [stats.running],
+  );
 
   useEffect(() => {
-    // Automação para medição: `--mode A|B --seconds N` na linha de comando.
+    // Automação para medição: `--auto A|B --seconds N [--json <arq>]`.
+    // Com `--json`, o app grava o resumo e encerra sozinho ao final.
     if (startedRef.current) return;
     startedRef.current = true;
     void (async () => {
       const cfg = await autoConfig();
-      if (cfg) start(cfg.mode, cfg.seconds);
+      if (cfg) start(cfg.mode, cfg.seconds, cfg.json !== null);
     })();
   }, [start]);
 

@@ -4,6 +4,7 @@
 //   bytes 1-8: u64 LE, unix epoch em milissegundos (momento do envio no Rust)
 //   resto   : payload (AU H.264 Annex-B no modo A; JPEG no modo B)
 import { Channel, invoke } from "@tauri-apps/api/core";
+import { buildSummary, type RunSummary } from "./summary";
 
 export type Mode = "A" | "B";
 
@@ -43,6 +44,7 @@ class Metrics {
   draws = 0;
   bytes = 0;
   drops = 0;
+  latSamples: number[] = []; // amostras envio→desenho (p50/p95 no resumo final)
   private pDraws = 0;
   private pBytes = 0;
   private pDrops = 0;
@@ -55,6 +57,7 @@ class Metrics {
     this.draws = 0;
     this.bytes = 0;
     this.drops = 0;
+    this.latSamples = [];
     this.pDraws = 0;
     this.pBytes = 0;
     this.pDrops = 0;
@@ -69,6 +72,7 @@ class Metrics {
     if (latencyMs >= 0) {
       this.latSum += latencyMs;
       this.latN += 1;
+      this.latSamples.push(latencyMs);
     }
   }
   recordBytes(n: number) {
@@ -127,8 +131,13 @@ function toU8(raw: unknown): Uint8Array | null {
   return null;
 }
 
+/** Falha silenciosa: o CSV é auxiliar; nunca pode bloquear o resumo JSON. */
 async function csvAppend(line: string) {
-  await invoke("csv_append", { line, header: CSV_HEADER });
+  try {
+    await invoke("csv_append", { line, header: CSV_HEADER });
+  } catch {
+    /* cenário: CWD errado/sem pasta spikes/s5 — o JSON segue */
+  }
 }
 
 function jsHeapMb(): number {
@@ -145,17 +154,39 @@ async function processMemMb(): Promise<number> {
   }
 }
 
+async function processInfo(): Promise<{ memMb: number; pid: number }> {
+  try {
+    const r = await invoke<{ mem_mb: number; pid: number }>("process_info");
+    return { memMb: r.mem_mb, pid: r.pid };
+  } catch {
+    return { memMb: 0, pid: 0 };
+  }
+}
+
+/** Grava o resumo final e encerra o app (modo auto com `--json`). */
+async function autoFinish(sum: RunSummary): Promise<void> {
+  try {
+    await invoke("auto_finish", { summary: JSON.stringify(sum) });
+  } catch {
+    /* no Rust há uma trava de segurança que encerra o app mesmo assim */
+  }
+}
+
 interface RunOpts {
   mode: Mode;
   seconds: number;
   canvas: HTMLCanvasElement;
   onTick: (s: UiStats) => void;
   onDone: (s: UiStats) => void;
+  /** Quando verdadeiro, ao fim chama `auto_finish` (grava JSON + encerra o app). */
+  jsonFinish?: boolean;
 }
 
 export async function run(o: RunOpts): Promise<void> {
   const m = new Metrics();
   m.reset();
+  const { memMb: memStart, pid } = await processInfo();
+  let t0 = 0; // preenchido após o feed iniciar (duração real da medição)
   const latQueue: number[] = []; // sendTs dos AUs enviados (modo A)
   let decoder: VideoDecoder | null = null;
   let stopped = false;
@@ -166,24 +197,8 @@ export async function run(o: RunOpts): Promise<void> {
 
   const draw = (latencyMs: number) => m.recordDraw(latencyMs);
 
-  let diagN = 0;
   const onMessage = (raw: unknown) => {
     if (stopped) return;
-    if (diagN < 3) {
-      // Diagnóstico do formato que o Channel entrega (1ª execução)
-      diagN += 1;
-      const o = raw as Record<string, unknown> | null;
-      const desc = [
-        typeof raw,
-        (o && (o as { constructor?: { name?: string } }).constructor?.name) || "?",
-        raw instanceof ArrayBuffer ? "AB" : "noAB",
-        "len=" +
-          ((raw as { length?: number }).length ??
-            (raw as { byteLength?: number }).byteLength ??
-            -1),
-      ].join("|");
-      void csvAppend(`DEBUG,${diagN},${desc},0,0,0,0,0`);
-    }
     const u8 = toU8(raw);
     if (!u8 || u8.length < 9) return;
     const flags = u8[0] ?? 0;
@@ -243,6 +258,24 @@ export async function run(o: RunOpts): Promise<void> {
       };
       const { supported } = await VideoDecoder.isConfigSupported(cfg);
       if (!supported) {
+        if (o.jsonFinish) {
+          await autoFinish(
+            buildSummary({
+              mode: o.mode,
+              seconds: o.seconds,
+              elapsedS: 0,
+              draws: 0,
+              bytes: 0,
+              drops: 0,
+              latencySamples: [],
+              supported: false,
+              memStartMb: memStart,
+              memEndMb: memStart,
+              pid,
+              error: "isConfigSupported = false",
+            }),
+          );
+        }
         o.onDone(
           stats(false, { supported: false, error: "isConfigSupported = false" }),
         );
@@ -267,7 +300,7 @@ export async function run(o: RunOpts): Promise<void> {
     }
 
     await invoke(`start_mode_${o.mode.toLowerCase()}`, { channel: chan });
-    const t0 = performance.now();
+    t0 = performance.now();
     let lastTick = t0;
 
     const tickTimer = window.setInterval(async () => {
@@ -285,7 +318,11 @@ export async function run(o: RunOpts): Promise<void> {
         jsHeapMb: jsHeapMb(),
         elapsedS: Math.round((now - t0) / 1000),
       });
-      await csvAppend(csvLine(o.mode, String(Math.round((now - t0) / 1000)), ws, memMb));
+      // Em auto+json o resumo sai pelo JSON (e o run-s5.ps1 grava o CSV) —
+      // não poluir o medicoes.csv rastreado.
+      if (!o.jsonFinish) {
+        await csvAppend(csvLine(o.mode, String(Math.round((now - t0) / 1000)), ws, memMb));
+      }
       o.onTick(s);
     }, 10000);
 
@@ -306,7 +343,26 @@ export async function run(o: RunOpts): Promise<void> {
         decoder.close();
         decoder = null;
       }
-      await csvAppend(csvLine(o.mode, "FIM", ws, memMb));
+      if (!o.jsonFinish) {
+        await csvAppend(csvLine(o.mode, "FIM", ws, memMb));
+      }
+      if (o.jsonFinish) {
+        await autoFinish(
+          buildSummary({
+            mode: o.mode,
+            seconds: o.seconds,
+            elapsedS: (now - t0) / 1000,
+            draws: m.draws,
+            bytes: m.bytes,
+            drops: m.drops,
+            latencySamples: m.latSamples,
+            supported: o.mode === "A" ? true : null,
+            memStartMb: memStart,
+            memEndMb: memMb,
+            pid,
+          }),
+        );
+      }
       o.onDone(
         stats(false, {
           supported: o.mode === "A" ? true : null,
@@ -324,6 +380,25 @@ export async function run(o: RunOpts): Promise<void> {
     o.onTick(stats(true, { supported: o.mode === "A" ? true : null }));
   } catch (e) {
     stopped = true;
+    if (o.jsonFinish) {
+      // Mesmo em falha: grava o JSON (com error) e encerra, p/ o script não travar.
+      await autoFinish(
+        buildSummary({
+          mode: o.mode,
+          seconds: o.seconds,
+          elapsedS: t0 > 0 ? (performance.now() - t0) / 1000 : 0,
+          draws: m.draws,
+          bytes: m.bytes,
+          drops: m.drops,
+          latencySamples: m.latSamples,
+          supported: null,
+          memStartMb: memStart,
+          memEndMb: memStart,
+          pid,
+          error: String(e),
+        }),
+      );
+    }
     o.onDone(stats(false, { error: String(e) }));
   }
 
@@ -361,12 +436,14 @@ export async function stopFeed() {
   await invoke("stop_feed").catch(() => {});
 }
 
-export async function autoConfig(): Promise<{ mode: Mode; seconds: number } | null> {
-  const r = (await invoke<{ mode: string | null; seconds: number } | null>(
-    "auto_config",
-  )) as { mode: string | null; seconds: number } | null;
+export async function autoConfig(): Promise<
+  { mode: Mode; seconds: number; json: string | null } | null
+> {
+  const r = (await invoke<
+    { mode: string | null; seconds: number; json: string | null } | null
+  >("auto_config")) as { mode: string | null; seconds: number; json: string | null } | null;
   if (!r || r.mode === null) return null;
   const mode = r.mode as Mode;
   if (mode !== "A" && mode !== "B") return null;
-  return { mode, seconds: r.seconds };
+  return { mode, seconds: r.seconds, json: r.json };
 }

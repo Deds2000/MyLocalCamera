@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use tauri::ipc::Channel;
+use tauri::AppHandle;
 use tauri::State;
 
 use crate::feed::{self, ParseArgs, StopFlag};
@@ -87,6 +88,8 @@ pub fn csv_append(line: String, header: String) -> Result<(), String> {
 pub struct AutoConfig {
     pub mode: Option<String>,
     pub seconds: u32,
+    /// `Some(path)` quando iniciado com `--json` (modo auto completo).
+    pub json: Option<String>,
 }
 
 #[tauri::command]
@@ -94,5 +97,29 @@ pub fn auto_config(state: State<AppState>) -> AutoConfig {
     AutoConfig {
         mode: state.args.mode.map(|c| c.to_string()),
         seconds: state.args.seconds,
+        json: state.args.json.clone(),
     }
+}
+
+/// Fim da medição em modo auto: grava o resumo JSON no caminho de `--json`
+/// e encerra o app. Chamado uma única vez pelo frontend.
+#[tauri::command]
+pub fn auto_finish(
+    app: AppHandle,
+    state: State<AppState>,
+    summary: String,
+) -> Result<(), String> {
+    let path = match state.args.json.clone() {
+        Some(p) => p,
+        None => return Ok(()), // sem --json: nada a fazer (fluxo de botões)
+    };
+    let pb = std::path::Path::new(&path);
+    if let Some(dir) = pb.parent() {
+        if !dir.as_os_str().is_empty() {
+            std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        }
+    }
+    std::fs::write(pb, summary).map_err(|e| format!("falha ao escrever {path}: {e}"))?;
+    app.exit(0);
+    Ok(())
 }

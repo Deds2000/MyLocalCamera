@@ -12,16 +12,20 @@ use tauri::ipc::Channel;
 pub struct ParseArgs {
     pub mode: Option<char>,
     pub seconds: u32,
+    /// Em modo auto com `--json`, o app escreve o resumo final neste caminho e sai.
+    pub json: Option<String>,
 }
 
 pub fn parse_args() -> ParseArgs {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut mode: Option<char> = None;
     let mut seconds: u32 = 60;
+    let mut json: Option<String> = None;
     let mut i = 0;
     while i < args.len() {
         match args.get(i).map(|s| s.as_str()) {
-            Some("--mode") => {
+            // `--auto` = modo automatizado; `--mode` mantido p/ compatibilidade.
+            Some("--auto") | Some("--mode") => {
                 if let Some(v) = args.get(i + 1) {
                     mode = v.chars().next();
                     i += 1;
@@ -33,11 +37,17 @@ pub fn parse_args() -> ParseArgs {
                     i += 1;
                 }
             }
+            Some("--json") => {
+                if let Some(v) = args.get(i + 1) {
+                    json = Some(v.clone());
+                    i += 1;
+                }
+            }
             _ => {}
         }
         i += 1;
     }
-    ParseArgs { mode, seconds }
+    ParseArgs { mode, seconds, json }
 }
 
 pub struct StopFlag(AtomicBool);
