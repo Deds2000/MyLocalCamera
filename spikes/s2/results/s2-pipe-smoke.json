@@ -1,0 +1,14 @@
+{
+  "channel": "pipe",
+  "duration_s": 3,
+  "frames_sent": 60,
+  "bytes_sent": 186625680,
+  "throughput_mbps": 62.2,
+  "frames_acked": 60,
+  "frames_lost": 0,
+  "late_roundtrips": 0,
+  "connections": 1,
+  "write_errors": 0,
+  "read_errors": 0,
+  "latency_us": { "p50": 898, "p95": 1238, "max": 1649 }
+}

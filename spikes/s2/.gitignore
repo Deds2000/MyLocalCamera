@@ -1,0 +1,5 @@
+# Spike S2 — artefatos de build (reproduzíveis; ver docs/spikes/S2.md)
+dll/VirtualCameraMediaSource/obj/
+dll/VirtualCameraMediaSource/x64/
+dll/packages/
+*.err

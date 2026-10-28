@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = ["common", "pipe-server", "shm-server"]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+version = "0.0.0"
+
+[workspace.dependencies]
+windows = { version = "=0.62.2", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Memory",
+    "Win32_System_Performance",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
+] }
+
+[profile.release]
+debug = 1

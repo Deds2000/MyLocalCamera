@@ -1,0 +1,8 @@
+{
+  "channel": "shm",
+  "namespace": "global",
+  "created": false,
+  "map_error": "Acesso negado. (0x80070005)",
+  "event_error": null,
+  "note": "usuário comum não tem SeCreateGlobalPrivilege (esperado)"
+}

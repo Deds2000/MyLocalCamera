@@ -1,0 +1,10 @@
+{
+  "channel": "shm",
+  "namespace": "local",
+  "created": true,
+  "duration_s": 12,
+  "frames_written": 360,
+  "bytes_written": 1119754080,
+  "throughput_mbps": 93.3,
+  "late_ticks": 0
+}
