@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F0-S5` (parte humana: 6 execuções × 10 min — `spikes/s5/ROTEIRO-HUMANO.md`)  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-28
+**Próxima tarefa:** `F0-S2` (parte humana) → depois `F0-S5` (parte humana: 6 execuções × 10 min)  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-28
 
 ## Bloqueios
 (nenhum)
