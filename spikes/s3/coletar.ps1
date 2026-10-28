@@ -11,23 +11,24 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if ($Device) { $adb = @("adb", "-s", $Device) } else { $adb = @("adb") }
+$adbArgs = @()
+if ($Device) { $adbArgs = @("-s", $Device) }
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $tmp = Join-Path $repoRoot "docs\spikes\tmp"
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 
-& $adb logcat -c
+& adb @adbArgs logcat -c
 if ($LASTEXITCODE -ne 0) { throw "adb logcat -c falhou (aparelho conectado?)" }
 
 if (-not [string]::IsNullOrWhiteSpace($Test)) {
     $sec = if ($Seconds -le 0) { 600 } else { $Seconds }
-    & $adb shell am start -n com.localcamera.spike.s3/.MainActivity --es test $Test --ei seconds $sec
+    & adb @adbArgs shell am start -n com.localcamera.spike.s3/.MainActivity --es test $Test --ei seconds $sec
     if ($LASTEXITCODE -ne 0) { throw "am start falhou (APK instalado?)" }
     Write-Host "Teste $Test por ${sec}s em andamento..."
     Start-Sleep -Seconds ($sec + 15)
 }
 
 $log = Join-Path $tmp "s3-log.txt"
-& $adb logcat -d -s S3 | Out-File -FilePath $log -Encoding utf8
+& adb @adbArgs logcat -d -s S3 | Out-File -FilePath $log -Encoding utf8
 Write-Host "Log salvo em $log"

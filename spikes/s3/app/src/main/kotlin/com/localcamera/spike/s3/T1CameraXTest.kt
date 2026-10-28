@@ -2,6 +2,7 @@ package com.localcamera.spike.s3
 
 import android.content.Context
 import android.hardware.camera2.CaptureRequest
+import android.util.Range
 import android.util.Size
 import android.view.Surface
 import androidx.camera.camera2.interop.Camera2Interop
@@ -9,6 +10,9 @@ import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.core.SurfaceRequest
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.lifecycle.LifecycleOwner
 import com.google.common.util.concurrent.ListenableFuture
@@ -43,11 +47,26 @@ class T1CameraXTest(ctx: Context, seconds: Long) : SpikeTest(ctx, seconds) {
             try {
                 val p = fut.get()
                 provider = p
-                val builder = Preview.Builder().setTargetResolution(Size(1920, 1080))
+                val selector = ResolutionSelector.Builder()
+                    .setAspectRatioStrategy(
+                        AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
+                    )
+                    .setResolutionStrategy(
+                        ResolutionStrategy(
+                            Size(1920, 1080),
+                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                        )
+                    )
+                    .build()
+                val builder = Preview.Builder().setResolutionSelector(selector)
                 Camera2Interop.Extender(builder)
                     .setCaptureRequestOption(
                         CaptureRequest.CONTROL_AF_MODE,
                         CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO
+                    )
+                    .setCaptureRequestOption(
+                        CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                        Range(30, 30)
                     )
                 val pv = builder.build()
                 preview = pv

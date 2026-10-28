@@ -210,6 +210,7 @@ class T4DualTest(ctx: Context, seconds: Long) : SpikeTest(ctx, seconds) {
             override fun onConfigured(cs: CameraCaptureSession) {
                 s.session = cs
                 val req = dev.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
+                s.encoder?.inputSurface?.let { req.addTarget(it) }
                 req.set(
                     CaptureRequest.CONTROL_AF_MODE,
                     CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO

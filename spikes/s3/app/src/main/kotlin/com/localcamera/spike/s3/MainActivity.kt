@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,6 +38,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Spike de coleta: mantém a tela acordada durante os testes de estabilidade.
+        // (o teste de "tela apagando" é um passo humano separado)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(buildUi())
         S3Log.i("app_started pkg=$packageName")
 

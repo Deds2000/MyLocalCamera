@@ -8,6 +8,7 @@ import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CaptureRequest
 import android.os.Handler
 import android.os.HandlerThread
+import android.util.Range
 import android.view.Surface
 
 /** T2: Camera2 direto (CameraDevice/CaptureSession) na Surface do encoder, 1080p30. */
@@ -74,6 +75,11 @@ class T2Camera2Test(ctx: Context, seconds: Long) : SpikeTest(ctx, seconds) {
                             CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
                         )
                         req.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                        req.set(
+                            CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                            Range(30, 30)
+                        )
+                        req.addTarget(surface)
                         s.setRepeatingRequest(req.build(), null, h)
                         S3Log.i("$id event=session_ready res=1920x1080")
                     }
