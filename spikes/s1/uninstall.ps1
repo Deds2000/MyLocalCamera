@@ -177,16 +177,16 @@ public static class VCamPinv
 }
 
 # ---------------------------------------------------------------------------
-# 2) Unregister the DLL
+# 2) Unregister the media source (remove the registry key — espelho do install)
+#    (o sample NÃO usa regsvr32; registra via HKLM\...\CLSID\{GUID}\InprocServer32)
 # ---------------------------------------------------------------------------
-if (Test-Path -LiteralPath $DestDll) {
-    Write-Host "Unregistering $DestDll (regsvr32 /s /u) ..."
-    & regsvr32 /s /u $DestDll
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[WARN] regsvr32 /u returned exit code $LASTEXITCODE." -ForegroundColor Yellow
-    }
+$ClsidKey = "HKLM:\SOFTWARE\Classes\CLSID\$ClSid"
+if (Test-Path -LiteralPath $ClsidKey) {
+    Write-Host "Removing registry key $ClsidKey ..."
+    Remove-Item -LiteralPath $ClsidKey -Recurse -Force
+    Write-Host "Registry key removed." -ForegroundColor Green
 } else {
-    Write-Host "DLL not found at $DestDll (already removed?)." -ForegroundColor Yellow
+    Write-Host "Nenhuma chave CLSID $ClSid no registro (já removida?)." -ForegroundColor Yellow
 }
 
 # ---------------------------------------------------------------------------

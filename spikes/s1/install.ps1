@@ -6,7 +6,8 @@
   - Copies VirtualCameraMediaSource.dll and VirtualCamera_Installer.exe
     into C:\Program Files\LocalCameraSpike (FrameServer runs under another
     user, so the DLL must live in a machine-wide path).
-  - Registers the DLL (regsvr32 /s). Requires administrator.
+  - Registers the media source by writing HKLM\SOFTWARE\Classes\CLSID\{GUID}\InprocServer32
+     (o sample NÃO usa regsvr32; a DLL não exporta DllRegisterServer). Requires administrator.
   - Prints the exact command to create the virtual camera afterwards.
 .NOTES
   Run from an ELEVATED (administrator) PowerShell window:
@@ -58,13 +59,28 @@ Copy-Item -LiteralPath $SrcExe -Destination $DestExe -Force
 Write-Host "  $DestDll"
 Write-Host "  $DestExe"
 
-Write-Host 'Registering media source DLL (regsvr32 /s) ...'
-& regsvr32 /s $DestDll
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] regsvr32 failed (exit code $LASTEXITCODE) for $DestDll" -ForegroundColor Red
+# A media source do sample NÃO usa regsvr32 (não exporta DllRegisterServer).
+# O MSI do sample registra escrevendo no registro (README, passo 4):
+#   HKLM\SOFTWARE\Classes\CLSID\<GUID>\InprocServer32
+#     (default) = caminho da DLL
+#     Threading = Both
+$Clsid = '{7B89B92E-FE71-42D0-8A41-E137D06EA184}'
+$ClsidKey  = "HKLM:\SOFTWARE\Classes\CLSID\$Clsid"
+$InprocKey = "$ClsidKey\InprocServer32"
+Write-Host 'Registering media source (HKLM CLSID -> InprocServer32) ...'
+try {
+    New-Item -Path $ClsidKey -Force | Out-Null
+    New-Item -Path $InprocKey -Force | Out-Null
+    Set-ItemProperty -Path $InprocKey -Name '(default)' -Value $DestDll
+    Set-ItemProperty -Path $InprocKey -Name 'Threading' -Value 'Both'
+} catch {
+    Write-Host "[ERROR] Falha ao gravar o registro: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
-Write-Host 'Registered CLSID {7B89B92E-FE71-42D0-8A41-E137D06EA184} (VirtualCameraMediaSource).' -ForegroundColor Green
+Write-Host "  $InprocKey"
+Write-Host "    (default) = $DestDll"
+Write-Host '    Threading = Both'
+Write-Host "Registered CLSID $Clsid (VirtualCameraMediaSource)." -ForegroundColor Green
 
 Write-Host ''
 Write-Host '=================================================================' -ForegroundColor Green
