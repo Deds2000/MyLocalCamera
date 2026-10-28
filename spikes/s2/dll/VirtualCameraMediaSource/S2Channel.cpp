@@ -5,6 +5,8 @@
 #include "pch.h"
 
 #include <cstring>
+#include <cstdarg>
+#include <cstdio>
 
 namespace s2
 {
@@ -20,6 +22,46 @@ namespace s2
         LARGE_INTEGER cnt = {};
         (void)QueryPerformanceCounter(&cnt);
         return (uint64_t)(((uint64_t)cnt.QuadPart * 1000000ULL) / (uint64_t)freq.QuadPart);
+    }
+
+    // Log de arquivo (o DEBUG_MSG não é visível no processo de serviço do
+    // Frame Server). Grava no %TEMP% do processo:
+    //   LocalService (svchost -k Camera) -> C:\Windows\Temp (ou profile);
+    //   sessão do usuário               -> C:\Users\<user>\AppData\Local\Temp.
+    static void Log(const wchar_t* fmt, ...)
+    {
+        wchar_t tmp[260] = {};
+        const DWORD got = ::GetTempPathW(260, tmp);
+        wchar_t path[512] = {};
+        (void)swprintf_s(path, L"%ls2channel.log", (got > 0) ? tmp : L"C:\\Windows\\Temp\\");
+        HANDLE hf = ::CreateFileW(path, FILE_APPEND_DATA,
+                                  FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                                  OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (hf == INVALID_HANDLE_VALUE)
+        {
+            // Fallback: tente C:\Temp (LocalService frequentemente não tem perfil de usuário).
+            (void)swprintf_s(path, L"C:\\Temp\\s2channel.log");
+            hf = ::CreateFileW(path, FILE_APPEND_DATA,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                               OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+            if (hf == INVALID_HANDLE_VALUE)
+            {
+                return;
+            }
+        }
+        SYSTEMTIME st;
+        ::GetLocalTime(&st);
+        wchar_t body[512] = {};
+        va_list ap;
+        va_start(ap, fmt);
+        (void)swprintf_s(body, fmt, ap);
+        va_end(ap);
+        wchar_t line[600] = {};
+        (void)swprintf_s(line, L"[%02d:%02d:%02d.%03d] %s",
+                         st.wHour, st.wMinute, st.wSecond, st.wMilliseconds, body);
+        DWORD n = 0;
+        (void)::WriteFile(hf, line, (DWORD)(wcslen(line) * sizeof(wchar_t)), &n, nullptr);
+        ::CloseHandle(hf);
     }
 
     // Lê os campos do header (little-endian; x64 é LE, então memcpy basta).
@@ -67,11 +109,13 @@ namespace s2
         if (ShmEnabledFromRegistry())
         {
             DEBUG_MSG(L"S2: canal = shm (HKLM\\SOFTWARE\\LocalCameraSpike\\Channel)");
+            Log(L"S2: thread iniciado; canal = shm (pid=%lu)", (unsigned long)::GetCurrentProcessId());
             ShmLoop();
         }
         else
         {
             DEBUG_MSG(L"S2: canal = pipe (padrão)");
+            Log(L"S2: thread iniciado; canal = pipe (pid=%lu)", (unsigned long)::GetCurrentProcessId());
             PipeLoop();
         }
     }
@@ -116,6 +160,13 @@ namespace s2
         m_framesRead.fetch_add(1, std::memory_order_relaxed);
         m_lastLatencyUs.store(
             (readPtsUs >= ptsUs) ? (readPtsUs - ptsUs) : 0, std::memory_order_relaxed);
+        const uint64_t n = m_framesRead.load(std::memory_order_relaxed);
+        if ((n == 1) || ((n % 150) == 0)) // 1º quadro e a cada ~5 s (30 fps)
+        {
+            Log(L"S2: quadro %llu recebido (seq=%llu lat_us=%llu)",
+                (unsigned long long)n, (unsigned long long)seq,
+                (unsigned long long)m_lastLatencyUs.load(std::memory_order_relaxed));
+        }
 
         std::lock_guard<std::mutex> lock(m_frameLock);
         memcpy(m_latest.data(), msg, MsgSize);
@@ -129,16 +180,26 @@ namespace s2
     //////////////////////////////////////////////////////////////////////////////
     void Channel::PipeLoop()
     {
+        uint32_t fails = 0;
         while (!m_stop.load(std::memory_order_relaxed))
         {
             HANDLE h = ::CreateFileW(PipeName, GENERIC_READ | GENERIC_WRITE, 0,
                                      nullptr, OPEN_EXISTING, 0, nullptr);
             if (h == INVALID_HANDLE_VALUE)
             {
+                // Loga a 1ª falha e a cada 100 (2 a cada minuto) para não
+                // alagar o arquivo se o servidor não estiver rodando.
+                if ((fails % 100) == 0)
+                {
+                    Log(L"S2 pipe: FAIL ao abrir \\.\pipe\LocalCameraSpike err=%lu tentativas=%lu",
+                        (unsigned long)::GetLastError(), (unsigned long)(fails + 1));
+                }
+                ++fails;
                 SetNoFrame();
                 ::Sleep(500);
                 continue;
             }
+            Log(L"S2 pipe: conectado (após %lu falhas)", (unsigned long)fails);
             DEBUG_MSG(L"S2 pipe: conectado");
             std::vector<uint8_t> msg(MsgSize);
             while (!m_stop.load(std::memory_order_relaxed))
@@ -172,6 +233,8 @@ namespace s2
             }
             ::CloseHandle(h);
             SetNoFrame();
+            Log(L"S2 pipe: desconectado (frames=%llu drops=%llu)",
+                (unsigned long long)m_framesRead.load(), (unsigned long long)m_dropped.load());
             DEBUG_MSG(L"S2 pipe: desconectado (frames=%llu, drops=%llu); tentando de novo em 500 ms",
                       (unsigned long long)m_framesRead.load(), (unsigned long long)m_dropped.load());
             if (!m_stop.load(std::memory_order_relaxed))
@@ -255,9 +318,20 @@ namespace s2
     //////////////////////////////////////////////////////////////////////////////
     bool Channel::TryFillFrame(BYTE* dst, LONG dstPitch, DWORD bufferLength) const
     {
-        if ((dst == nullptr) || (dstPitch <= 0) || (dstPitch > (LONG)FrameWidth))
+        static std::atomic<uint64_t> s_fillCalls{0}; // diagnóstico; fora da classe p/ TryFillFrame const
+        const uint64_t c = s_fillCalls.fetch_add(1, std::memory_order_relaxed) + 1;
+        if ((c == 1) || ((c % 150) == 0))
         {
-            return false; // dstPitch menor que a largura não faz sentido
+            Log(L"S2: TryFillFrame chamado #%llu (pitch=%ld len=%lu)",
+                (unsigned long long)c, (long)dstPitch, (unsigned long)bufferLength);
+        }
+        if ((dst == nullptr) || (dstPitch <= 0))
+        {
+            if (c == 1)
+            {
+                Log(L"S2: TryFillFrame -> false (dst nulo/pitch=%ld)", (long)dstPitch);
+            }
+            return false; // dstPitch não faz sentido
         }
         // Sanidade: buffer precisa caber Y + UV com o pitch informado.
         const size_t needed = (size_t)FrameHeight * (size_t)dstPitch * 3 / 2;

@@ -148,6 +148,25 @@ Remove-Item 'HKLM:\SOFTWARE\LocalCameraSpike' -Force -ErrorAction SilentlyContin
 
 ---
 
+## ## Rodada automatizada (agente, 2026-10-28)
+
+O agente executou a maior parte do roteiro sem intervenção humana. Aprendizados e desvios:
+
+- **Abrir/fechar o app Câmera**: `Start-Process explorer.exe 'shell:AppsFolder\microsoft.windows.camera_8wekyb3d8bbwe!App'`; o processo do app é `WindowsCamera`. A câmera virtual `SWVCamMediaSource` é a única disponível → auto-selecionada.
+- **Reiniciar o Frame Server**: `Restart-Service FrameServer` **falha** com cliente ativo. Usar `tasklist /svc | Select-String 'FrameServer'` para achar TODOS os PIDs dos svchost (pode haver 2) e `taskkill /PID <p> /F` em cada. O serviço sobe de novo ao reabrir a câmera.
+- **CPU exige câmera aberta**: `measure-cpu.ps1` mede 0% no FrameServer se a câmera não estiver aberta. O script agora avisa (amarelo) se FrameServer < 0,5% durante a medição.
+- **Fix da DLL (pitch)**: a DLL rejeitava `dstPitch > FrameWidth` no `TryFillFrame`; a rejeição foi removida porque o app Câmera envia pitch com padding. Sem esse fix, o vídeo fica azul.
+- **Log da DLL**: grava em `%TEMP%\s2channel.log`, mas o %TEMP% do LocalService não existe → fallback para `C:\Temp\s2channel.log`. Não confie no log do LocalService para diagnóstico.
+- **Resultados medidos**:
+  - CPU 60 s (câmera aberta): app 3,54% / FrameServer 100,78% de 1 núcleo.
+  - Pipe 1500 s: 41.978 quadros, 0 perdas, 87,0 MB/s, 22 conexões, latência p50 1,87 ms / p95 2,95 ms.
+  - 20× abrir/fechar: 21 reconexões OK.
+  - Segurança (2º usuário): NEGADO 5 (ERROR_ACCESS_DENIED).
+  - shm Global: NEGADO (0x80070005); shm Local: 93,3 MB/s (mecanismo validado).
+- **Worker elevado**: a tarefa agendada `LocalCameraElevated` (SYSTEM) executa `C:\ProgramData\LocalCameraElevated\run.ps1` que roda `cmd.ps1` quando muda. Latência ~2 s. **Não remover antes do cleanup final** (requerido para executar `uninstall.ps1`, remover chave HKLM e usuário de teste).
+
+---
+
 ## Observações para o preenchimento das tabelas
 
 - Se qualquer linha não foi executada, escreva `n/a` + motivo.

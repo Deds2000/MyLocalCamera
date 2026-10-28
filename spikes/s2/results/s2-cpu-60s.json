@@ -1,0 +1,17 @@
+﻿{
+    "seconds":  60,
+    "server":  {
+                   "name":  "s2-pipe-server",
+                   "pid":  14692,
+                   "cpu_percent_of_core":  3.54
+               },
+    "frameserver":  {
+                        "name":  "svchost.exe -k Camera",
+                        "pids":  [
+                                     31512,
+                                     38680
+                                 ],
+                        "cpu_percent_of_core":  100.78
+                    },
+    "note":  "cpu_percent_of_core = % de UM nÃºcleo (pode \u003e 100% com mÃºltiplas threads); null = processo terminou/reiniciou durante a mediÃ§Ã£o"
+}

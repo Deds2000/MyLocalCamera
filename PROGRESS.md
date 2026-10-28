@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F0-S2` (parte humana) → depois `F0-S5` (parte humana: 6 execuções × 10 min)  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-28
+**Próxima tarefa:** `F0-S5` (parte humana: 6 execuções × 10 min) → depois `F0-GATE`  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-28
 
 ## Bloqueios
 (nenhum)
@@ -28,7 +28,7 @@
 - F0-T10: e2e **não incluído no `ci.ps1`** — incluir na Fase 2, junto com o catálogo real.
 - F0-T10: `snapshotDir` ficou descontinuada no Playwright (1.64); usado `snapshotPathTemplate: "e2e/__snapshots__/{projectName}/{arg}{ext}"` (mesmo diretório do cartão). No Playwright 1.64 o `testInfo` é o 2º argumento do teste (não fixture), e `devices["iPhone 13"]` traz `webkit` - projeto mobile fixado em `chromium`.
 - F0-S1: câmera de teste removida; depois do reboot, o sample enumerou o device mas `Remove` retornou `MF_E_NOT_FOUND`; câmera sumiu das Configurações e os arquivos do spike foram removidos.
-- F0-S2 (parte do agente pronta): pipe-server com DACL (usuário + LocalService S-1-5-19) validado 60 s: 1746 quadros, 0 perdas, 90,5 MB/s, lat p50/p95 = 0,85/1,31 ms (smoke-client; teste cross-conta com a DLL = humano). DLL 1080p adaptada em `spikes/s2/dll` (canal pipe|shm via `HKLM\SOFTWARE\LocalCameraSpike\Channel`, fallback padrão azul). **Achados:** criar mapa `Global\` é NEGADO p/ usuário comum (ACCESS_DENIED; evento `Global\` OK); named pipes são máquina-wide (docs MS); parser de SDDL desta máquina exige seções owner/group (`O:…G:…D:…`); prefixo `Global\`/`Local\` é sensível a caixa. Roteiro do humano: `spikes/s2/ROTEIRO-HUMANO.md`; veredito + ADR 0003 só após as tabelas dele.
+- F0-S2 (concluído): pipe nomeado é o canal Frame Server ↔ app (veredito aceito, ADR 0003). Medições: 1500 s = 41.978 quadros, 0 perdas, 87,0 MB/s, lat p50 1,87 ms / p95 2,95 ms; CPU 60 s (câmera aberta): app 3,54% / FrameServer 100,78%; 20× abrir/fechar = 21 reconexões OK; segurança 2º usuário = NEGADO 5 (ACCESS_DENIED); shm Global = NEGADO (0x80070005), shm Local = 93,3 MB/s. **Cleanup de admin pendente** (requer worker elevado `LocalCameraElevated` para rodar `uninstall.ps1`, remover `HKLM\SOFTWARE\LocalCameraSpike` e usuário `LocalCamSpikeTest`).
 
 ---
 
@@ -51,7 +51,7 @@ Ordem de execução (respeite as dependências):
 | [x] | F0-T14 | Relatórios de teste (`new-report.ps1`) | A | T07 | `docs/tasks/fase-0/F0-T14.md` |
 | [x] | F0-T10 | (opcional) Playwright para o catálogo de componentes | A | T02, T03 | `docs/tasks/fase-0/F0-T10.md` |
 | [x] | F0-S1 | Spike S1 — câmera virtual × NVIDIA Broadcast | A+H | T01 | `docs/tasks/fase-0/F0-S1.md` |
-| [~] | F0-S2 | Spike S2 — canal Frame Server ↔ app (parte do agente pronta; falta o humano) | A+H | S1 | `docs/tasks/fase-0/F0-S2.md` |
+| [x] | F0-S2 | Spike S2 — canal Frame Server ↔ app (pipe nomeado, veredito aceito; ADR 0003; cleanup de admin pendente por falta de elevação) | A+H | S1 | `docs/tasks/fase-0/F0-S2.md` |
 | [x] | F0-S3 | Spike S3 — CameraX × Camera2 (e câmeras simultâneas) | A+H | T03 | `docs/tasks/fase-0/F0-S3.md` |
 | [~] | F0-S5 | Spike S5 — estratégia de preview (parte do agente pronta; falta o humano — ROTEIRO-HUMANO.md) | A+H | T02, T13 | `docs/tasks/fase-0/F0-S5.md` |
 | [ ] | F0-GATE | Portão da Fase 0 (todos os testes e relatório) | A+H | todas | `docs/tasks/fase-0/F0-GATE.md` |
