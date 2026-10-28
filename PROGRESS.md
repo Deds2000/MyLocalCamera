@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F0-S3`  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-27
+**Próxima tarefa:** `F0-S1` (parte humana)  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-28
 
 ## Bloqueios
 (nenhum)
@@ -23,6 +23,8 @@
 - F0-T11: Kotlin 2.4.21 + coroutines-test 1.11.0. O `androidTest` do template esperava `com.getcapacitor.app`; corrigido para `com.localcamera.app`.
 - F0-T11: `gradlew connectedDebugAndroidTest` (raiz) falha em `:capacitor-cordova-android-plugins:checkDebugAndroidTestDuplicateClasses` (stdlib 1.8.22 + jdk7/jdk8 1.6.21, módulo gerado). Usar `gradlew :app:connectedDebugAndroidTest`; 2 testes passaram no Samsung.
 - F0-T06: `ci.ps1 -Fast` = 17,5 s; completo = 22,9 s; hook `pre-push` ativo. FT-0.01 a FT-0.05 verificados e revertidos (FT-0.01 parou no lint antes do typecheck; typecheck direto também falha).
+- F0-S3: veredito **CameraX (única) + Camera2 (dual)**. T1/T2 1080p30 estáveis 10 min (29,7 fps, jitter <1); dual T4 = back+front/ultrawide a 1080p cada, 10 min. **60 fps não oferecido** (`offers60=false`; Camera2 em alvo 60 trava, 0 frames). Armadilha: CameraX `setTargetResolution` cai em 1088x1088 → usar `ResolutionSelector` 16:9. Encoder `OMX.qcom.video.encoder.avc`, sem `KEY_LOW_LATENCY`, 1º keyframe 0,7–1,1 s. **Pendente (humano):** testes de interrupção (tela apagando → exige serviço em primeiro plano na Fase 2).
+- F0-S5: parte do agente pronta (protótipo Tauri+React em `spikes/s5/`, medições iniciais 60 s: A WebCodecs 30 fps/1,13 MB/s/11 ms/53 MB; B JPEG 30 fps/0,66 MB/s/8–9 ms/36 MB; ambos memória flat). **Veredito A/B pendente do humano** (10 min × DPI 100/150/200% + CPU/GPU do Gerenciador de Tarefas).
 
 ---
 
@@ -44,10 +46,10 @@ Ordem de execução (respeite as dependências):
 | [x] | F0-T13 | Fixtures: `make-fixtures.ps1` e `fixture-tool` | A | T12 | `docs/tasks/fase-0/F0-T13.md` |
 | [x] | F0-T14 | Relatórios de teste (`new-report.ps1`) | A | T07 | `docs/tasks/fase-0/F0-T14.md` |
 | [ ] | F0-T10 | (opcional) Playwright para o catálogo de componentes | A | T02, T03 | `docs/tasks/fase-0/F0-T10.md` |
-| [ ] | F0-S1 | Spike S1 — câmera virtual × NVIDIA Broadcast | A+H | T01 | `docs/tasks/fase-0/F0-S1.md` |
+| [~] | F0-S1 | Spike S1 — câmera virtual × NVIDIA Broadcast | A+H | T01 | `docs/tasks/fase-0/F0-S1.md` |
 | [ ] | F0-S2 | Spike S2 — canal Frame Server ↔ app | A+H | S1 | `docs/tasks/fase-0/F0-S2.md` |
-| [ ] | F0-S3 | Spike S3 — CameraX × Camera2 (e câmeras simultâneas) | A+H | T03 | `docs/tasks/fase-0/F0-S3.md` |
-| [ ] | F0-S5 | Spike S5 — estratégia de preview (WebCodecs × JPEG do Rust) | A+H | T02, T13 | `docs/tasks/fase-0/F0-S5.md` |
+| [x] | F0-S3 | Spike S3 — CameraX × Camera2 (e câmeras simultâneas) | A+H | T03 | `docs/tasks/fase-0/F0-S3.md` |
+| [~] | F0-S5 | Spike S5 — estratégia de preview (WebCodecs × JPEG do Rust) | A+H | T02, T13 | `docs/tasks/fase-0/F0-S5.md` |
 | [ ] | F0-GATE | Portão da Fase 0 (todos os testes e relatório) | A+H | todas | `docs/tasks/fase-0/F0-GATE.md` |
 
 ## Fase 1 — Protocolo e rede  → `docs/phases/fase-1-protocolo-e-rede.md`
