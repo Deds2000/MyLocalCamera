@@ -15,3 +15,4 @@ mobile/android/local.properties
 !.vscode/extensions.json
 docs/spikes/tmp/
 spikes/**/build/
+spikes/s1/_vendor/
