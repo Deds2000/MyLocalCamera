@@ -25,6 +25,8 @@
 - F0-T06: `ci.ps1 -Fast` = 17,5 s; completo = 22,9 s; hook `pre-push` ativo. FT-0.01 a FT-0.05 verificados e revertidos (FT-0.01 parou no lint antes do typecheck; typecheck direto também falha).
 - F0-S3: veredito **CameraX (única) + Camera2 (dual)**. T1/T2 1080p30 estáveis 10 min (29,7 fps, jitter <1); dual T4 = back+front/ultrawide a 1080p cada, 10 min. **60 fps não oferecido** (`offers60=false`; Camera2 em alvo 60 trava, 0 frames). Armadilha: CameraX `setTargetResolution` cai em 1088x1088 → usar `ResolutionSelector` 16:9. Encoder `OMX.qcom.video.encoder.avc`, sem `KEY_LOW_LATENCY`, 1º keyframe 0,7–1,1 s. **Pendente (humano):** testes de interrupção (tela apagando → exige serviço em primeiro plano na Fase 2).
 - F0-S5: parte do agente pronta (protótipo Tauri+React em `spikes/s5/`, medições iniciais 60 s: A WebCodecs 30 fps/1,13 MB/s/11 ms/53 MB; B JPEG 30 fps/0,66 MB/s/8–9 ms/36 MB; ambos memória flat). **Veredito A/B pendente do humano** (10 min × DPI 100/150/200% + CPU/GPU do Gerenciador de Tarefas).
+- F0-T10: e2e **não incluído no `ci.ps1`** — incluir na Fase 2, junto com o catálogo real.
+- F0-T10: `snapshotDir` ficou descontinuada no Playwright (1.64); usado `snapshotPathTemplate: "e2e/__snapshots__/{projectName}/{arg}{ext}"` (mesmo diretório do cartão). No Playwright 1.64 o `testInfo` é o 2º argumento do teste (não fixture), e `devices["iPhone 13"]` traz `webkit` — projeto mobile fixado em `chromium`.
 
 ---
 
@@ -45,7 +47,7 @@ Ordem de execução (respeite as dependências):
 | [x] | F0-T06 | CI local (`scripts/ci.ps1`) e hook de `pre-push` | A | T09, T12 | `docs/tasks/fase-0/F0-T06.md` |
 | [x] | F0-T13 | Fixtures: `make-fixtures.ps1` e `fixture-tool` | A | T12 | `docs/tasks/fase-0/F0-T13.md` |
 | [x] | F0-T14 | Relatórios de teste (`new-report.ps1`) | A | T07 | `docs/tasks/fase-0/F0-T14.md` |
-| [ ] | F0-T10 | (opcional) Playwright para o catálogo de componentes | A | T02, T03 | `docs/tasks/fase-0/F0-T10.md` |
+| [x] | F0-T10 | (opcional) Playwright para o catálogo de componentes | A | T02, T03 | `docs/tasks/fase-0/F0-T10.md` |
 | [~] | F0-S1 | Spike S1 — câmera virtual × NVIDIA Broadcast | A+H | T01 | `docs/tasks/fase-0/F0-S1.md` |
 | [ ] | F0-S2 | Spike S2 — canal Frame Server ↔ app | A+H | S1 | `docs/tasks/fase-0/F0-S2.md` |
 | [x] | F0-S3 | Spike S3 — CameraX × Camera2 (e câmeras simultâneas) | A+H | T03 | `docs/tasks/fase-0/F0-S3.md` |

@@ -3,6 +3,8 @@ dist/
 target/
 fixtures/*
 !fixtures/.gitkeep
+test-results/
+playwright-report/
 *.log
 .env*
 desktop/src-tauri/target/
