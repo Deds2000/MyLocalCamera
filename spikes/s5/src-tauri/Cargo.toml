@@ -1,0 +1,22 @@
+[package]
+name = "s5-spike"
+version = "0.1.0"
+description = "Spike S5: WebCodecs x JPEG do Rust (descartável)"
+edition = "2021"
+
+# Espaço de trabalho próprio: o spike NÃO entra no workspace raiz do repo.
+[workspace]
+
+[lib]
+name = "s5_spike_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# relativo a spikes/s5/src-tauri → 3 níveis até a raiz do repo
+lc-testkit = { path = "../../../crates/lc-testkit" }
