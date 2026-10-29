@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use mock_sender::cli::Cli;
-use mock_sender::session::{self, MockError};
+use mock_sender::session;
 
 /// Inicializa logs com nível vindo de `RUST_LOG` (padrão `info`).
 fn init_tracing() {
@@ -35,13 +35,9 @@ async fn main() {
                 summary.closed_by.as_deref().unwrap_or("prazo/ctrl+c")
             );
         }
-        Err(MockError::Denied(reason)) => {
-            eprintln!("recusado pelo servidor: {reason:?}");
-            std::process::exit(2);
-        }
         Err(error) => {
             eprintln!("erro: {error}");
-            std::process::exit(1);
+            std::process::exit(error.exit_code());
         }
     }
 }

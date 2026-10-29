@@ -7,6 +7,8 @@
 
 pub mod audio;
 pub mod cli;
+pub mod config;
+pub mod faults;
 pub mod media;
 pub mod session;
 pub mod state_file;
@@ -18,22 +20,27 @@ use std::io;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
+use faults::FaultyWriter;
 use lc_protocol::{FrameReader, Message};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::io::AsyncReadExt;
+use tokio::net::tcp::OwnedReadHalf;
 use tokio::sync::Mutex;
 
 /// Metade de escrita serializada (PONG, vídeo e pedidos dividem o socket).
-pub(crate) type Writer = Arc<Mutex<OwnedWriteHalf>>;
+pub(crate) type Writer = Arc<Mutex<FaultyWriter>>;
 
 /// Envia uma mensagem completa pelo socket (encode + flush).
 pub(crate) async fn send_msg(writer: &Writer, msg: &Message) -> io::Result<()> {
     let bytes = msg
         .encode(0)
         .map_err(|e| io::Error::other(format!("encode: {e}")))?;
+    send_raw(writer, &bytes).await
+}
+
+/// Envia bytes crus (quadros malformados ou de tipo desconhecido).
+pub(crate) async fn send_raw(writer: &Writer, bytes: &[u8]) -> io::Result<()> {
     let mut guard = writer.lock().await;
-    guard.write_all(&bytes).await?;
-    guard.flush().await
+    guard.write_bytes(bytes).await
 }
 
 /// Leitor de mensagens com fila: um `read` pode trazer vários quadros e

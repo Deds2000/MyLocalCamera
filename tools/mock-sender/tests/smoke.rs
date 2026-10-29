@@ -2,10 +2,12 @@
 
 use std::path::PathBuf;
 
+use clap::Parser;
 use lc_server::config::ServerConfig;
 use lc_server::events::ServerEvent;
 use lc_server::{start, ServerHandle};
 use mock_sender::cli::Cli;
+use mock_sender::faults::Faults;
 use mock_sender::session::{run, MockConfig};
 use mock_sender::state_file;
 
@@ -60,6 +62,7 @@ fn config(port: u16, token: Option<String>) -> MockConfig {
         audio: false,
         tone: 440.0,
         seconds: None,
+        faults: Faults::default(),
     }
 }
 
@@ -116,23 +119,19 @@ async fn reconnect_with_state_file() {
     // Dá tempo do servidor encerrar a sessão anterior.
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-    // 2ª execução: SEM token, só o arquivo de estado.
-    let cli = Cli {
-        uri: None,
-        host: Some("127.0.0.1".to_owned()),
-        port,
-        token: None,
-        device_id: None,
-        name: "Mock Phone".to_owned(),
-        state_file: Some(state_path.clone()),
-        device_key: None,
-        file: None,
-        loop_video: false,
-        fps: 30,
-        audio: false,
-        tone: 440.0,
-        seconds: Some(0.2),
-    };
+    // 2ª execução: SEM token, só o arquivo de estado (parse da CLI).
+    let args = [
+        "mock-sender",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        &port.to_string(),
+        "--state-file",
+        &state_path.display().to_string(),
+        "--seconds",
+        "0.2",
+    ];
+    let cli = Cli::try_parse_from(args).expect("CLI da 2ª execução");
     let cfg = cli.into_config().expect("config da 2ª execução");
     assert!(cfg.device_key.is_some(), "deve reutilizar a chave salva");
     run(cfg).await.expect("2ª execução (device)");

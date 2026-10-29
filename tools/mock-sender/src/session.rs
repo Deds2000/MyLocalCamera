@@ -1,86 +1,98 @@
-//! Sessão do mock: HELLO/WELCOME, orquestração das tasks de mídia.
+//! Sessão do mock: HELLO/WELCOME, orquestração das tasks de mídia e
+//! modos de falha (F1-T11b).
 
 use std::net::SocketAddr;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex as StdMutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use lc_protocol::json::{
-    AppInfo, Auth, Caps, DeviceInfo, Hello, ProtocolVersion, Reason, StreamConfig, Welcome,
+    AppInfo, Auth, Caps, DeviceInfo, Hello, ProtocolVersion, StreamConfig, Welcome,
 };
 use lc_protocol::Message;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
+pub use crate::config::{MockConfig, MockError, Summary};
+use crate::faults::FaultyWriter;
 use crate::state_file::{self, State};
 use crate::video;
-use crate::{media, send_msg, Counters, MsgReader, Writer};
-
-/// Configuração resolvida da execução.
-#[derive(Debug, Clone)]
-pub struct MockConfig {
-    pub hosts: Vec<String>,
-    pub port: u16,
-    pub token: Option<String>,
-    pub device_id: String,
-    pub device_name: String,
-    pub device_key: Option<String>,
-    pub state_file: Option<PathBuf>,
-    pub file: Option<PathBuf>,
-    pub loop_video: bool,
-    pub fps: u32,
-    pub audio: bool,
-    pub tone: f32,
-    pub seconds: Option<f64>,
-}
-
-/// Resultado de uma execução.
-#[derive(Debug, Clone)]
-pub struct Summary {
-    pub video_frames: u64,
-    pub video_bytes: u64,
-    pub audio_blocks: u64,
-    pub closed_by: Option<String>,
-    pub session_id: String,
-}
-
-/// Falhas do mock.
-#[derive(Debug, thiserror::Error)]
-pub enum MockError {
-    /// Servidor recusou o pareamento/autenticação.
-    #[error("servidor recusou: {0:?}")]
-    Denied(Option<Reason>),
-    /// Nenhum host da lista aceitou a conexão.
-    #[error("nenhum host respondeu ({0})")]
-    NoHost(String),
-    /// Conexão caiu antes do `WELCOME`.
-    #[error("conexão encerrada sem WELCOME")]
-    Closed,
-    /// `WELCOME` aceito sem `sessionId`.
-    #[error("WELCOME sem sessionId")]
-    MissingSession,
-    /// Áudio pedido, mas o `WELCOME` não trouxe `audioTicket`.
-    #[error("WELCOME sem audioTicket")]
-    MissingAudioTicket,
-    /// Configuração incompleta (sem token nem `deviceKey`).
-    #[error("configuração: {0}")]
-    Config(String),
-    /// Arquivo de vídeo inválido.
-    #[error("vídeo: {0}")]
-    Video(String),
-    /// Erro de rede/IO.
-    #[error("io: {0}")]
-    Io(#[from] std::io::Error),
-}
+use crate::{media, send_msg, send_raw, Counters, MsgReader, Writer};
 
 /// Executa o mock até o fim do vídeo, o prazo de `--seconds` ou Ctrl+C.
+/// Com `--reconnect N`, repete N sessões de 1 s reutilizando o estado.
 ///
 /// # Errors
 /// Recusa do servidor, host inacessível, arquivo inválido ou erro de I/O.
-pub async fn run(cfg: MockConfig) -> Result<Summary, MockError> {
+pub async fn run(mut cfg: MockConfig) -> Result<Summary, MockError> {
+    let Some(total) = cfg.faults.reconnect else {
+        return run_once(cfg).await;
+    };
+    if total == 0 {
+        return Err(MockError::Config("--reconnect deve ser >= 1".to_owned()));
+    }
+    let mut aggregate = Summary::default();
+    for index in 0..total {
+        let mut one = cfg.clone();
+        one.seconds = Some(1.0);
+        one.faults.reconnect = None;
+        let summary = run_once(one).await?;
+        aggregate.video_frames += summary.video_frames;
+        aggregate.video_bytes += summary.video_bytes;
+        aggregate.audio_blocks += summary.audio_blocks;
+        aggregate.sessions += 1;
+        aggregate.closed_by = summary.closed_by;
+        aggregate.session_id = summary.session_id;
+        // Depois do 1º pareamento, as sessões seguintes usam o deviceKey
+        // salvo (o token de pareamento rotaciona).
+        if let Some(path) = &cfg.state_file {
+            if let Some(state) = state_file::load(path) {
+                cfg.device_id = state.device_id;
+                cfg.device_key = Some(state.device_key);
+                cfg.token = None;
+            }
+        }
+        tracing::info!(session = index + 1, total, "reconexão concluída");
+    }
+    Ok(aggregate)
+}
+
+/// Uma sessão (ou um primeiro quadro malformado).
+async fn run_once(cfg: MockConfig) -> Result<Summary, MockError> {
     let (stream, addr) = connect_first(&cfg.hosts, cfg.port).await?;
     let _ = stream.set_nodelay(true);
+
+    let (read_half, write_half) = stream.into_split();
+    let writer: Writer = Arc::new(Mutex::new(FaultyWriter::new(write_half, &cfg.faults)));
+
+    // Modos "primeiro quadro malicioso": envia e lê até o servidor fechar.
+    if cfg.faults.malformed_first_frame() {
+        let started = Instant::now();
+        send_raw(&writer, &cfg.faults.first_frame_bytes()).await?;
+        let mut msg_reader = MsgReader::new(read_half);
+        let drain = async {
+            while msg_reader.next().await?.is_some() {}
+            Ok::<(), MockError>(())
+        };
+        match tokio::time::timeout(Duration::from_secs(5), drain).await {
+            Ok(result) => result?,
+            Err(_) => {
+                return Err(MockError::Config(
+                    "servidor não fechou após o quadro malformado".to_owned(),
+                ));
+            }
+        }
+        return Ok(Summary {
+            sessions: 1,
+            closed_by: Some("server".to_owned()),
+            closed_after_ms: Some(u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)),
+            ..Summary::default()
+        });
+    }
+
+    if let Some(delay) = cfg.faults.delay_hello {
+        tokio::time::sleep(delay).await;
+    }
 
     let auth = match &cfg.device_key {
         Some(key) => Auth::Device {
@@ -94,8 +106,9 @@ pub async fn run(cfg: MockConfig) -> Result<Summary, MockError> {
                 .ok_or_else(|| MockError::Config("sem token nem deviceKey".to_owned()))?,
         },
     };
+    let (major, minor) = cfg.faults.fake_version.unwrap_or((1, 0));
     let hello = Message::Hello(Hello {
-        protocol: ProtocolVersion { major: 1, minor: 0 },
+        protocol: ProtocolVersion { major, minor },
         app: AppInfo {
             version: env!("CARGO_PKG_VERSION").to_owned(),
             platform: "android".to_owned(),
@@ -113,9 +126,6 @@ pub async fn run(cfg: MockConfig) -> Result<Summary, MockError> {
             ..Caps::default()
         },
     });
-
-    let (read_half, write_half) = stream.into_split();
-    let writer: Writer = Arc::new(Mutex::new(write_half));
     send_msg(&writer, &hello).await?;
 
     let mut msg_reader = MsgReader::new(read_half);
@@ -147,6 +157,8 @@ pub async fn run(cfg: MockConfig) -> Result<Summary, MockError> {
         msg_reader,
         writer.clone(),
         closed_by.clone(),
+        cfg.faults.no_pong,
+        cfg.faults.drop_ping,
     )));
 
     let mut video_task = if let Some(path) = &cfg.file {
@@ -171,6 +183,7 @@ pub async fn run(cfg: MockConfig) -> Result<Summary, MockError> {
             cfg.loop_video,
             writer.clone(),
             counters.clone(),
+            cfg.faults.unknown_type,
         )))
     } else {
         None
@@ -184,8 +197,11 @@ pub async fn run(cfg: MockConfig) -> Result<Summary, MockError> {
         let counters = counters.clone();
         let tone = cfg.tone;
         let audio_session = session_id.clone();
+        let faults = cfg.faults.clone();
         Some(tokio::spawn(async move {
-            if let Err(e) = media::audio_loop(addr, audio_session, ticket, tone, counters).await {
+            if let Err(e) =
+                media::audio_loop(addr, audio_session, ticket, tone, counters, faults).await
+            {
                 tracing::warn!(error = %e, "socket de áudio encerrou com erro");
             }
         }))
@@ -199,10 +215,22 @@ pub async fn run(cfg: MockConfig) -> Result<Summary, MockError> {
             None => std::future::pending::<()>().await,
         }
     };
+    let kill_after = async {
+        match cfg.faults.kill_after {
+            Some(delay) => tokio::time::sleep(delay).await,
+            None => std::future::pending::<()>().await,
+        }
+    };
+    let mut killed = false;
     tokio::select! {
         () = deadline => {}
         () = wait_handle(&mut reader_task) => {}
         () = wait_handle(&mut video_task) => {}
+        () = kill_after => {
+            // Abrupto: FIN na escrita, sem `BYE`.
+            killed = true;
+            let _ = writer.lock().await.shutdown().await;
+        }
         _ = tokio::signal::ctrl_c() => {}
     }
 
@@ -218,12 +246,18 @@ pub async fn run(cfg: MockConfig) -> Result<Summary, MockError> {
         }
     }
 
-    let closed_by = closed_by.lock().unwrap_or_else(|p| p.into_inner()).clone();
+    let closed_by = if killed {
+        Some("killed".to_owned())
+    } else {
+        closed_by.lock().unwrap_or_else(|p| p.into_inner()).clone()
+    };
     Ok(Summary {
         video_frames: counters.video_frames(),
         video_bytes: counters.video_bytes(),
         audio_blocks: counters.audio_blocks(),
+        sessions: 1,
         closed_by,
+        closed_after_ms: None,
         session_id,
     })
 }

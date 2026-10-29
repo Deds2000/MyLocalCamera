@@ -109,6 +109,15 @@ impl ServerHandle {
         &mut self.events_rx
     }
 
+    /// Número de conexões TCP ainda em andamento (handshake, sessão ou
+    /// áudio). Remove da lista as tasks já terminadas (F1-T11b).
+    #[must_use]
+    pub fn active_connections(&self) -> usize {
+        let mut guard = self.conns.lock().unwrap_or_else(|p| p.into_inner());
+        guard.retain(|handle| !handle.is_finished());
+        guard.len()
+    }
+
     /// Sinaliza o shutdown, para de aceitar e espera todas as conexões
     /// fecharem (cada uma com motivo [`crate::events::CloseReason::Shutdown`]).
     /// Repetir a chamada é inócuo.

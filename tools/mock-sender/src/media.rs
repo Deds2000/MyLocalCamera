@@ -16,18 +16,30 @@ use tokio::sync::Mutex;
 use tokio::time::{interval, MissedTickBehavior};
 
 use crate::audio::{SineGen, BLOCK_PTS_US, BLOCK_SAMPLES, SAMPLE_RATE};
+use crate::faults::{unknown_type_frame, Faults, FaultyWriter};
 use crate::video;
-use crate::{send_msg, Counters, MsgReader, Writer};
+use crate::{send_msg, send_raw, Counters, MsgReader, Writer};
 
 /// Leitura da sessão: responde `PING` e guarda o motivo do `BYE`.
 pub(crate) async fn reader_loop(
     mut msg_reader: MsgReader,
     writer: Writer,
     closed_by: Arc<StdMutex<Option<String>>>,
+    no_pong: bool,
+    drop_ping: bool,
 ) {
+    let mut dropped_first = false;
     loop {
         match msg_reader.next().await {
             Ok(Some(Message::Ping(value))) => {
+                if no_pong {
+                    continue;
+                }
+                if drop_ping && !dropped_first {
+                    dropped_first = true;
+                    tracing::info!("primeiro PING descartado (--drop-ping)");
+                    continue;
+                }
                 if send_msg(&writer, &Message::Pong(value)).await.is_err() {
                     break;
                 }
@@ -50,6 +62,7 @@ pub(crate) async fn video_loop(
     loop_video: bool,
     writer: Writer,
     counters: Arc<Counters>,
+    unknown_type: bool,
 ) {
     let mut ticker = interval(Duration::from_secs_f64(1.0 / f64::from(fps)));
     // `Burst`: o timer do Windows tem granularidade de ~15,6 ms; com
@@ -77,6 +90,13 @@ pub(crate) async fn video_loop(
                 .video_bytes
                 .fetch_add(au.len() as u64, Ordering::Relaxed);
             index += 1;
+            // `--unknown-type`: um quadro 0x99 a cada 30 quadros de vídeo.
+            if unknown_type
+                && index.is_multiple_of(30)
+                && send_raw(&writer, &unknown_type_frame()).await.is_err()
+            {
+                break 'outer;
+            }
             ticker.tick().await;
         }
         if !loop_video {
@@ -92,10 +112,11 @@ pub(crate) async fn audio_loop(
     ticket: String,
     tone: f32,
     counters: Arc<Counters>,
+    faults: Faults,
 ) -> Result<(), crate::session::MockError> {
     let stream = TcpStream::connect(addr).await?;
     let (read_half, write_half) = stream.into_split();
-    let writer: Writer = Arc::new(Mutex::new(write_half));
+    let writer: Writer = Arc::new(Mutex::new(FaultyWriter::new(write_half, &faults)));
     send_msg(
         &writer,
         &Message::AudioHello(AudioHello { session_id, ticket }),
@@ -136,7 +157,9 @@ pub(crate) async fn audio_loop(
             }
             received = msg_reader.next() => match received {
                 Ok(Some(Message::Ping(value))) => {
-                    send_msg(&writer, &Message::Pong(value)).await?;
+                    if !faults.no_pong {
+                        send_msg(&writer, &Message::Pong(value)).await?;
+                    }
                 }
                 Ok(Some(Message::Bye(_))) | Ok(None) | Err(_) => break,
                 Ok(Some(_)) => {}

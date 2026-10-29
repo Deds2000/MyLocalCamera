@@ -1,12 +1,46 @@
 //! CLI do `mock-sender` (clap derive).
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 use clap::Parser;
 
+use crate::faults::Faults;
 use crate::session::MockConfig;
 use crate::state_file;
 use crate::uri::parse_pairing_uri;
+
+/// `MS@SEG` → `(pausa, após)` do `--stall`.
+fn parse_stall(raw: &str) -> Result<(Duration, Duration), String> {
+    let (ms, seg) = raw
+        .split_once('@')
+        .ok_or_else(|| "use o formato MS@SEG (ex.: 2000@1)".to_owned())?;
+    let ms: u64 = ms
+        .parse()
+        .map_err(|_| format!("milissegundos inválidos: {ms}"))?;
+    let seg: f64 = seg
+        .parse()
+        .map_err(|_| format!("segundos inválidos: {seg}"))?;
+    if !seg.is_finite() || seg < 0.0 {
+        return Err(format!("segundos inválidos: {seg}"));
+    }
+    Ok((Duration::from_millis(ms), Duration::from_secs_f64(seg)))
+}
+
+/// `M.m` → `(major, minor)` do `--fake-version`.
+fn parse_version(raw: &str) -> Result<(u16, u16), String> {
+    let (major, minor) = raw
+        .split_once('.')
+        .ok_or_else(|| "use o formato M.m (ex.: 2.0)".to_owned())?;
+    Ok((
+        major
+            .parse()
+            .map_err(|_| format!("major inválido: {major}"))?,
+        minor
+            .parse()
+            .map_err(|_| format!("minor inválido: {minor}"))?,
+    ))
+}
 
 /// Finge ser o celular LocalCamera: pareia, reconecta e envia vídeo/áudio.
 #[derive(Debug, Parser)]
@@ -57,6 +91,47 @@ pub struct Cli {
     /// Duração em segundos (sem valor: até o arquivo acabar ou Ctrl+C).
     #[arg(long)]
     pub seconds: Option<f64>,
+
+    // ── Falhas determinísticas (F1-T11b) ──────────────────────────────
+    /// Todos os `write` saem em pedaços de N bytes (flush entre eles).
+    #[arg(long, value_name = "N")]
+    pub fragment: Option<usize>,
+    /// Primeiro quadro com `magic` errado.
+    #[arg(long)]
+    pub bad_magic: bool,
+    /// Primeiro quadro com `length = 8 MiB + 1` (só o cabeçalho).
+    #[arg(long)]
+    pub huge_length: bool,
+    /// `HELLO` com JSON inválido.
+    #[arg(long)]
+    pub bad_json: bool,
+    /// Insere um quadro de tipo `0x99` a cada 30 quadros de vídeo.
+    #[arg(long)]
+    pub unknown_type: bool,
+    /// Espera MS ms antes do `HELLO`.
+    #[arg(long, value_name = "MS")]
+    pub delay_hello: Option<u64>,
+    /// Não responde `PING`.
+    #[arg(long)]
+    pub no_pong: bool,
+    /// Descarta o 1º `PING` e responde os demais.
+    #[arg(long)]
+    pub drop_ping: bool,
+    /// Limita a vazão de escrita a KBPS kbit/s.
+    #[arg(long, value_name = "KBPS")]
+    pub slow: Option<u32>,
+    /// Depois de SEG s, para de escrever por MS ms (`MS@SEG`).
+    #[arg(long, value_name = "MS@SEG", value_parser = parse_stall)]
+    pub stall: Option<(Duration, Duration)>,
+    /// Fecha o socket abruptamente (sem `BYE`) depois de SEG s.
+    #[arg(long, value_name = "SEG")]
+    pub kill_after: Option<f64>,
+    /// Conecta/envia 1 s/desconecta, N vezes (usa `--state-file`).
+    #[arg(long, value_name = "N")]
+    pub reconnect: Option<u32>,
+    /// Anuncia `protocol {major: M, minor: m}` no `HELLO` (`M.m`).
+    #[arg(long, value_name = "M.m", value_parser = parse_version)]
+    pub fake_version: Option<(u16, u16)>,
 }
 
 impl Cli {
@@ -107,6 +182,20 @@ impl Cli {
         if !self.tone.is_finite() || self.tone <= 0.0 {
             return Err("--tone deve ser > 0".to_owned());
         }
+        if self.fragment == Some(0) {
+            return Err("--fragment deve ser >= 1".to_owned());
+        }
+        if self.slow == Some(0) {
+            return Err("--slow deve ser >= 1".to_owned());
+        }
+        if let Some(secs) = self.kill_after {
+            if !secs.is_finite() || secs <= 0.0 {
+                return Err("--kill-after deve ser > 0".to_owned());
+            }
+        }
+        if self.reconnect == Some(0) {
+            return Err("--reconnect deve ser >= 1".to_owned());
+        }
 
         Ok(MockConfig {
             hosts,
@@ -122,6 +211,21 @@ impl Cli {
             audio: self.audio,
             tone: self.tone,
             seconds: self.seconds,
+            faults: Faults {
+                fragment: self.fragment,
+                bad_magic: self.bad_magic,
+                huge_length: self.huge_length,
+                bad_json: self.bad_json,
+                unknown_type: self.unknown_type,
+                delay_hello: self.delay_hello.map(Duration::from_millis),
+                no_pong: self.no_pong,
+                drop_ping: self.drop_ping,
+                slow_kbps: self.slow,
+                stall: self.stall,
+                kill_after: self.kill_after.map(Duration::from_secs_f64),
+                reconnect: self.reconnect,
+                fake_version: self.fake_version,
+            },
         })
     }
 }
