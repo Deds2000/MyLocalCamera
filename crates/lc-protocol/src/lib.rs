@@ -1,4 +1,12 @@
-//! Protocolo LocalCamera (implementação nos próximos cartões).
+//! Protocolo LocalCamera: cabeçalho de 18 bytes, leitor incremental e writer de quadros.
+
+pub mod error;
+pub mod frame;
+pub mod types;
+
+pub use error::ProtocolError;
+pub use frame::{encode_frame, Frame, FrameReader};
+pub use types::{flags, msg, type_name};
 
 #[cfg(test)]
 mod infra_tests {
