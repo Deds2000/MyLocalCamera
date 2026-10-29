@@ -1,6 +1,6 @@
-//! Áudio: tickets de uso único para o socket de áudio
-//! (uso no socket fica no F1-T09b).
+//! Áudio: tickets de uso único e laço do socket de áudio (F1-T09b).
 
+pub mod conn;
 pub mod tickets;
 
 pub use tickets::*;

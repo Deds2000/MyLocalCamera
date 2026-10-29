@@ -6,13 +6,14 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use lc_protocol::json::{Bye, PcInfo, Reason, Welcome};
+use lc_protocol::json::{AudioTicket, Bye, PcInfo, Reason, Welcome};
 use lc_protocol::{type_name, Frame, FrameReader, Message};
 use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, oneshot, watch, OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
 
+use crate::audio::conn::{run_audio, AudioConn};
 use crate::events::{CloseReason, ServerEvent};
 use crate::handshake::{self, now_secs, write_msg, Accepted, Outcome, ServerCtx};
 use crate::state::{transition, ConnState};
@@ -28,6 +29,8 @@ pub(crate) struct ConnShared {
     events_tx: mpsc::Sender<ServerEvent>,
     shutdown_rx: watch::Receiver<bool>,
     hello_timeout: Duration,
+    /// Máximo de um bloco `AUDIO` no socket de áudio (F1-T09b).
+    audio_block_max: usize,
 }
 
 impl ConnShared {
@@ -38,12 +41,14 @@ impl ConnShared {
         events_tx: mpsc::Sender<ServerEvent>,
         shutdown_rx: watch::Receiver<bool>,
         hello_timeout: Duration,
+        audio_block_max: usize,
     ) -> Self {
         Self {
             ctx,
             events_tx,
             shutdown_rx,
             hello_timeout,
+            audio_block_max,
         }
     }
 }
@@ -130,11 +135,13 @@ pub(super) async fn accept_loop(
 }
 
 /// Laço por conexão:
-/// 1. 1º quadro (`AwaitHello`, com prazo): `HELLO` → handshake; qualquer
-///    outra coisa → `ProtocolError` (sem resposta);
+/// 1. 1º quadro (`AwaitHello`, com prazo): `HELLO` → handshake;
+///    `AUDIO_HELLO` → socket de áudio (F1-T09b); qualquer outra coisa
+///    → `ProtocolError` (sem resposta);
 /// 2. `WELCOME` enviado — aceito: libera o permit e entra na sessão;
 ///    negado: fecha **após** enviar;
-/// 3. laço de sessão (`Active`): `PING`→`PONG`, `BYE`→encerra.
+/// 3. laço de sessão (`Active`): `PING`→`PONG`, `AUDIO_TICKET_REQUEST`
+///    →`AUDIO_TICKET`, `BYE`→encerra.
 async fn run_conn(
     mut stream: TcpStream,
     peer: SocketAddr,
@@ -147,6 +154,7 @@ async fn run_conn(
         mut events_tx,
         mut shutdown_rx,
         hello_timeout,
+        audio_block_max,
     } = shared;
     if let Err(e) = stream.set_nodelay(true) {
         tracing::warn!(conn_id, %peer, error = %e, "TCP_NODELAY falhou");
@@ -183,6 +191,34 @@ async fn run_conn(
             }
         }
     };
+
+    // ── Socket de áudio (F1-T09b): 1º quadro `AUDIO_HELLO` ──
+    if let Message::AudioHello(hello) = &msg {
+        // Bytes além do `AUDIO_HELLO` no mesmo segmento são fora de
+        // ordem (o celular espera o `WELCOME`): fecha calado.
+        let reason = if reader.pending_len() > 0 {
+            tracing::debug!(conn_id, %peer, "dados antes do WELCOME de áudio; fechando");
+            CloseReason::ProtocolError
+        } else {
+            run_audio(
+                AudioConn {
+                    ctx: ctx.clone(),
+                    events_tx: events_tx.clone(),
+                    shutdown_rx: shutdown_rx.clone(),
+                    audio_block_max,
+                },
+                &mut stream,
+                peer,
+                conn_id,
+                permit,
+                hello,
+            )
+            .await
+        };
+        step(ConnState::AwaitHello, ConnState::Closing);
+        emit_closed(&mut events_tx, conn_id, reason).await;
+        return;
+    }
 
     let mut state = ConnState::AwaitHello;
     if matches!(msg, Message::Hello(_)) {
@@ -240,7 +276,20 @@ async fn run_conn(
                 .await;
 
             // ── 3) Sessão (Active) ──
-            let reason = session_loop(&mut stream, &mut reader, &mut buf, conn_id, kick_rx, &mut shutdown_rx).await;
+            let session_data = SessionData {
+                ctx: ctx.clone(),
+                session_id: session_id.clone(),
+            };
+            let reason = session_loop(
+                &mut stream,
+                &mut reader,
+                &mut buf,
+                &session_data,
+                conn_id,
+                kick_rx,
+                &mut shutdown_rx,
+            )
+            .await;
             let _ = events_tx
                 .send(ServerEvent::SessionEnded {
                     session_id: session_id.clone(),
@@ -299,7 +348,17 @@ async fn read_first_frame(
     }
 }
 
-/// Laço de sessão (`Active`): `PING`→`PONG` (mesmo `u64`), `BYE`→encerra,
+/// Dados da sessão para o laço ativo (`Active`) — agrupa o que é
+/// específico da sessão (evita `too_many_arguments`).
+struct SessionData {
+    /// Contexto do servidor (store de tickets p/ `AUDIO_TICKET_REQUEST`).
+    ctx: Arc<ServerCtx>,
+    /// `sessionId` da sessão.
+    session_id: String,
+}
+
+/// Laço de sessão (`Active`): `PING`→`PONG` (mesmo `u64`),
+/// `AUDIO_TICKET_REQUEST`→`AUDIO_TICKET` (F1-T09b), `BYE`→encerra,
 /// `HELLO` de novo→`ProtocolError`; o resto é logado e ignorado
 /// (F1-T10/Fase 3). `kick_rx` disparado = substituição pelo mesmo
 /// dispositivo: envia `BYE{reason:"replaced"}` e fecha com `Replaced`.
@@ -307,6 +366,7 @@ async fn session_loop(
     stream: &mut TcpStream,
     reader: &mut FrameReader,
     buf: &mut [u8],
+    session: &SessionData,
     conn_id: u64,
     mut kick_rx: oneshot::Receiver<()>,
     shutdown_rx: &mut watch::Receiver<bool>,
@@ -328,6 +388,21 @@ async fn session_loop(
                             Message::Ping(v) => {
                                 if let Err(e) = write_msg(stream, &Message::Pong(v)).await {
                                     tracing::warn!(conn_id, error = %e, "falha ao enviar PONG");
+                                    return CloseReason::ConnectionLost;
+                                }
+                            }
+                            Message::AudioTicketRequest => {
+                                // Sessão ativa: emite um novo ticket de
+                                // uso único (invalida o anterior não
+                                // usado — F1-T09b).
+                                let ticket = session
+                                    .ctx
+                                    .tickets
+                                    .lock()
+                                    .unwrap_or_else(|p| p.into_inner())
+                                    .issue(&session.session_id, now_secs());
+                                if let Err(e) = write_msg(stream, &Message::AudioTicket(AudioTicket { ticket })).await {
+                                    tracing::warn!(conn_id, error = %e, "falha ao enviar AUDIO_TICKET");
                                     return CloseReason::ConnectionLost;
                                 }
                             }

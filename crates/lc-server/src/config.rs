@@ -22,6 +22,9 @@ pub const DEFAULT_AUTH_BLOCK: u64 = 300;
 pub const DEFAULT_CONN_RATE_MAX: usize = 20;
 /// Janela de contagem das novas conexões, em segundos (F1-T15).
 pub const DEFAULT_CONN_RATE_WINDOW: u64 = 10;
+/// Tamanho máximo de um bloco `AUDIO` no socket de áudio (16 KiB —
+/// F1-T09b).
+pub const DEFAULT_AUDIO_BLOCK_MAX: usize = 16 * 1024;
 
 /// Configuração do servidor de rede.
 #[derive(Debug, Clone)]
@@ -58,6 +61,9 @@ pub struct ServerConfig {
     pub conn_rate_max: usize,
     /// Janela de contagem das novas conexões, em segundos (F1-T15).
     pub conn_rate_window: u64,
+    /// Tamanho máximo de um bloco `AUDIO` no socket de áudio (F1-T09b);
+    /// acima disso o socket de áudio fecha com `ProtocolError`.
+    pub audio_block_max: usize,
 }
 
 impl ServerConfig {
@@ -82,6 +88,7 @@ impl ServerConfig {
             // explícitos nos próprios testes.
             conn_rate_max: 1_000,
             conn_rate_window: DEFAULT_CONN_RATE_WINDOW,
+            audio_block_max: DEFAULT_AUDIO_BLOCK_MAX,
         }
     }
 }

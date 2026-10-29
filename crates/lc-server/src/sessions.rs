@@ -5,9 +5,28 @@
 //! (mesmo `deviceId`) sinaliza a antiga via `oneshot` — quem é chutado
 //! envia `BYE{reason:"replaced"}` e fecha com [`crate::events::CloseReason::Replaced`].
 
-use std::sync::Mutex;
+use std::sync::atomic::AtomicU64;
+use std::sync::{Arc, Mutex};
 
 use tokio::sync::oneshot;
+
+/// Contadores da sessão (F1-T09b/F1-T10): o socket de áudio escreve
+/// `audio_*`; a UI/`STATS` lêem sem lock (`AtomicU64`).
+#[derive(Debug, Default)]
+pub struct SessionCounters {
+    /// Quadros de vídeo recebidos.
+    pub video_frames: AtomicU64,
+    /// Bytes de vídeo recebidos.
+    pub video_bytes: AtomicU64,
+    /// Keyframes recebidos.
+    pub keyframes: AtomicU64,
+    /// Blocos de áudio recebidos.
+    pub audio_blocks: AtomicU64,
+    /// Bytes de áudio recebidos.
+    pub audio_bytes: AtomicU64,
+    /// `ptsUs` do último bloco de áudio.
+    pub last_audio_pts: AtomicU64,
+}
 
 /// Sessão ativa.
 #[derive(Debug)]
@@ -20,6 +39,13 @@ pub struct ActiveSession {
     pub conn_id: u64,
     /// Sinal de substituição (o winner do `claim` guarda o receptor).
     pub kick: oneshot::Sender<()>,
+    /// Contadores da sessão (o F1-T10 os lê via
+    /// [`SessionRegistry::counters`]).
+    pub counters: Arc<SessionCounters>,
+    /// Sinal do canal de áudio ativo (dispara ao substituir o áudio —
+    /// ele fecha com `Replaced` — ou ao liberar a sessão — ele fecha
+    /// com `PeerClosed`). `None` sem áudio aberto.
+    pub audio_kick: Option<oneshot::Sender<()>>,
 }
 
 /// Resultado de [`SessionRegistry::claim`].
@@ -77,6 +103,11 @@ impl SessionRegistry {
                 // `send` do oneshot do tokio é síncrono; o sender antigo
                 // é descartado após o disparo.
                 let _ = old.kick.send(());
+                // O áudio da sessão antiga também fecha (a sessão que o
+                // donava não é mais a ativa; ele lê `PeerClosed`).
+                if let Some(audio) = old.audio_kick {
+                    let _ = audio.send(());
+                }
                 *guard = Some(Self::entry(session_id, device_id, conn_id, kick_tx));
                 Claim::Granted {
                     kicked: true,
@@ -89,14 +120,71 @@ impl SessionRegistry {
     }
 
     /// Libera a sessão ao encerrar — só se ela ainda é a ativa (a sessão
-    /// antiga, já substituída, não pode derrubar a nova).
+    /// antiga, já substituída, não pode derrubar a nova). Dispara o kick
+    /// do áudio da sessão (o task de áudio vê a sessão fora da ativa e
+    /// fecha com `PeerClosed`).
     pub fn release(&self, session_id: &str) {
         let mut guard = self.current.lock().unwrap_or_else(|p| p.into_inner());
         if let Some(current) = guard.as_ref() {
             if current.session_id == session_id {
+                let current = guard
+                    .take()
+                    .expect("verificado com `as_ref` acima, sob o mesmo lock");
+                if let Some(audio) = current.audio_kick {
+                    let _ = audio.send(());
+                }
                 *guard = None;
             }
         }
+    }
+
+    /// Registra o canal de áudio da sessão — só se `session_id` ainda é
+    /// a ativa. Substitui um canal anterior (dispara o kick dele → ele
+    /// fecha com `Replaced`).
+    ///
+    /// Devolve os contadores da sessão na **mesma** seção crítica
+    /// (evita race "a sessão morreu entre registrar e ler os
+    /// contadores"); `None` se a sessão não é mais a ativa (o task de
+    /// áudio deve encerrar sem abrir o canal).
+    pub fn set_audio(
+        &self,
+        session_id: &str,
+        kick_tx: oneshot::Sender<()>,
+    ) -> Option<Arc<SessionCounters>> {
+        let mut guard = self.current.lock().unwrap_or_else(|p| p.into_inner());
+        match guard.as_mut() {
+            Some(cur) if cur.session_id == session_id => {
+                if let Some(old) = cur.audio_kick.take() {
+                    let _ = old.send(());
+                }
+                cur.audio_kick = Some(kick_tx);
+                Some(cur.counters.clone())
+            }
+            _ => None,
+        }
+    }
+
+    /// `true` se `session_id` ainda é a sessão ativa.
+    #[must_use]
+    pub fn is_active(&self, session_id: &str) -> bool {
+        matches!(
+            self.current
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .as_ref(),
+            Some(cur) if cur.session_id == session_id
+        )
+    }
+
+    /// `Arc` dos contadores da sessão ativa (ou `None` se `session_id`
+    /// não é mais a ativa).
+    #[must_use]
+    pub fn counters(&self, session_id: &str) -> Option<Arc<SessionCounters>> {
+        self.current
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .as_ref()
+            .and_then(|cur| (cur.session_id == session_id).then(|| cur.counters.clone()))
     }
 
     fn entry(
@@ -110,6 +198,8 @@ impl SessionRegistry {
             device_id: device_id.to_owned(),
             conn_id,
             kick,
+            counters: Arc::new(SessionCounters::default()),
+            audio_kick: None,
         }
     }
 }

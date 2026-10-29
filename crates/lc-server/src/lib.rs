@@ -69,6 +69,14 @@ impl ServerHandle {
         self.ctx.trust.clone()
     }
 
+    /// Registro da sessão ativa (F1-T09b/F1-T10): contadores
+    /// (`SessionRegistry::counters`) e canal de áudio. Usado pela UI e
+    /// pelos testes.
+    #[must_use]
+    pub fn sessions(&self) -> Arc<SessionRegistry> {
+        self.ctx.sessions.clone()
+    }
+
     /// Decide um pedido de aprovação pendente (`ApprovalRequested`).
     ///
     /// Devolve `false` se o `request_id` é desconhecido ou já foi
@@ -162,7 +170,13 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
     let conns: Arc<Mutex<Vec<JoinHandle<()>>>> = Arc::new(Mutex::new(Vec::new()));
     let hello_timeout: Duration = cfg.hello_timeout;
 
-    let shared = conn::ConnShared::new(ctx.clone(), events_tx.clone(), shutdown_rx, hello_timeout);
+    let shared = conn::ConnShared::new(
+        ctx.clone(),
+        events_tx.clone(),
+        shutdown_rx,
+        hello_timeout,
+        cfg.audio_block_max,
+    );
     let accept = tokio::spawn(conn::accept_loop(listener, shared, unauth, next_id, conns.clone()));
 
     Ok(ServerHandle {

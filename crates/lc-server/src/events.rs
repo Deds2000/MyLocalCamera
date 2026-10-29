@@ -97,6 +97,14 @@ pub enum ServerEvent {
         session_id: String,
         reason: CloseReason,
     },
+    /// Socket de áudio aberto (ticket válido; `WELCOME` entregue).
+    AudioOpened { session_id: String },
+    /// Socket de áudio fechado (a queda **não** afeta a sessão
+    /// principal; o `reason` é o do socket de áudio).
+    AudioClosed {
+        session_id: String,
+        reason: CloseReason,
+    },
     /// Novo dispositivo pediu pareamento; aguardando a decisão da UI.
     ApprovalRequested(ApprovalRequest),
     /// Pedido de aprovação resolvido (aprovado, recusado, timeout ou

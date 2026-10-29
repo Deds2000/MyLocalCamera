@@ -146,8 +146,9 @@ pub async fn perform(
         Message::Hello(hello) => {
             perform_hello(ctx, events_tx, stream, buf, conn_id, hello, peer).await
         }
-        // `AUDIO_HELLO` no socket principal é papel do socket de áudio
-        // (F1-T09b): recusar com `bad_audio_ticket`.
+        // Defesa em profundidade (F1-T09b): o socket de áudio é
+        // desviado em `conn.rs` antes do handshake; se um `AUDIO_HELLO`
+        // ainda chegar aqui, recusar com `bad_audio_ticket`.
         Message::AudioHello(_) => Outcome::Denied {
             reason: Reason::BadAudioTicket,
             min_supported: None,
