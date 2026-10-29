@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F1-T16` (Logs com redação de segredos)  ·  **Fase atual:** 1  ·  **Última atualização:** 2026-10-29
+**Próxima tarefa:** `F1-T11a` (`mock-sender`: pareamento, reconexão, vídeo/áudio)  ·  **Fase atual:** 1  ·  **Última atualização:** 2026-10-29
 
 ## Bloqueios
 (nenhum ativo)
@@ -12,6 +12,7 @@
 
 ## Observações
 (o agente anota aqui problemas fora do escopo da tarefa atual)
+- F1-T16: auditoria de todos os `tracing::*!` (0 valores sensíveis logados — token/`deviceKey`/`audioTicket` nunca eram impressos; só o `deviceId`, que não é segredo). `redact::short`/`Redacted` disponíveis para uso futuro; spans `conn{conn=<id>}` (instrumenta `run_conn`) e `session{session=<4 chars>…}` (instrumenta `session_loop`, com log "sessão iniciada"). `tests/log_redaction.rs` captura TRACE via `MakeWriter` + `set_default` em runtime `current_thread` e cobre pareamento/áudio/reconexão/token errado/ticket reutilizado.
 - F1-T10: keepalive (PING 2 s/PONG, liveness 6 s, EWMA α=0,3) e agregador de stats a 500 ms; trabalho parcial do worker cancelado foi auditado e completado (`ConnShared::new` recebe `KeepaliveTiming {ping_interval, liveness_timeout, stats_interval}` para satisfazer `too_many_arguments`; `f32`/`compute_stats` reordenados em `stats.rs` para o rustdoc). `for_tests` mantém keepalive solto (ping 30 s/liveness 90 s) para não derrubar clientes de teste antigos; testes de keepalive passam valores pequenos explícitos.
 - F1-T15: `trust/ratelimit.rs` puro com relógio injetado (`AuthLimiter` + `ConnRateLimiter` + `Limiters` com `Mutex` internos; mapa limitado por `prune` a cada consulta). `ServerCtx.limiters: Arc<Limiters>`; accept loop checa `conn_rate.allow` → `auth.is_blocked` **antes** do permit e de qualquer leitura (recusa = `ConnectionClosed{RateLimited}`, sem `ConnectionOpened`, sem resposta — mesmo padrão do `TooManyUnauth`). Desvios do esboço do cartão: `record_failure` devolve `bool` ("acabou de bloquear") para emitir `AuthBlocked{ip}` na hora certa; `Limiters` não deriva `Clone` (`Mutex` não é `Clone` — o clone é do `Arc`); `trust/mod.rs` registrado (linha a mais que a lista do cartão). `for_tests`: `conn_rate_max = 1_000` (solto) — o `unauth_limit_enforced` do `listener.rs` abre 21 conexões do mesmo IP; testes novos usam valores explícitos. API tokio `TcpSocket` (1.54.1): `new_v4()` → `bind(&self)` (sync) → `connect(self)` (async) — `TestClient::connect_from` usa isso para o teste de IP distinto via `127.0.0.2` (toda 127/8 é loopback). Decisões: falha durante bloqueio não conta nem estende (bloqueio expira no `block_until` original); tentativas **recusadas** não entram na janela de conexões (a tempestade não entope a si mesma); `revoked` não conta como falha de auth (só `bad_token`/`BadKey`); `#[allow(dead_code)]` em `mod common` de `tests/handshake.rs` (mesmo padrão de `approval.rs`/`usb_window.rs`). `tests/ratelimit.rs` 296 linhas; `ratelimit.rs` 197.
 - F1-T07: `trust/usb_window.rs` (módulo puro, relógio injetado; limite inclusivo `now <= open_until`). Ripples: `ServerCtx.usb_window: Arc<Mutex<UsbWindow>>`; `ServerHandle` guarda `events_tx` (clone) para `open_usb_window()` emitir `UsbWindowOpened`; eventos `UsbWindowOpened`/`UsbWindowClosed{used}` em `events.rs`. Decisão de design: expiração **preguiçosa** (`expire_if_stale` no próximo handshake) — sem timer em segundo plano; `UsbWindowClosed{used:false}` só sai se um pareamento chegar depois da expiração. Check da janela **depois** do token (token inválido não consome) e **antes** do `auto_approve` (janela consumida aprova `ApproveAlways` em qualquer build). Clippy: `if_same_then_else` → condição unificada `usb_consumed || effective_auto_approve(...)`; `MutexGuard` não pode atravessar `.await` → lock em bloco escopo. `tests/usb_window.rs` 299 linhas (7 testes da tabela).
@@ -84,7 +85,7 @@ Ordem de execução (respeite as dependências). A lógica de rede fica na crate
 | [x] | F1-T15 | Limitação de falhas de auth e de taxa de conexões | A | T04b | `docs/tasks/fase-1/F1-T15.md` |
 | [x] | F1-T09b | Socket de áudio (`AUDIO_HELLO`, contadores) | A | T04b, T09a | `docs/tasks/fase-1/F1-T09b.md` |
 | [x] | F1-T10 | Keepalive, RTT e agregador de estatísticas (500 ms) | A | T09b | `docs/tasks/fase-1/F1-T10.md` |
-| [ ] | F1-T16 | Logs com redação de segredos | A | T04b | `docs/tasks/fase-1/F1-T16.md` |
+| [x] | F1-T16 | Logs com redação de segredos | A | T04b | `docs/tasks/fase-1/F1-T16.md` |
 | [ ] | F1-T11a | `mock-sender`: pareamento, reconexão, vídeo/áudio | A | T09b, F0-T13 | `docs/tasks/fase-1/F1-T11a.md` |
 | [ ] | F1-T11b | `mock-sender`: flags de falha + AT/FT automatizados | A | T11a, T10 | `docs/tasks/fase-1/F1-T11b.md` |
 | [ ] | F1-T13 | Integração, desempenho e *soak* (cria `soak.ps1`) | A+H | T11b, T15, T16, T07 | `docs/tasks/fase-1/F1-T13.md` |
