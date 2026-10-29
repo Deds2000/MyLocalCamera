@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F1-T09b` (Socket de áudio — `AUDIO_HELLO`, contadores)  ·  **Fase atual:** 1  ·  **Última atualização:** 2026-10-29
+**Próxima tarefa:** `F1-T10` (Keepalive, RTT e agregador de estatísticas (500 ms))  ·  **Fase atual:** 1  ·  **Última atualização:** 2026-10-29
 
 ## Bloqueios
 (nenhum ativo)
@@ -81,7 +81,7 @@ Ordem de execução (respeite as dependências). A lógica de rede fica na crate
 | [x] | F1-T06 | Fluxo de aprovação (`PENDING`, timeout, decisão) | A | T04b | `docs/tasks/fase-1/F1-T06.md` |
 | [x] | F1-T07 | Janela de aprovação USB (15 s, localhost) | A | T06 | `docs/tasks/fase-1/F1-T07.md` |
 | [x] | F1-T15 | Limitação de falhas de auth e de taxa de conexões | A | T04b | `docs/tasks/fase-1/F1-T15.md` |
-| [ ] | F1-T09b | Socket de áudio (`AUDIO_HELLO`, contadores) | A | T04b, T09a | `docs/tasks/fase-1/F1-T09b.md` |
+| [x] | F1-T09b | Socket de áudio (`AUDIO_HELLO`, contadores) | A | T04b, T09a | `docs/tasks/fase-1/F1-T09b.md` |
 | [ ] | F1-T10 | Keepalive, RTT e agregador de estatísticas (500 ms) | A | T09b | `docs/tasks/fase-1/F1-T10.md` |
 | [ ] | F1-T16 | Logs com redação de segredos | A | T04b | `docs/tasks/fase-1/F1-T16.md` |
 | [ ] | F1-T11a | `mock-sender`: pareamento, reconexão, vídeo/áudio | A | T09b, F0-T13 | `docs/tasks/fase-1/F1-T11a.md` |
