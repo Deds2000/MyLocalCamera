@@ -4,6 +4,8 @@
 //!
 //! O servidor roda com `auto_approve = true`, salvo indicação.
 
+// `common` traz helpers que nem todo teste de integração usa.
+#[allow(dead_code)]
 mod common;
 
 use std::time::Duration;

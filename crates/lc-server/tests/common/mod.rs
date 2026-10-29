@@ -2,6 +2,7 @@
 //! (envia quadros, lê com [`FrameReader`]).
 
 use std::io;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
 use lc_protocol::json::{AppInfo, Auth, Caps, DeviceInfo, Hello, ProtocolVersion};
@@ -22,6 +23,20 @@ impl TestClient {
     /// Conecta em `127.0.0.1:port` (sem autenticar).
     pub async fn connect(port: u16) -> io::Result<Self> {
         let stream = TcpStream::connect(("127.0.0.1", port)).await?;
+        stream.set_nodelay(true)?;
+        Ok(Self {
+            stream,
+            reader: FrameReader::new(),
+        })
+    }
+
+    /// Conecta **de um endereço de origem explícito** (ex. outro IP de
+    /// loopback, `127.0.0.2`) em `127.0.0.1:port` — usado para simular
+    /// IPs distintos sem rede (F1-T15).
+    pub async fn connect_from(src: SocketAddr, port: u16) -> io::Result<Self> {
+        let sock = tokio::net::TcpSocket::new_v4()?;
+        sock.bind(src)?;
+        let stream = sock.connect((Ipv4Addr::LOCALHOST, port).into()).await?;
         stream.set_nodelay(true)?;
         Ok(Self {
             stream,

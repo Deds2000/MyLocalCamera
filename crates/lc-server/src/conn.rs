@@ -61,6 +61,7 @@ pub(super) async fn accept_loop(
     conns: Arc<Mutex<Vec<JoinHandle<()>>>>,
 ) {
     let ConnShared {
+        ctx,
         events_tx,
         mut shutdown_rx,
         ..
@@ -77,6 +78,34 @@ pub(super) async fn accept_loop(
                     }
                 };
                 let conn_id = next_id.fetch_add(1, Ordering::Relaxed);
+                // F1-T15 — antes de qualquer leitura: taxa de conexões
+                // do IP e bloqueio por falhas de auth. Recusado: o
+                // socket fecha no drop, **sem** resposta.
+                let ip = peer.ip();
+                let now = now_secs();
+                let rate_ok = ctx
+                    .limiters
+                    .conn_rate
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner())
+                    .allow(ip, now);
+                if !rate_ok
+                    || ctx
+                        .limiters
+                        .auth
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner())
+                        .is_blocked(ip, now)
+                {
+                    tracing::debug!(conn_id, %peer, "conexão recusada por limitador");
+                    let _ = events_tx
+                        .send(ServerEvent::ConnectionClosed {
+                            conn_id,
+                            reason: CloseReason::RateLimited,
+                        })
+                        .await;
+                    continue;
+                }
                 let permit = match unauth.clone().try_acquire_owned() {
                     Ok(p) => p,
                     Err(_) => {

@@ -27,6 +27,7 @@ use crate::config::ServerConfig;
 use crate::events::{Decision, ServerEvent};
 use crate::handshake::ServerCtx;
 use crate::sessions::SessionRegistry;
+use crate::trust::ratelimit::{AuthLimiter, ConnRateLimiter, Limiters};
 use crate::trust::{ApprovalManager, TrustError, TrustStore, UsbWindow};
 
 /// Capacidade da fila de eventos.
@@ -133,12 +134,21 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
 
     let trust = Arc::new(Mutex::new(TrustStore::open(&cfg.data_dir)?));
     let pc_id = trust.lock().unwrap_or_else(|p| p.into_inner()).pc_id().to_owned();
+    let limiters = Arc::new(Limiters {
+        auth: Mutex::new(AuthLimiter::new(
+            cfg.auth_fail_max,
+            cfg.auth_fail_window,
+            cfg.auth_block,
+        )),
+        conn_rate: Mutex::new(ConnRateLimiter::new(cfg.conn_rate_max, cfg.conn_rate_window)),
+    });
     let ctx = Arc::new(ServerCtx {
         trust,
         tickets: Arc::new(Mutex::new(TicketStore::new())),
         sessions: Arc::new(SessionRegistry::new()),
         approvals: Arc::new(ApprovalManager::new()),
         usb_window: Arc::new(Mutex::new(UsbWindow::new())),
+        limiters,
         approval_timeout: cfg.approval_timeout,
         auto_approve: cfg.auto_approve,
         pc_id,

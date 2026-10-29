@@ -63,6 +63,10 @@ pub enum CloseReason {
     /// `busy`, `version_mismatch`, `bad_audio_ticket`); o `WELCOME`
     /// com o motivo é enviado antes do fechamento.
     AuthDenied,
+    /// Limitação (F1-T15): taxa de conexões do IP estourada ou IP
+    /// bloqueado por falhas de autenticação; fechado logo após o
+    /// accept, **sem** resposta.
+    RateLimited,
 }
 
 /// Eventos do servidor, na ordem de emissão.
@@ -107,4 +111,7 @@ pub enum ServerEvent {
     /// Janela de aprovação USB encerrada: `used = true` se foi
     /// consumida por um pareamento, `false` se expirou.
     UsbWindowClosed { used: bool },
+    /// Um IP entrou em bloqueio por falhas de autenticação repetidas
+    /// (F1-T15). Sem segredos: nunca o token tentado.
+    AuthBlocked { ip: String },
 }

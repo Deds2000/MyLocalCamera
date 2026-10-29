@@ -13,7 +13,7 @@
 
 use std::fmt;
 use std::io;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -29,8 +29,8 @@ use crate::events::{
 };
 use crate::sessions::{Claim, SessionRegistry};
 use crate::trust::{
-    effective_auto_approve, secrets, ApprovalInfo, ApprovalManager, Busy, TrustStore, UsbWindow,
-    VerifyDevice,
+    effective_auto_approve, secrets, ApprovalInfo, ApprovalManager, Busy, Limiters, TrustStore,
+    UsbWindow, VerifyDevice,
 };
 use crate::version;
 
@@ -52,6 +52,9 @@ pub struct ServerCtx {
     pub auto_approve: bool,
     /// Janela de aprovação USB (15 s, só loopback, uso único — F1-T07).
     pub usb_window: Arc<Mutex<UsbWindow>>,
+    /// Limitadores de segurança (falhas de auth e taxa de conexões —
+    /// F1-T15); compartilhados pelo accept loop e pelo handshake.
+    pub limiters: Arc<Limiters>,
     /// Identificador estável do PC (UUID do `trust.json`).
     pub pc_id: String,
     /// Nome do PC (mostrado no `WELCOME`).
@@ -182,7 +185,9 @@ async fn perform_hello(
                 trust.verify_pair_token(token)
             };
             if !token_ok {
-                // Falha de auth registrada para o limitador do F1-T15.
+                // Falha contada no limitador (F1-T15); o token tentado
+                // nunca é logado e a resposta segue uniforme.
+                note_auth_failure(ctx, events_tx, peer.ip(), now).await;
                 tracing::debug!(device_id = %hello.device.id, "pareamento recusado: token inválido");
                 return Outcome::Denied {
                     reason: Reason::BadToken,
@@ -263,6 +268,15 @@ async fn perform_hello(
         }
         Auth::Device { device_id, key } => match device_auth(ctx, device_id, key, &ip, now) {
             DeviceAuth::Ok => None, // reconexão: WELCOME sem `deviceKey`
+            DeviceAuth::Fail(Reason::BadToken) => {
+                // `BadKey`: conta como falha de auth (F1-T15);
+                // `revoked` **não** conta.
+                note_auth_failure(ctx, events_tx, peer.ip(), now).await;
+                return Outcome::Denied {
+                    reason: Reason::BadToken,
+                    min_supported: None,
+                };
+            }
             DeviceAuth::Fail(reason) => {
                 return Outcome::Denied {
                     reason,
@@ -271,6 +285,13 @@ async fn perform_hello(
             }
         },
     };
+
+    // Auth OK: zera as falhas anteriores deste IP (F1-T15).
+    ctx.limiters
+        .auth
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .record_success(peer.ip());
 
     // 3) Sessão única: sessão ativa de outro dispositivo → `busy`; do
     //    mesmo dispositivo → substituição (BYE para a antiga, lá em `conn`).
@@ -486,6 +507,30 @@ fn device_auth(
         }
         VerifyDevice::Unknown => DeviceAuth::Fail(Reason::Revoked),
         VerifyDevice::BadKey => DeviceAuth::Fail(Reason::BadToken),
+    }
+}
+
+/// Registra uma falha de autenticação no limitador (F1-T15) e emite
+/// [`ServerEvent::AuthBlocked`] se o IP **acabou de entrar** em
+/// bloqueio. Sem segredos: nunca o token tentado.
+async fn note_auth_failure(
+    ctx: &ServerCtx,
+    events_tx: &mpsc::Sender<ServerEvent>,
+    ip: IpAddr,
+    now: u64,
+) {
+    let just_blocked = ctx
+        .limiters
+        .auth
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .record_failure(ip, now);
+    if just_blocked {
+        let _ = events_tx
+            .send(ServerEvent::AuthBlocked {
+                ip: ip.to_string(),
+            })
+            .await;
     }
 }
 
