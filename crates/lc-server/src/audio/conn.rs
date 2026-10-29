@@ -10,6 +10,9 @@
 //! mínimos) e entra no laço:
 //! - `AUDIO` → conta `audio_blocks`/`audio_bytes`/`last_audio_pts`;
 //! - `PING` → `PONG` (mesmo `u64`);
+//! - keepalive (F1-T10): `PING` a cada `ping_interval` e sem `PONG` por
+//!   `liveness_timeout` → fecha com `ConnectionLost` (mesma regra da
+//!   sessão principal; **só** o `PONG` mantém vivo);
 //! - `BYE` → fecha;
 //! - qualquer outro tipo → ignorado com log.
 //!
@@ -32,6 +35,7 @@
 
 use std::net::SocketAddr;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 use lc_protocol::json::{AudioHello, Reason, Welcome};
 use lc_protocol::{type_name, FrameReader, Message};
@@ -41,6 +45,7 @@ use tokio::sync::{mpsc, oneshot, watch, OwnedSemaphorePermit};
 
 use crate::events::{CloseReason, ServerEvent};
 use crate::handshake::{now_secs, write_msg, ServerCtx};
+use crate::keepalive::{mono_ms, Keepalive};
 
 /// Buffer de leitura do socket de áudio (o leitor limita o payload a
 /// `audio_block_max`; o buffer só precisa caber o máximo).
@@ -58,6 +63,10 @@ pub(crate) struct AudioConn {
     pub(crate) shutdown_rx: watch::Receiver<bool>,
     /// Máximo de um bloco `AUDIO` neste socket.
     pub(crate) audio_block_max: usize,
+    /// Intervalo dos `PING` de keepalive (F1-T10).
+    pub(crate) ping_interval: Duration,
+    /// Sem `PONG` por este intervalo → `ConnectionLost` (F1-T10).
+    pub(crate) liveness_timeout: Duration,
 }
 
 /// `WELCOME` mínimo do socket de áudio.
@@ -97,6 +106,8 @@ pub(crate) async fn run_audio(
         events_tx,
         mut shutdown_rx,
         audio_block_max,
+        ping_interval,
+        liveness_timeout,
     } = conn;
     // 1) Ticket de uso único preso à sessão (comparação em tempo
     //    constante dentro do store; nunca logamos o ticket).
@@ -153,10 +164,19 @@ pub(crate) async fn run_audio(
     );
     let mut buf = [0u8; READ_BUF_SIZE];
 
+    // Keepalive (F1-T10): `PING` a cada `ping_interval`; sem `PONG` por
+    // `liveness_timeout` → `ConnectionLost` (mesma regra da principal).
+    let mut keepalive = Keepalive::new(liveness_timeout);
+    let mut ticker = tokio::time::interval(ping_interval);
+    // O 1º tick é imediato: descarta para o 1º `PING` sair após 1 ciclo.
+    ticker.tick().await;
+
     // 4) Laço: `AUDIO` conta; `PING`→`PONG`; `BYE`→fecha; resto→ignora.
     //    Todo `break` atribui `reason` antes de sair.
     let reason: CloseReason;
     'audio: loop {
+        let liveness = tokio::time::sleep_until(keepalive.deadline().into());
+        tokio::pin!(liveness);
         tokio::select! {
             res = stream.read(&mut buf) => match res {
                 Ok(0) => {
@@ -183,6 +203,10 @@ pub(crate) async fn run_audio(
                                     reason = CloseReason::ConnectionLost;
                                     break 'audio;
                                 }
+                            }
+                            // Keepalive (F1-T10): só o `PONG` mantém vivo.
+                            Ok(Message::Pong(v)) => {
+                                keepalive.on_pong(v, mono_ms());
                             }
                             Ok(Message::Bye(_)) => {
                                 reason = CloseReason::PeerClosed;
@@ -214,6 +238,28 @@ pub(crate) async fn run_audio(
                     break 'audio;
                 }
             },
+            // Keepalive (F1-T10): a cada `ping_interval` envia `PING`
+            // (relógio monotônico em ms); se o liveness já estourou
+            // (sem `PONG`), fecha com `ConnectionLost`.
+            _ = ticker.tick() => {
+                if keepalive.is_dead(std::time::Instant::now()) {
+                    tracing::info!(conn_id, "sem PONG no áudio por {} ms; fechando", liveness_timeout.as_millis());
+                    reason = CloseReason::ConnectionLost;
+                    break 'audio;
+                }
+                if let Err(e) = write_msg(stream, &Message::Ping(mono_ms())).await {
+                    tracing::warn!(conn_id, error = %e, "falha ao enviar PING no áudio");
+                    reason = CloseReason::ConnectionLost;
+                    break 'audio;
+                }
+            }
+            // Keepalive (F1-T10): prazo exato do liveness (recalculado a
+            // cada iteração; atualizado a cada `PONG`).
+            _ = &mut liveness => {
+                tracing::info!(conn_id, "liveness timeout no áudio ({} ms sem PONG); fechando", liveness_timeout.as_millis());
+                reason = CloseReason::ConnectionLost;
+                break 'audio;
+            }
             // Kick: novo áudio da mesma sessão (sessão segue ativa →
             // `Replaced`) ou fim da sessão dona (já não é a ativa →
             // `PeerClosed`).

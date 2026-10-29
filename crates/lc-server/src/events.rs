@@ -105,6 +105,12 @@ pub enum ServerEvent {
         session_id: String,
         reason: CloseReason,
     },
+    /// Estatísticas agregadas da sessão, a cada `stats_interval`
+    /// (F1-T10; base dos 2 Hz da UI). Sem segredos.
+    Stats {
+        session_id: String,
+        stats: crate::stats::SessionStats,
+    },
     /// Novo dispositivo pediu pareamento; aguardando a decisão da UI.
     ApprovalRequested(ApprovalRequest),
     /// Pedido de aprovação resolvido (aprovado, recusado, timeout ou

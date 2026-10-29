@@ -24,9 +24,7 @@ use tokio::net::TcpStream;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::audio::TicketStore;
-use crate::events::{
-    ApprovalOutcome, ApprovalRequest, CloseReason, Decision, ServerEvent,
-};
+use crate::events::{ApprovalOutcome, ApprovalRequest, CloseReason, Decision, ServerEvent};
 use crate::sessions::{Claim, SessionRegistry};
 use crate::trust::{
     effective_auto_approve, secrets, ApprovalInfo, ApprovalManager, Busy, Limiters, TrustStore,
@@ -118,7 +116,8 @@ impl fmt::Debug for Outcome {
             Self::Denied {
                 reason,
                 min_supported,
-            } => f.debug_struct("Denied")
+            } => f
+                .debug_struct("Denied")
                 .field("reason", reason)
                 .field("min_supported", min_supported)
                 .finish(),
@@ -201,10 +200,7 @@ async fn perform_hello(
             //     consome e é aprovado sem diálogo. Token inválido não
             //     chega aqui (recusado em 2.1) e não consome a janela.
             let (usb_expired, usb_consumed) = {
-                let mut usb = ctx
-                    .usb_window
-                    .lock()
-                    .unwrap_or_else(|p| p.into_inner());
+                let mut usb = ctx.usb_window.lock().unwrap_or_else(|p| p.into_inner());
                 let expired = usb.expire_if_stale(now);
                 let consumed = usb.try_consume(peer.ip(), now);
                 (expired, consumed)
@@ -297,7 +293,10 @@ async fn perform_hello(
     // 3) Sessão única: sessão ativa de outro dispositivo → `busy`; do
     //    mesmo dispositivo → substituição (BYE para a antiga, lá em `conn`).
     let session_id = secrets::random_hex(16);
-    match ctx.sessions.claim(session_id.clone(), &hello.device.id, conn_id) {
+    match ctx
+        .sessions
+        .claim(session_id.clone(), &hello.device.id, conn_id)
+    {
         Claim::Busy => Outcome::Denied {
             reason: Reason::Busy,
             min_supported: None,
@@ -490,13 +489,7 @@ enum DeviceAuth {
     Fail(Reason),
 }
 
-fn device_auth(
-    ctx: &ServerCtx,
-    device_id: &str,
-    key: &str,
-    ip: &str,
-    now: u64,
-) -> DeviceAuth {
+fn device_auth(ctx: &ServerCtx, device_id: &str, key: &str, ip: &str, now: u64) -> DeviceAuth {
     let mut trust = ctx.trust.lock().unwrap_or_else(|p| p.into_inner());
     match trust.verify_device(device_id, key) {
         VerifyDevice::Ok => {
@@ -528,9 +521,7 @@ async fn note_auth_failure(
         .record_failure(ip, now);
     if just_blocked {
         let _ = events_tx
-            .send(ServerEvent::AuthBlocked {
-                ip: ip.to_string(),
-            })
+            .send(ServerEvent::AuthBlocked { ip: ip.to_string() })
             .await;
     }
 }

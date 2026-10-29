@@ -182,9 +182,12 @@ async fn usb_window_auto_approves_localhost() {
     let (mut handle, port, _dir) = boot().await;
     handle.open_usb_window().await;
     assert!(
-        find_event(handle.events(), 4, |e| matches!(e, ServerEvent::UsbWindowOpened))
-            .await
-            .is_some(),
+        find_event(handle.events(), 4, |e| matches!(
+            e,
+            ServerEvent::UsbWindowOpened
+        ))
+        .await
+        .is_some(),
         "UsbWindowOpened"
     );
 
@@ -201,11 +204,10 @@ async fn usb_window_auto_approves_localhost() {
 
     // A janela fecha consumida (uso único).
     assert!(
-        find_event(
-            handle.events(),
-            8,
-            |e| matches!(e, ServerEvent::UsbWindowClosed { used: true }),
-        )
+        find_event(handle.events(), 8, |e| matches!(
+            e,
+            ServerEvent::UsbWindowClosed { used: true }
+        ),)
         .await
         .is_some(),
         "UsbWindowClosed {{ used: true }}"
@@ -214,7 +216,8 @@ async fn usb_window_auto_approves_localhost() {
     // `ApprovalRequested` não chega a ser emitido.
     let evs = drain_events(handle.events(), Duration::from_millis(400)).await;
     assert!(
-        evs.iter().all(|e| !matches!(e, ServerEvent::ApprovalRequested(_))),
+        evs.iter()
+            .all(|e| !matches!(e, ServerEvent::ApprovalRequested(_))),
         "sem ApprovalRequested na janela: {evs:?}"
     );
 
@@ -278,7 +281,11 @@ async fn second_hello_in_window_not_auto_approved() {
 
     let w2 = take_welcome(&mut c2).await;
     assert!(!w2.accepted, "2º segue o fluxo normal");
-    assert_eq!(w2.reason, Some(Reason::NotApproved), "timeout: not_approved");
+    assert_eq!(
+        w2.reason,
+        Some(Reason::NotApproved),
+        "timeout: not_approved"
+    );
 
     assert_eq!(
         take_resolved(handle.events(), request_id).await,
@@ -303,7 +310,10 @@ async fn token_still_required() {
     let w = take_welcome(&mut c).await;
     assert!(!w.accepted);
     assert_eq!(w.reason, Some(Reason::BadToken));
-    assert!(c.recv(TIMEOUT).await.is_none(), "socket fecha após a recusa");
+    assert!(
+        c.recv(TIMEOUT).await.is_none(),
+        "socket fecha após a recusa"
+    );
 
     // A janela segue aberta: `HELLO` válido é aceito sem diálogo.
     let mut c2 = TestClient::connect(port).await.expect("connect");

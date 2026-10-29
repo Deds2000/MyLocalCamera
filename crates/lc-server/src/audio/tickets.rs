@@ -226,11 +226,7 @@ mod tests {
             Err(RedeemError::Unknown),
             "expirado (100 + 10 < 111) deve ser removido"
         );
-        assert_eq!(
-            store2.redeem("b", &tb, 111),
-            Ok(()),
-            "válido até 115"
-        );
+        assert_eq!(store2.redeem("b", &tb, 111), Ok(()), "válido até 115");
     }
 
     /// `Debug` nunca contém o ticket.

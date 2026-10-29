@@ -8,8 +8,10 @@ pub mod config;
 pub mod conn;
 pub mod events;
 pub mod handshake;
+pub mod keepalive;
 pub mod sessions;
 pub mod state;
+pub mod stats;
 pub mod trust;
 pub mod version;
 
@@ -141,14 +143,21 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
     let _ = events_tx.send(ServerEvent::Listening { port }).await;
 
     let trust = Arc::new(Mutex::new(TrustStore::open(&cfg.data_dir)?));
-    let pc_id = trust.lock().unwrap_or_else(|p| p.into_inner()).pc_id().to_owned();
+    let pc_id = trust
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .pc_id()
+        .to_owned();
     let limiters = Arc::new(Limiters {
         auth: Mutex::new(AuthLimiter::new(
             cfg.auth_fail_max,
             cfg.auth_fail_window,
             cfg.auth_block,
         )),
-        conn_rate: Mutex::new(ConnRateLimiter::new(cfg.conn_rate_max, cfg.conn_rate_window)),
+        conn_rate: Mutex::new(ConnRateLimiter::new(
+            cfg.conn_rate_max,
+            cfg.conn_rate_window,
+        )),
     });
     let ctx = Arc::new(ServerCtx {
         trust,
@@ -176,8 +185,19 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
         shutdown_rx,
         hello_timeout,
         cfg.audio_block_max,
+        conn::KeepaliveTiming {
+            ping_interval: cfg.ping_interval,
+            liveness_timeout: cfg.liveness_timeout,
+            stats_interval: cfg.stats_interval,
+        },
     );
-    let accept = tokio::spawn(conn::accept_loop(listener, shared, unauth, next_id, conns.clone()));
+    let accept = tokio::spawn(conn::accept_loop(
+        listener,
+        shared,
+        unauth,
+        next_id,
+        conns.clone(),
+    ));
 
     Ok(ServerHandle {
         shutdown_tx,

@@ -59,7 +59,11 @@ async fn pair(handle: &ServerHandle, port: u16, device_id: &str) -> (TestClient,
     match c.recv(TIMEOUT).await.expect("esperava WELCOME") {
         Message::Welcome(w) => {
             assert!(w.accepted, "pareamento deve ser aprovado (auto_approve)");
-            (c, w.session_id.expect("sessionId"), w.audio_ticket.expect("audioTicket"))
+            (
+                c,
+                w.session_id.expect("sessionId"),
+                w.audio_ticket.expect("audioTicket"),
+            )
         }
         other => panic!("esperava WELCOME, veio {other:?}"),
     }
@@ -143,9 +147,12 @@ async fn audio_blocks_are_counted() {
 
     // `AudioClosed` é emitido só depois de processar os blocos.
     assert!(
-        find_event(handle.events(), 8, |e| matches!(e, ServerEvent::AudioClosed { .. }))
-            .await
-            .is_some(),
+        find_event(handle.events(), 8, |e| matches!(
+            e,
+            ServerEvent::AudioClosed { .. }
+        ))
+        .await
+        .is_some(),
         "esperava AudioClosed"
     );
 
@@ -203,7 +210,11 @@ async fn audio_drop_keeps_primary_and_reopens() {
 
     // Principal intacta.
     primary.send(&Message::Ping(7)).await.expect("send");
-    assert_eq!(primary.recv(TIMEOUT).await, Some(Message::Pong(7)), "principal viva");
+    assert_eq!(
+        primary.recv(TIMEOUT).await,
+        Some(Message::Pong(7)),
+        "principal viva"
+    );
 
     // Novo ticket e reabertura.
     let ticket2 = request_ticket(&mut primary).await;
@@ -226,7 +237,10 @@ async fn primary_close_closes_audio() {
 
     primary.send(&bye("done")).await.expect("send");
     assert!(primary.recv(TIMEOUT).await.is_none(), "principal fecha");
-    assert!(a.recv(TIMEOUT).await.is_none(), "áudio deve fechar com a sessão");
+    assert!(
+        a.recv(TIMEOUT).await.is_none(),
+        "áudio deve fechar com a sessão"
+    );
 
     assert!(
         find_event(handle.events(), 12, |e| matches!(
@@ -257,7 +271,10 @@ async fn audio_oversize_closes_only_audio() {
     })
     .await
     .expect("send");
-    assert!(a.recv(TIMEOUT).await.is_none(), "áudio fecha com ProtocolError");
+    assert!(
+        a.recv(TIMEOUT).await.is_none(),
+        "áudio fecha com ProtocolError"
+    );
 
     assert!(
         find_event(handle.events(), 10, |e| matches!(
@@ -272,7 +289,11 @@ async fn audio_oversize_closes_only_audio() {
 
     // Principal segue viva.
     primary.send(&Message::Ping(3)).await.expect("send");
-    assert_eq!(primary.recv(TIMEOUT).await, Some(Message::Pong(3)), "principal viva");
+    assert_eq!(
+        primary.recv(TIMEOUT).await,
+        Some(Message::Pong(3)),
+        "principal viva"
+    );
 
     handle.shutdown().await;
 }
@@ -304,7 +325,11 @@ async fn new_audio_replaces_old() {
     );
 
     a2.send(&Message::Ping(5)).await.expect("send");
-    assert_eq!(a2.recv(TIMEOUT).await, Some(Message::Pong(5)), "2º áudio ativo");
+    assert_eq!(
+        a2.recv(TIMEOUT).await,
+        Some(Message::Pong(5)),
+        "2º áudio ativo"
+    );
 
     handle.shutdown().await;
 }
@@ -318,7 +343,11 @@ async fn audio_ping_gets_pong() {
     let (mut a, w) = open_audio(port, &sid, &ticket).await;
     assert!(w.accepted);
     a.send(&Message::Ping(42)).await.expect("send");
-    assert_eq!(a.recv(TIMEOUT).await, Some(Message::Pong(42)), "PONG com o mesmo u64");
+    assert_eq!(
+        a.recv(TIMEOUT).await,
+        Some(Message::Pong(42)),
+        "PONG com o mesmo u64"
+    );
 
     handle.shutdown().await;
 }

@@ -79,7 +79,9 @@ async fn pair_ok_returns_device_key_and_rotates_token() {
     let before = pair_token(&handle);
 
     let mut c = TestClient::connect(port).await.expect("connect");
-    c.send(&TestClient::hello_pair(&before, "dev-1")).await.expect("send");
+    c.send(&TestClient::hello_pair(&before, "dev-1"))
+        .await
+        .expect("send");
     let w = take_welcome(&mut c).await;
 
     assert!(w.accepted, "pair deve ser aprovado (auto_approve)");
@@ -95,13 +97,18 @@ async fn pair_ok_returns_device_key_and_rotates_token() {
 
     // Evento `SessionStarted` com a mesma sessão.
     assert!(
-        find_event(handle.events(), 4, |e| matches!(e, ServerEvent::ConnectionOpened { .. }))
-            .await
-            .is_some(),
+        find_event(handle.events(), 4, |e| matches!(
+            e,
+            ServerEvent::ConnectionOpened { .. }
+        ))
+        .await
+        .is_some(),
         "ConnectionOpened"
     );
-    match find_event(handle.events(), 8, |e| matches!(e, ServerEvent::SessionStarted { .. }))
-        .await
+    match find_event(handle.events(), 8, |e| {
+        matches!(e, ServerEvent::SessionStarted { .. })
+    })
+    .await
     {
         Some(ServerEvent::SessionStarted {
             session_id,
@@ -142,14 +149,20 @@ async fn bad_token_denied() {
     assert!(w.device_key.is_none());
     assert!(w.audio_ticket.is_none());
 
-    assert!(c.recv(TIMEOUT).await.is_none(), "socket deve fechar após a recusa");
+    assert!(
+        c.recv(TIMEOUT).await.is_none(),
+        "socket deve fechar após a recusa"
+    );
 
     // O servidor segue aceitando.
     let mut c2 = TestClient::connect(port).await.expect("connect");
     c2.send(&TestClient::hello_pair(&pair_token(&handle), "dev-2"))
         .await
         .expect("send");
-    assert!(take_welcome(&mut c2).await.accepted, "servidor segue aceitando");
+    assert!(
+        take_welcome(&mut c2).await.accepted,
+        "servidor segue aceitando"
+    );
 
     handle.shutdown().await;
 }
@@ -167,7 +180,9 @@ async fn device_reconnect_without_key_in_welcome() {
     drop(c1);
 
     let mut c2 = TestClient::connect(port).await.expect("connect");
-    c2.send(&TestClient::hello_device("dev-1", &key)).await.expect("send");
+    c2.send(&TestClient::hello_device("dev-1", &key))
+        .await
+        .expect("send");
     let w = take_welcome(&mut c2).await;
     assert!(w.accepted, "auth `device` deve ser aceita");
     assert!(w.device_key.is_none(), "reconexão não recebe deviceKey");
@@ -204,7 +219,9 @@ async fn revoked_device_denied() {
         .expect("revoke");
 
     let mut c2 = TestClient::connect(port).await.expect("connect");
-    c2.send(&TestClient::hello_device("dev-1", &key)).await.expect("send");
+    c2.send(&TestClient::hello_device("dev-1", &key))
+        .await
+        .expect("send");
     let w = take_welcome(&mut c2).await;
     assert!(!w.accepted);
     assert_eq!(w.reason, Some(Reason::Revoked));
@@ -255,9 +272,14 @@ fn negotiate_matrix() {
 async fn version_mismatch_has_min_supported() {
     let (mut handle, port, _dir) = boot(true).await;
     let mut c = TestClient::connect(port).await.expect("connect");
-    c.send(&TestClient::hello_pair_v(&pair_token(&handle), "dev-1", 2, 0))
-        .await
-        .expect("send");
+    c.send(&TestClient::hello_pair_v(
+        &pair_token(&handle),
+        "dev-1",
+        2,
+        0,
+    ))
+    .await
+    .expect("send");
 
     let w = take_welcome(&mut c).await;
     assert!(!w.accepted);
@@ -286,7 +308,9 @@ async fn busy_for_other_device() {
     // O token rotacionou no 1º pareamento.
     let token2 = pair_token(&handle);
     let mut c2 = TestClient::connect(port).await.expect("connect");
-    c2.send(&TestClient::hello_pair(&token2, "dev-B")).await.expect("send");
+    c2.send(&TestClient::hello_pair(&token2, "dev-B"))
+        .await
+        .expect("send");
 
     let w = take_welcome(&mut c2).await;
     assert!(!w.accepted);
@@ -295,7 +319,11 @@ async fn busy_for_other_device() {
 
     // A primeira sessão segue ativa.
     c1.send(&Message::Ping(7)).await.expect("send");
-    assert_eq!(c1.recv(TIMEOUT).await, Some(Message::Pong(7)), "c1 segue ativo");
+    assert_eq!(
+        c1.recv(TIMEOUT).await,
+        Some(Message::Pong(7)),
+        "c1 segue ativo"
+    );
 
     handle.shutdown().await;
 }
@@ -315,7 +343,9 @@ async fn same_device_replaces_session() {
     let old_sid = w1.session_id.expect("sessionId");
 
     let mut c2 = TestClient::connect(port).await.expect("connect");
-    c2.send(&TestClient::hello_device("dev-1", &key)).await.expect("send");
+    c2.send(&TestClient::hello_device("dev-1", &key))
+        .await
+        .expect("send");
     assert!(take_welcome(&mut c2).await.accepted, "2ª conexão aceita");
 
     // O 1º recebe BYE e o socket fecha.
@@ -330,10 +360,12 @@ async fn same_device_replaces_session() {
     assert_eq!(c2.recv(TIMEOUT).await, Some(Message::Pong(9)));
 
     // A sessão antiga encerrou com `Replaced`.
-    match find_event(handle.events(), 16, |e| matches!(
-        e,
-        ServerEvent::SessionEnded { session_id, .. } if *session_id == old_sid
-    ))
+    match find_event(handle.events(), 16, |e| {
+        matches!(
+            e,
+            ServerEvent::SessionEnded { session_id, .. } if *session_id == old_sid
+        )
+    })
     .await
     {
         Some(ServerEvent::SessionEnded { reason, .. }) => {
@@ -355,7 +387,10 @@ async fn bad_json_hello_is_protocol_error() {
     let bad = encode_frame(msg::HELLO, 0, 0, 0, b"{not json").expect("encode");
     c.send_raw(&bad).await.expect("send");
 
-    assert!(c.recv(TIMEOUT).await.is_none(), "fecha calado, sem resposta");
+    assert!(
+        c.recv(TIMEOUT).await.is_none(),
+        "fecha calado, sem resposta"
+    );
 
     // O servidor segue aceitando.
     let mut c2 = TestClient::connect(port).await.expect("connect");

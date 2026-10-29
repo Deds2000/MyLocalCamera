@@ -5,8 +5,8 @@
 //! **somente** o SHA-256 em hex, em `<data_dir>/trust.json`, com
 //! escrita atômica e recuperação de arquivo corrompido.
 
-mod atomic;
 pub mod approval;
+mod atomic;
 pub mod ratelimit;
 pub mod secrets;
 pub mod store;

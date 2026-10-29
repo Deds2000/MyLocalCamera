@@ -25,6 +25,13 @@ pub const DEFAULT_CONN_RATE_WINDOW: u64 = 10;
 /// Tamanho máximo de um bloco `AUDIO` no socket de áudio (16 KiB —
 /// F1-T09b).
 pub const DEFAULT_AUDIO_BLOCK_MAX: usize = 16 * 1024;
+/// Intervalo dos `PING` de keepalive (F1-T10).
+pub const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(2);
+/// Sem `PONG` por este intervalo → conexão perdida (F1-T10).
+pub const DEFAULT_LIVENESS_TIMEOUT: Duration = Duration::from_secs(6);
+/// Intervalo do agregador de estatísticas da sessão — base dos 2 Hz da
+/// UI (F1-T10).
+pub const DEFAULT_STATS_INTERVAL: Duration = Duration::from_millis(500);
 
 /// Configuração do servidor de rede.
 #[derive(Debug, Clone)]
@@ -64,6 +71,14 @@ pub struct ServerConfig {
     /// Tamanho máximo de um bloco `AUDIO` no socket de áudio (F1-T09b);
     /// acima disso o socket de áudio fecha com `ProtocolError`.
     pub audio_block_max: usize,
+    /// Intervalo dos `PING` de keepalive em cada socket ativo (F1-T10).
+    pub ping_interval: Duration,
+    /// Sem `PONG` por este intervalo → `ConnectionLost` (F1-T10);
+    /// nenhum outro tráfego substitui o `PONG`.
+    pub liveness_timeout: Duration,
+    /// Intervalo do agregador de estatísticas da sessão (F1-T10);
+    /// emite `ServerEvent::Stats` a cada ciclo.
+    pub stats_interval: Duration,
 }
 
 impl ServerConfig {
@@ -89,6 +104,12 @@ impl ServerConfig {
             conn_rate_max: 1_000,
             conn_rate_window: DEFAULT_CONN_RATE_WINDOW,
             audio_block_max: DEFAULT_AUDIO_BLOCK_MAX,
+            // Keepalive solto: os clientes de teste existentes não
+            // respondem PING; os testes de F1-T10 usam valores
+            // explícitos pequenos na própria configuração.
+            ping_interval: Duration::from_secs(30),
+            liveness_timeout: Duration::from_secs(90),
+            stats_interval: DEFAULT_STATS_INTERVAL,
         }
     }
 }

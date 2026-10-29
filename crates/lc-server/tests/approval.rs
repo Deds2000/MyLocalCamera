@@ -185,12 +185,18 @@ async fn reject_denies() {
         .expect("send");
     take_pending(&mut c).await;
     let request_id = take_request(handle.events()).await;
-    assert!(handle.decide(request_id, Decision::Reject), "decide no pedido pendente");
+    assert!(
+        handle.decide(request_id, Decision::Reject),
+        "decide no pedido pendente"
+    );
 
     let w = take_welcome(&mut c).await;
     assert!(!w.accepted);
     assert_eq!(w.reason, Some(Reason::NotApproved));
-    assert!(c.recv(TIMEOUT).await.is_none(), "socket fecha após a recusa");
+    assert!(
+        c.recv(TIMEOUT).await.is_none(),
+        "socket fecha após a recusa"
+    );
 
     assert_eq!(
         take_resolved(handle.events(), request_id).await,
@@ -263,7 +269,10 @@ async fn phone_disconnect_cancels_pending() {
     let id2 = take_request(handle.events()).await;
     assert_ne!(id2, request_id);
     assert!(handle.decide(id2, Decision::ApproveOnce));
-    assert!(take_welcome(&mut c2).await.accepted, "novo pareamento aceito");
+    assert!(
+        take_welcome(&mut c2).await.accepted,
+        "novo pareamento aceito"
+    );
 
     handle.shutdown().await;
 }
@@ -283,7 +292,9 @@ async fn second_pair_while_pending_is_busy() {
     let request_id = take_request(handle.events()).await;
 
     let mut c2 = TestClient::connect(port).await.expect("connect");
-    c2.send(&TestClient::hello_pair(&token, "dev-2")).await.expect("send");
+    c2.send(&TestClient::hello_pair(&token, "dev-2"))
+        .await
+        .expect("send");
     // c2 recebe WELCOME direto (sem PENDING: o pedido não abriu)
     let w2 = take_welcome(&mut c2).await;
     assert!(!w2.accepted, "2º pareamento é recusado");
@@ -292,7 +303,10 @@ async fn second_pair_while_pending_is_busy() {
 
     // O 1º pedido segue válido e decidível.
     assert!(handle.decide(request_id, Decision::ApproveOnce));
-    assert!(take_welcome(&mut c1).await.accepted, "1º pedido segue ativo");
+    assert!(
+        take_welcome(&mut c1).await.accepted,
+        "1º pedido segue ativo"
+    );
 
     handle.shutdown().await;
 }
@@ -315,7 +329,10 @@ async fn decide_unknown_request_ignored() {
         .expect("send");
     take_pending(&mut c).await;
     let request_id = take_request(handle.events()).await;
-    assert!(handle.decide(request_id, Decision::ApproveOnce), "fluxo real ok");
+    assert!(
+        handle.decide(request_id, Decision::ApproveOnce),
+        "fluxo real ok"
+    );
     assert!(take_welcome(&mut c).await.accepted);
     assert!(
         !handle.decide(9999, Decision::ApproveAlways),

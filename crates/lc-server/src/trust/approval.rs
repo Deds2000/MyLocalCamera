@@ -126,7 +126,10 @@ mod tests {
             ip: "127.0.0.1".to_owned(),
         };
         let (id, _rx) = mgr.begin(&info).expect("1º begin livre");
-        assert!(!mgr.decide(9999, Decision::ApproveAlways), "id 9999 segue ignorado");
+        assert!(
+            !mgr.decide(9999, Decision::ApproveAlways),
+            "id 9999 segue ignorado"
+        );
         assert!(mgr.decide(id, Decision::ApproveOnce), "id certo decide");
         assert!(
             !mgr.decide(id, Decision::Reject),

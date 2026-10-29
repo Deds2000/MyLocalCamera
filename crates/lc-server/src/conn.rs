@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use lc_protocol::json::{AudioTicket, Bye, PcInfo, Reason, Welcome};
-use lc_protocol::{type_name, Frame, FrameReader, Message};
+use lc_protocol::{flags, type_name, Frame, FrameReader, Message};
 use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, oneshot, watch, OwnedSemaphorePermit, Semaphore};
@@ -16,11 +16,25 @@ use tokio::task::JoinHandle;
 use crate::audio::conn::{run_audio, AudioConn};
 use crate::events::{CloseReason, ServerEvent};
 use crate::handshake::{self, now_secs, write_msg, Accepted, Outcome, ServerCtx};
+use crate::keepalive::{mono_ms, Keepalive};
+use crate::sessions::SessionCounters;
 use crate::state::{transition, ConnState};
 use crate::version::SERVER_PROTOCOL;
 
 /// Tamanho do buffer de leitura por conexão.
 const READ_BUF_SIZE: usize = 64 * 1024;
+
+/// Timings de keepalive e estatísticas (F1-T10), agrupados para manter a
+/// assinatura de [`ConnShared::new`] enxuta.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct KeepaliveTiming {
+    /// Intervalo dos `PING` de keepalive.
+    pub ping_interval: Duration,
+    /// Sem `PONG` por este intervalo → `ConnectionLost`.
+    pub liveness_timeout: Duration,
+    /// Intervalo do agregador de estatísticas.
+    pub stats_interval: Duration,
+}
 
 /// Parte servidor (compartilhada) dos dados por conexão.
 #[derive(Clone)]
@@ -31,6 +45,8 @@ pub(crate) struct ConnShared {
     hello_timeout: Duration,
     /// Máximo de um bloco `AUDIO` no socket de áudio (F1-T09b).
     audio_block_max: usize,
+    /// Keepalive e estatísticas (F1-T10).
+    timing: KeepaliveTiming,
 }
 
 impl ConnShared {
@@ -42,6 +58,7 @@ impl ConnShared {
         shutdown_rx: watch::Receiver<bool>,
         hello_timeout: Duration,
         audio_block_max: usize,
+        timing: KeepaliveTiming,
     ) -> Self {
         Self {
             ctx,
@@ -49,6 +66,7 @@ impl ConnShared {
             shutdown_rx,
             hello_timeout,
             audio_block_max,
+            timing,
         }
     }
 }
@@ -155,7 +173,13 @@ async fn run_conn(
         mut shutdown_rx,
         hello_timeout,
         audio_block_max,
+        timing,
     } = shared;
+    let KeepaliveTiming {
+        ping_interval,
+        liveness_timeout,
+        stats_interval,
+    } = timing;
     if let Err(e) = stream.set_nodelay(true) {
         tracing::warn!(conn_id, %peer, error = %e, "TCP_NODELAY falhou");
         emit_closed(&mut events_tx, conn_id, CloseReason::ConnectionLost).await;
@@ -166,8 +190,14 @@ async fn run_conn(
     let mut buf = [0u8; READ_BUF_SIZE];
 
     // ── 1) Primeiro quadro (AwaitHello) ──
-    let first =
-        read_first_frame(&mut stream, &mut reader, &mut buf, &mut shutdown_rx, hello_timeout).await;
+    let first = read_first_frame(
+        &mut stream,
+        &mut reader,
+        &mut buf,
+        &mut shutdown_rx,
+        hello_timeout,
+    )
+    .await;
     let msg = match first {
         FirstFrame::Closed(reason) => {
             emit_closed(&mut events_tx, conn_id, reason).await;
@@ -206,6 +236,8 @@ async fn run_conn(
                     events_tx: events_tx.clone(),
                     shutdown_rx: shutdown_rx.clone(),
                     audio_block_max,
+                    ping_interval,
+                    liveness_timeout,
                 },
                 &mut stream,
                 peer,
@@ -230,9 +262,16 @@ async fn run_conn(
     let outcome =
         handshake::perform(&ctx, &events_tx, &mut stream, &mut buf, conn_id, &msg, peer).await;
     match outcome {
-        Outcome::Denied { reason, min_supported } => {
+        Outcome::Denied {
+            reason,
+            min_supported,
+        } => {
             // fecha **após** enviar o WELCOME (mesmo se o envio falhar)
-            let _ = write_msg(&mut stream, &Message::Welcome(denied_welcome(reason, min_supported))).await;
+            let _ = write_msg(
+                &mut stream,
+                &Message::Welcome(denied_welcome(reason, min_supported)),
+            )
+            .await;
             step(state, ConnState::Closing);
             emit_closed(&mut events_tx, conn_id, CloseReason::AuthDenied).await;
         }
@@ -251,7 +290,12 @@ async fn run_conn(
                 caps,
                 kick_rx,
             } = *a;
-            let welcome = Message::Welcome(accepted_welcome(&ctx, &session_id, audio_ticket, device_key));
+            let welcome = Message::Welcome(accepted_welcome(
+                &ctx,
+                &session_id,
+                audio_ticket,
+                device_key,
+            ));
             if let Err(e) = write_msg(&mut stream, &welcome).await {
                 tracing::warn!(conn_id, %peer, error = %e, "falha ao enviar WELCOME; fechando");
                 ctx.sessions.release(&session_id);
@@ -276,9 +320,29 @@ async fn run_conn(
                 .await;
 
             // ── 3) Sessão (Active) ──
+            // Contadores da sessão (a sessão recém-aceita é a ativa;
+            // `None` só na race de substituição — a sessão encerra via
+            // `kick_rx` antes de qualquer estatística).
+            let counters = ctx.sessions.counters(&session_id);
+            // Task agregadora (F1-T10): emite `Stats` a cada
+            // `stats_interval`; termina com a sessão.
+            let stats = counters.as_ref().map(|c| {
+                let (tx, rx) = oneshot::channel();
+                let task = tokio::spawn(crate::stats::session_stats_task(
+                    session_id.clone(),
+                    c.clone(),
+                    stats_interval,
+                    events_tx.clone(),
+                    rx,
+                ));
+                (tx, task)
+            });
             let session_data = SessionData {
                 ctx: ctx.clone(),
                 session_id: session_id.clone(),
+                counters,
+                ping_interval,
+                liveness_timeout,
             };
             let reason = session_loop(
                 &mut stream,
@@ -290,6 +354,13 @@ async fn run_conn(
                 &mut shutdown_rx,
             )
             .await;
+            // Encerra a task de estatísticas com a sessão.
+            if let Some((stats_tx, stats_task)) = stats {
+                let _ = stats_tx.send(());
+                if let Err(e) = stats_task.await {
+                    tracing::error!(conn_id, error = %e, "task de estatísticas panicou");
+                }
+            }
             let _ = events_tx
                 .send(ServerEvent::SessionEnded {
                     session_id: session_id.clone(),
@@ -355,13 +426,23 @@ struct SessionData {
     ctx: Arc<ServerCtx>,
     /// `sessionId` da sessão.
     session_id: String,
+    /// Contadores da sessão (vídeo + RTT; `None` na race de
+    /// substituição — a sessão encerra via `kick_rx`).
+    counters: Option<Arc<SessionCounters>>,
+    /// Intervalo dos `PING` de keepalive (F1-T10).
+    ping_interval: Duration,
+    /// Sem `PONG` por este intervalo → `ConnectionLost` (F1-T10).
+    liveness_timeout: Duration,
 }
 
 /// Laço de sessão (`Active`): `PING`→`PONG` (mesmo `u64`),
 /// `AUDIO_TICKET_REQUEST`→`AUDIO_TICKET` (F1-T09b), `BYE`→encerra,
 /// `HELLO` de novo→`ProtocolError`; o resto é logado e ignorado
-/// (F1-T10/Fase 3). `kick_rx` disparado = substituição pelo mesmo
-/// dispositivo: envia `BYE{reason:"replaced"}` e fecha com `Replaced`.
+/// (Fase 3). Keepalive (F1-T10): envia `PING` a cada `ping_interval`,
+/// mede o RTT nos `PONG` e fecha com `ConnectionLost` sem `PONG` por
+/// `liveness_timeout` (nenhum outro tráfego substitui o `PONG`).
+/// `kick_rx` disparado = substituição pelo mesmo dispositivo: envia
+/// `BYE{reason:"replaced"}` e fecha com `Replaced`.
 async fn session_loop(
     stream: &mut TcpStream,
     reader: &mut FrameReader,
@@ -371,7 +452,18 @@ async fn session_loop(
     mut kick_rx: oneshot::Receiver<()>,
     shutdown_rx: &mut watch::Receiver<bool>,
 ) -> CloseReason {
+    let SessionData {
+        ping_interval,
+        liveness_timeout,
+        ..
+    } = session;
+    let mut keepalive = Keepalive::new(*liveness_timeout);
+    let mut ticker = tokio::time::interval(*ping_interval);
+    // O 1º tick é imediato: descarta para o 1º `PING` sair após 1 ciclo.
+    ticker.tick().await;
     loop {
+        let liveness = tokio::time::sleep_until(keepalive.deadline().into());
+        tokio::pin!(liveness);
         tokio::select! {
             res = stream.read(buf) => match res {
                 Ok(0) => return CloseReason::PeerClosed,
@@ -390,6 +482,18 @@ async fn session_loop(
                                     tracing::warn!(conn_id, error = %e, "falha ao enviar PONG");
                                     return CloseReason::ConnectionLost;
                                 }
+                            }
+                            Message::Pong(v) => {
+                                // Keepalive (F1-T10): RTT (EWMA) + renova
+                                // o liveness. Só `PONG` mantém vivo.
+                                keepalive.on_pong(v, mono_ms());
+                                if let (Some(c), Some(rtt)) = (&session.counters, keepalive.rtt_ms()) {
+                                    c.rtt_ewma_ms
+                                        .store(rtt_to_u32(rtt), Ordering::Relaxed);
+                                }
+                            }
+                            Message::Video { stream, flags, data, .. } => {
+                                count_video(session.counters.as_ref(), stream, flags, data.len());
                             }
                             Message::AudioTicketRequest => {
                                 // Sessão ativa: emite um novo ticket de
@@ -411,7 +515,7 @@ async fn session_loop(
                             _ => tracing::debug!(
                                 conn_id,
                                 frame_type = type_name(frame.msg_type),
-                                "mensagem ignorada na sessão (F1-T10/Fase 3)"
+                                "mensagem ignorada na sessão (Fase 3)"
                             ),
                         }
                     },
@@ -425,6 +529,25 @@ async fn session_loop(
                     return CloseReason::ConnectionLost;
                 }
             },
+            // Keepalive (F1-T10): a cada `ping_interval` envia `PING`
+            // (relógio monotônico em ms); se o liveness já estourou
+            // (sem `PONG`), fecha com `ConnectionLost`.
+            _ = ticker.tick() => {
+                if keepalive.is_dead(std::time::Instant::now()) {
+                    tracing::info!(conn_id, "sem PONG por {} ms; conexão perdida", liveness_timeout.as_millis());
+                    return CloseReason::ConnectionLost;
+                }
+                if let Err(e) = write_msg(stream, &Message::Ping(mono_ms())).await {
+                    tracing::warn!(conn_id, error = %e, "falha ao enviar PING");
+                    return CloseReason::ConnectionLost;
+                }
+            }
+            // Keepalive (F1-T10): prazo exato do liveness (atualizado a
+            // cada `PONG` — o deadline é recalculado a cada iteração).
+            _ = &mut liveness => {
+                tracing::info!(conn_id, "liveness timeout ({} ms sem PONG); conexão perdida", liveness_timeout.as_millis());
+                return CloseReason::ConnectionLost;
+            }
             _ = &mut kick_rx => {
                 let bye = Message::Bye(Bye { reason: "replaced".to_owned() });
                 if let Err(e) = write_msg(stream, &bye).await {
@@ -461,7 +584,10 @@ fn accepted_welcome(
 }
 
 /// `WELCOME` recusado (motivo + `minSupported` quando for versão).
-fn denied_welcome(reason: Reason, min_supported: Option<lc_protocol::json::ProtocolVersion>) -> Welcome {
+fn denied_welcome(
+    reason: Reason,
+    min_supported: Option<lc_protocol::json::ProtocolVersion>,
+) -> Welcome {
     Welcome {
         accepted: false,
         protocol: None,
@@ -476,7 +602,38 @@ fn denied_welcome(reason: Reason, min_supported: Option<lc_protocol::json::Proto
 
 /// Emite `ConnectionClosed`; o socket fecha com o drop do stream.
 async fn emit_closed(events_tx: &mut mpsc::Sender<ServerEvent>, conn_id: u64, reason: CloseReason) {
-    let _ = events_tx.send(ServerEvent::ConnectionClosed { conn_id, reason }).await;
+    let _ = events_tx
+        .send(ServerEvent::ConnectionClosed { conn_id, reason })
+        .await;
+}
+
+/// Conta um quadro `VIDEO` aceito (F1-T10): `video_frames[stream-1]`,
+/// `video_bytes` por stream e `keyframes` (bit0 de `flags`).
+/// `None` (race de substituição) → não conta; a sessão encerra via
+/// `kick_rx`.
+fn count_video(counters: Option<&Arc<SessionCounters>>, stream: u8, flags: u8, payload_len: usize) {
+    let Some(c) = counters else { return };
+    // Índices: 0 = stream 1, 1 = stream 2, 2 = reservado.
+    let idx = match stream {
+        1 => 0,
+        2 => 1,
+        _ => 2,
+    };
+    c.video_frames[idx].fetch_add(1, Ordering::Relaxed);
+    c.video_bytes[idx].fetch_add(
+        u64::try_from(payload_len).expect("payload ≤ 8 MiB cabe em u64"),
+        Ordering::Relaxed,
+    );
+    if (flags & flags::KEYFRAME) != 0 {
+        c.keyframes.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+/// Converte o RTT (EWMA, f32 em ms) para o `AtomicU32` dos contadores;
+/// RTT fora de [0, 65 535] ms (impossível na prática) satura.
+fn rtt_to_u32(rtt: f32) -> u32 {
+    // clamp garante [0, 65 535] → o cast não satura nem arredonda.
+    rtt.clamp(0.0, 65_535.0).round() as u32
 }
 
 /// Descarta o ticket de áudio (ainda não usado) da sessão encerrada.

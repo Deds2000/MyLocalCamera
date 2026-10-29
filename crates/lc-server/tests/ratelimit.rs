@@ -63,11 +63,17 @@ fn blocks_after_max_failures() {
     let a = ip("10.0.0.1");
     let mut l = AuthLimiter::new(5, 60, 300);
     for i in 0..4u64 {
-        assert!(!l.record_failure(a, 1000 + i), "sem bloqueio antes das 5 falhas");
+        assert!(
+            !l.record_failure(a, 1000 + i),
+            "sem bloqueio antes das 5 falhas"
+        );
     }
     assert!(l.record_failure(a, 1004), "a 5ª falha entra em bloqueio");
     assert!(l.is_blocked(a, 1010), "bloqueado após as 5 falhas");
-    assert!(l.is_blocked(a, 1303), "bloqueio dura 5 min (a partir da última falha)");
+    assert!(
+        l.is_blocked(a, 1303),
+        "bloqueio dura 5 min (a partir da última falha)"
+    );
     assert!(!l.is_blocked(a, 1304), "bloqueio expira");
 }
 
@@ -83,7 +89,10 @@ fn success_resets_counter() {
     for i in 0..4u64 {
         assert!(!l.record_failure(a, 1100 + i), "sucesso zera o contador");
     }
-    assert!(!l.is_blocked(a, 1200), "4+4 falhas após o sucesso não bloqueiam");
+    assert!(
+        !l.is_blocked(a, 1200),
+        "4+4 falhas após o sucesso não bloqueiam"
+    );
 }
 
 /// UT-1.24 — bloquear A não afeta B.
@@ -104,7 +113,10 @@ fn window_slides() {
     let a = ip("10.0.0.1");
     let mut l = AuthLimiter::new(5, 60, 300);
     for i in 0..5u64 {
-        assert!(!l.record_failure(a, 1000 + i * 61), "falhas espaçadas não acumulam");
+        assert!(
+            !l.record_failure(a, 1000 + i * 61),
+            "falhas espaçadas não acumulam"
+        );
     }
     assert!(!l.is_blocked(a, 2500), "sem 5 falhas dentro da janela");
 }
@@ -162,13 +174,21 @@ async fn bruteforce_6_attempts_per_minute_blocked() {
         let w = take_welcome(&mut c).await;
         assert!(!w.accepted, "token errado é recusado");
         assert_eq!(w.reason, Some(Reason::BadToken), "resposta uniforme");
-        assert!(c.recv(TIMEOUT).await.is_none(), "socket fecha após a recusa");
+        assert!(
+            c.recv(TIMEOUT).await.is_none(),
+            "socket fecha após a recusa"
+        );
     }
 
     // 6ª: IP bloqueado → fechada no accept, sem resposta.
     let mut c6 = TestClient::connect(port).await.expect("connect");
-    let _ = c6.send(&TestClient::hello_pair(&"f".repeat(32), "dev-x")).await;
-    assert!(c6.recv(TIMEOUT).await.is_none(), "6ª conexão é fechada sem resposta");
+    let _ = c6
+        .send(&TestClient::hello_pair(&"f".repeat(32), "dev-x"))
+        .await;
+    assert!(
+        c6.recv(TIMEOUT).await.is_none(),
+        "6ª conexão é fechada sem resposta"
+    );
 
     // Evento `AuthBlocked` com o IP certo (o token nunca aparece).
     let mut blocked_ip = None;
@@ -179,7 +199,11 @@ async fn bruteforce_6_attempts_per_minute_blocked() {
             break;
         }
     }
-    assert_eq!(blocked_ip.as_deref(), Some("127.0.0.1"), "AuthBlocked do IP certo");
+    assert_eq!(
+        blocked_ip.as_deref(),
+        Some("127.0.0.1"),
+        "AuthBlocked do IP certo"
+    );
 
     // Após o bloqueio expirar (2 s), o token válido volta a ser aceito.
     tokio::time::sleep(Duration::from_millis(2300)).await;
@@ -187,7 +211,10 @@ async fn bruteforce_6_attempts_per_minute_blocked() {
     c7.send(&TestClient::hello_pair(&pair_token(&handle), "dev-x"))
         .await
         .expect("send");
-    assert!(take_welcome(&mut c7).await.accepted, "após o bloqueio volta ao normal");
+    assert!(
+        take_welcome(&mut c7).await.accepted,
+        "após o bloqueio volta ao normal"
+    );
 
     handle.shutdown().await;
 }
@@ -258,7 +285,10 @@ async fn connection_storm_limited() {
     c.send(&TestClient::hello_pair(&pair_token(&handle), "dev-storm"))
         .await
         .expect("send");
-    assert!(take_welcome(&mut c).await.accepted, "após a janela volta ao normal");
+    assert!(
+        take_welcome(&mut c).await.accepted,
+        "após a janela volta ao normal"
+    );
 
     handle.shutdown().await;
     drop(dir);
@@ -290,7 +320,10 @@ async fn valid_device_not_blocked_by_failures_of_other_ip() {
     c.send(&TestClient::hello_pair(&pair_token(&handle), "dev-b"))
         .await
         .expect("send");
-    assert!(take_welcome(&mut c).await.accepted, "B não é afetado pelas falhas de A");
+    assert!(
+        take_welcome(&mut c).await.accepted,
+        "B não é afetado pelas falhas de A"
+    );
 
     handle.shutdown().await;
 }
