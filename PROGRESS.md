@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F0-GATE` (S5 concluído: veredito **B** — JPEG do Rust; ADR 0005 aceito; 150/200% pulados por decisão do usuário)  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-29
+**Próxima tarefa:** `F1-T01` (vetores de teste do protocolo)  ·  **Fase atual:** 0 **CONCLUÍDA** (gate APROVADA em 2026-10-29; veredito S5 = B; ADR 0005; cleanup S2 concluído; vereditos confirmados pelo usuário)  ·  **Última atualização:** 2026-10-29
 
 ## Bloqueios
 (nenhum ativo)
@@ -30,7 +30,7 @@
 - F0-T10: e2e **não incluído no `ci.ps1`** — incluir na Fase 2, junto com o catálogo real.
 - F0-T10: `snapshotDir` ficou descontinuada no Playwright (1.64); usado `snapshotPathTemplate: "e2e/__snapshots__/{projectName}/{arg}{ext}"` (mesmo diretório do cartão). No Playwright 1.64 o `testInfo` é o 2º argumento do teste (não fixture), e `devices["iPhone 13"]` traz `webkit` - projeto mobile fixado em `chromium`.
 - F0-S1: câmera de teste removida; depois do reboot, o sample enumerou o device mas `Remove` retornou `MF_E_NOT_FOUND`; câmera sumiu das Configurações e os arquivos do spike foram removidos.
-- F0-S2 (concluído): pipe nomeado é o canal Frame Server ↔ app (veredito aceito, ADR 0003). Medições: 1500 s = 41.978 quadros, 0 perdas, 87,0 MB/s, lat p50 1,87 ms / p95 2,95 ms; CPU 60 s (câmera aberta): app 3,54% / FrameServer 100,78%; 20× abrir/fechar = 21 reconexões OK; segurança 2º usuário = NEGADO 5 (ACCESS_DENIED); shm Global = NEGADO (0x80070005), shm Local = 93,3 MB/s. **Cleanup de admin pendente** (requer worker elevado `LocalCameraElevated` para rodar `uninstall.ps1`, remover `HKLM\SOFTWARE\LocalCameraSpike` e usuário `LocalCamSpikeTest`).
+- F0-S2 (concluído): pipe nomeado é o canal Frame Server ↔ app (veredito aceito, ADR 0003). Medições: 1500 s = 41.978 quadros, 0 perdas, 87,0 MB/s, lat p50 1,87 ms / p95 2,95 ms; CPU 60 s (câmera aberta): app 3,54% / FrameServer 100,78%; 20× abrir/fechar = 21 reconexões OK; segurança 2º usuário = NEGADO 5 (ACCESS_DENIED); shm Global = NEGADO (0x80070005), shm Local = 93,3 MB/s. **Cleanup de admin CONCLUÍDO (2026-10-29)** via `spikes/s2/cleanup-elevado.ps1` em PowerShell elevado (CLSID + `C:\Program Files\LocalCameraSpike` + chave HKLM + `C:\ProgramData\LocalCameraElevated` + tarefa + usuário `LocalCamSpikeTest`; verificação final "All clean.").
 
 ---
 
@@ -53,10 +53,10 @@ Ordem de execução (respeite as dependências):
 | [x] | F0-T14 | Relatórios de teste (`new-report.ps1`) | A | T07 | `docs/tasks/fase-0/F0-T14.md` |
 | [x] | F0-T10 | (opcional) Playwright para o catálogo de componentes | A | T02, T03 | `docs/tasks/fase-0/F0-T10.md` |
 | [x] | F0-S1 | Spike S1 — câmera virtual × NVIDIA Broadcast | A+H | T01 | `docs/tasks/fase-0/F0-S1.md` |
-| [x] | F0-S2 | Spike S2 — canal Frame Server ↔ app (pipe nomeado, veredito aceito; ADR 0003; cleanup de admin pendente por falta de elevação) | A+H | S1 | `docs/tasks/fase-0/F0-S2.md` |
+| [x] | F0-S2 | Spike S2 — canal Frame Server ↔ app (pipe nomeado, veredito aceito; ADR 0003; cleanup de admin concluído em 2026-10-29) | A+H | S1 | `docs/tasks/fase-0/F0-S2.md` |
 | [x] | F0-S3 | Spike S3 — CameraX × Camera2 (e câmeras simultâneas) | A+H | T03 | `docs/tasks/fase-0/F0-S3.md` |
 | [x] | F0-S5 | Spike S5 — estratégia de preview (veredito **B** — JPEG do Rust; ADR 0005; 150/200% pulados por decisão do usuário) | A+H | T02, T13 | `docs/tasks/fase-0/F0-S5.md` |
-| [ ] | F0-GATE | Portão da Fase 0 (todos os testes e relatório) | A+H | todas | `docs/tasks/fase-0/F0-GATE.md` |
+| [x] | F0-GATE | Portão da Fase 0 (relatório `docs/tests/fase-0.md` APROVADA; CI completo + `-Fast` verdes; AT-0.01 clone limpo verde; AT-0.04 APK via ADB; AT-0.06 diferido p/ Fase 9; D-0 = timeout UT-0.04 corrigido; cleanup S2 concluído; vereditos confirmados pelo usuário) | A+H | todas | `docs/tasks/fase-0/F0-GATE.md` |
 
 ## Fase 1 — Protocolo e rede  → `docs/phases/fase-1-protocolo-e-rede.md`
 Ordem de execução (respeite as dependências). A lógica de rede fica na crate `crates/lc-server` (sem Tauri).
