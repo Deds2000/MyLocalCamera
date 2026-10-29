@@ -12,11 +12,13 @@ use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, oneshot, watch, OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
+use tracing::Instrument;
 
 use crate::audio::conn::{run_audio, AudioConn};
 use crate::events::{CloseReason, ServerEvent};
 use crate::handshake::{self, now_secs, write_msg, Accepted, Outcome, ServerCtx};
 use crate::keepalive::{mono_ms, Keepalive};
+use crate::redact::short;
 use crate::sessions::SessionCounters;
 use crate::state::{transition, ConnState};
 use crate::version::SERVER_PROTOCOL;
@@ -145,7 +147,10 @@ pub(super) async fn accept_loop(
                 let _ = events_tx
                     .send(ServerEvent::ConnectionOpened { conn_id, peer })
                     .await;
-                let handle = tokio::spawn(run_conn(stream, peer, conn_id, permit, shared.clone()));
+                let handle = tokio::spawn(
+                    run_conn(stream, peer, conn_id, permit, shared.clone())
+                        .instrument(tracing::info_span!("conn", conn = conn_id)),
+                );
                 conns.lock().unwrap_or_else(|p| p.into_inner()).push(handle);
             }
         }
@@ -306,6 +311,9 @@ async fn run_conn(
             }
             // liberado o permit de não autenticadas
             drop(permit);
+            // Span da sessão (F1-T16): logs rastreáveis pelo id abreviado.
+            let session_span = tracing::info_span!("session", session = %short(&session_id));
+            session_span.in_scope(|| tracing::debug!(device_id = %device_id, "sessão iniciada"));
             step(state, ConnState::Active);
             state = ConnState::Active;
             let _ = events_tx
@@ -353,6 +361,7 @@ async fn run_conn(
                 kick_rx,
                 &mut shutdown_rx,
             )
+            .instrument(session_span)
             .await;
             // Encerra a task de estatísticas com a sessão.
             if let Some((stats_tx, stats_task)) = stats {

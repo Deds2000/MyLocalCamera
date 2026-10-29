@@ -9,6 +9,7 @@ pub mod conn;
 pub mod events;
 pub mod handshake;
 pub mod keepalive;
+pub mod redact;
 pub mod sessions;
 pub mod state;
 pub mod stats;
