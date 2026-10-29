@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** **Fase 1 concluída** — pedir ao autor do plano para gerar os cartões da Fase 2 (veredito do S3: CameraX única + Camera2 dual)  ·  **Fase atual:** 2 (aguardando cartões)  ·  **Última atualização:** 2026-10-29
+**Próxima tarefa:** `F2-T01` (Capacitor e deep link)  ·  **Fase atual:** 2  ·  **Última atualização:** 2026-10-29
 
 ## Bloqueios
 (nenhum ativo)
@@ -13,6 +13,7 @@
 
 ## Observações
 (o agente anota aqui problemas fora do escopo da tarefa atual)
+- Cartões da Fase 2 (gerados 2026-10-29 pelo worker, auditados): 20 cartões em `docs/tasks/fase-2/` (19 tarefas + GATE), 63/63 IDs do §7 mapeados (UT 14, IT 7, AT 15, FT 14, PT 6, ST 5, LT 2), DAG sem ciclos (máx. 3 dependências; `F2-T14` é o agrupador de testes). Decisões dos cartões: `caps.concurrent` reporta o valor real e **registra a divergência** com a implementação single (Fase 2) para o usuário validar no GATE; `SO_SNDBUF` = constante 256 KiB documentada, medição de afinamento pendente no `F2-T15`; deep link: o manifest já vinha de F0-T03 (intent-filter + `singleTask` + retrato) — o `F2-T01` confirma e adiciona o `appUrlOpen`; Kotlin em subpacotes `protocol/ uri/ store/ camera/ encoder/ net/ state/ service/ plugin/` em `com.localcamera.app`.
 - F1-GATE: **Fase 1 APROVADA** (relatório `docs/tests/fase-1.md`). Portão verde: `ci.ps1` completo OK (1ª execução travou num daemon Gradle órfão no passo Android — resolvido com `gradlew --stop` + reexecução limpa, sem mudança de código), `pnpm run vectors:check` OK (8 frames, 24 json), perf PT-1.01 re-medido **36 201 MiB/s** (anterior 45 939; variação de carga). `docs/protocol.md` → **v1.0** (título); vetores × protocol.md sem divergência; 3 pontos **ausentes** em protocol.md e presentes no CHEATSHEET/servidor (limite `HELLO` ≤ 64 KiB, 8 conexões não autenticadas, bloqueio 5 falhas/60 s) — listados no relatório como divergências, **não corrigidos** (cartão manda perguntar ao usuário). Cobertura 70/70 IDs sem teste nenhum pendente. README do mock-sender completo (27 flags). ST-1.05: parte de segredos coberta por testes; parte de ferramentas (`cargo audit`/`cargo deny`) **não executada** — cartão F1-T13 manda registrar "não executado" sem aprovação do usuário. `soak-f1.csv` (execução limpa de 30 min) commitado como evidência. **Pendências p/ usuário:** (a) decisão sobre os 3 pontos ausentes em `protocol.md`; (b) aprovar instalação de `cargo audit`/`cargo deny` se quiser a parte de ferramentas do ST-1.05.
 - F1-T13: trabalho do subagente local auditado linha a linha antes do commit (escopo = 3 arquivos novos; nada fora do escopo tocado). IT-1.01: a task de vídeo segura o socket aberto até o áudio terminar (senão o fim do vídeo encerraria a sessão e cortaria o áudio). PT-1.02: o canal de eventos do servidor tem capacidade 64 — o teste drena continuamente, senão o handshake trava. FT-1.09 (comportamento documentado no teste): a loja é **memória + disco** — apagar `trust.json` com o servidor ligado não afeta o em execução (e o próximo `hello_device` **regrava** o arquivo via `touch`, por isso o teste apaga de novo antes do restart); após restart com o `data_dir` e o arquivo apagado, o device vira `revoked` e o token antigo `bad_token`. IT-1.02/IT-1.06/FT-1.08 e ST-1.03/ST-1.05 confirmados já cobertos (`tests/handshake.rs`, `tests/trust.rs`, `tests/audio_socket.rs`). Medições: PT-1.01 = 45 939 MiB/s (release); PT-1.02 = p95 5,88 ms (n = 500, 0 erros; execuções 6,78 / 9,78 / 5,88 ms); ST-1.06 = `auto_approve_only_in_debug` + `approval_timeout_denies` verdes em `--release`. `lc-server` ganhou `tokio/signal` em dev-deps (exemplo `soak_server.rs`). `soak.ps1` sai com 1 se ws > +5 MB (após 1 min de aquecimento) ou handles > +5%.
 - F1-T11b: 13 flags de falha determinísticas em `faults.rs` (`FaultyWriter` com fragmentação, limite de vazão por tempo e stall único; quadros malformados montados à mão). `tests/faults.rs` cobre os 12 cenários (AT-1.07/1.10/1.11/1.12/1.14, IT-1.03/1.04, FT-1.01/1.03/1.06, slow e drop-ping). `lc-server` ganhou `ServerHandle::active_connections()` (observabilidade; remove handles terminados) para o IT-1.03. O IT de fragmentação usa `pattern43.h264` (128 KB) para não estourar o prazo de 5 s com `--fragment 1`; os totais do servidor são comparados com ±2%. `MockConfig`/`Summary`/`MockError` foram para `config.rs` e `session` os reexporta (limite de ~300 linhas; `session.rs` ficou com 280).
@@ -97,8 +98,30 @@ Ordem de execução (respeite as dependências). A lógica de rede fica na crate
 | [x] | F1-GATE | Portão da Fase 1 — **APROVADA** (relatório `docs/tests/fase-1.md`; CI completo + vetores + perf verdes; soak LT-1.01 aprovado; protocolo v1.0; cobertura 70/70 IDs; ST-1.05 ferramentas "não executado" por falta de aprovação) | A | todas | `docs/tasks/fase-1/F1-GATE.md` |
 
 ## Fase 2 — Mobile: transmissão mínima  → `docs/phases/fase-2-mobile-transmissao-minima.md`
-**Cartões: (gerar)** — depende do veredito do S3. Tarefas previstas:
-`F2-T01` Capacitor + deep link · `F2-T03` telas e roteamento · `F2-T03a` componentes e tokens · `F2-T03b` textos i18n · `F2-T03c` catálogo · `F2-T04` `ProtocolCodec.kt` · `F2-T05` `PairingStore.kt` · `F2-T05a` parser da URI · `F2-T06` `CapabilitiesProbe` · `F2-T07` `CameraBackend` · `F2-T08` `VideoEncoder.kt` · `F2-T09` `PrimaryConnection.kt` · `F2-T10` `SendQueue.kt` · `F2-T11` `StateReducer.kt` · `F2-T12` `StreamingService` · `F2-T13` `LocalCameraPlugin.kt` · `F2-T16` rede do Android · `F2-T14` testes · `F2-T15` relatório · `F2-GATE`
+Ordem de execução (respeite as dependências). Kotlin em `mobile/android/app/src/main/java/com/localcamera/app/`.
+
+| St | ID | Título | Exec | Dep. | Cartão |
+|---|---|---|---|---|---|
+| [ ] | F2-T01 | Capacitor e deep link (`localcamera://connect`) | A+H | F1-GATE | `docs/tasks/fase-2/F2-T01.md` |
+| [ ] | F2-T03a | Tokens e componentes próprios | A | T01 | `docs/tasks/fase-2/F2-T03a.md` |
+| [ ] | F2-T03b | Textos i18n (JSON + `strings.xml`) | A | T01 | `docs/tasks/fase-2/F2-T03b.md` |
+| [ ] | F2-T03 | Telas e roteamento | A | T03a, T03b | `docs/tasks/fase-2/F2-T03.md` |
+| [ ] | F2-T03c | Catálogo (`?catalog`) | A | T03 | `docs/tasks/fase-2/F2-T03c.md` |
+| [ ] | F2-T04 | `ProtocolCodec.kt` (vetores 100%) | A | F1-GATE | `docs/tasks/fase-2/F2-T04.md` |
+| [ ] | F2-T05a | Parser da URI `localcamera://connect` | A | F1-GATE | `docs/tasks/fase-2/F2-T05a.md` |
+| [ ] | F2-T05 | `PairingStore.kt` (Keystore, fora do backup) | A+H | T01 | `docs/tasks/fase-2/F2-T05.md` |
+| [ ] | F2-T06 | `CapabilitiesProbe` | A+H | T01 | `docs/tasks/fase-2/F2-T06.md` |
+| [ ] | F2-T07 | `CameraBackend` (CameraX, veredito S3) | A+H | T06 | `docs/tasks/fase-2/F2-T07.md` |
+| [ ] | F2-T08 | `VideoEncoder.kt` (MediaCodec H.264 CBR) | A+H | T07 | `docs/tasks/fase-2/F2-T08.md` |
+| [ ] | F2-T09 | `PrimaryConnection.kt` (hosts paralelos, backoff) | A | T04, T05 | `docs/tasks/fase-2/F2-T09.md` |
+| [ ] | F2-T11 | `StateReducer.kt` | A | T04 | `docs/tasks/fase-2/F2-T11.md` |
+| [ ] | F2-T10 | `SendQueue.kt` (2 faixas, descarte por tempo) | A | T09 | `docs/tasks/fase-2/F2-T10.md` |
+| [ ] | F2-T16 | Rede do Android (Wi-Fi sem internet vs. móveis) | A+H | T09 | `docs/tasks/fase-2/F2-T16.md` |
+| [ ] | F2-T12 | `StreamingService` (foreground) | A+H | T08, T09 | `docs/tasks/fase-2/F2-T12.md` |
+| [ ] | F2-T13 | `LocalCameraPlugin.kt` | A+H | T12 | `docs/tasks/fase-2/F2-T13.md` |
+| [ ] | F2-T14 | Testes (agrupador: UT/IT/AT/FT/PT/ST) | A+H | T03, T03c, T04, T05, T06, T08, T09, T10, T11, T12, T13, T16 | `docs/tasks/fase-2/F2-T14.md` |
+| [ ] | F2-T15 | Relatório e matriz de aparelhos (`docs/devices.md`) | A+H | T14 | `docs/tasks/fase-2/F2-T15.md` |
+| [ ] | F2-GATE | Portão da Fase 2 (relatório + regressão RS-S/AT-1.xx) | A | todas | `docs/tasks/fase-2/F2-GATE.md` |
 
 ## Fase 3 — Desktop: UI, decodificação e preview  → `docs/phases/fase-3-desktop-ui-e-preview.md`
 **Cartões: (gerar)** — depende do veredito do S5. Tarefas previstas:
