@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F1-T11b` (`mock-sender`: flags de falha + AT/FT automatizados)  ·  **Fase atual:** 1  ·  **Última atualização:** 2026-10-29
+**Próxima tarefa:** `F1-T13` (Integração, desempenho e *soak*)  ·  **Fase atual:** 1  ·  **Última atualização:** 2026-10-29
 
 ## Bloqueios
 (nenhum ativo)
@@ -12,6 +12,7 @@
 
 ## Observações
 (o agente anota aqui problemas fora do escopo da tarefa atual)
+- F1-T11b: 13 flags de falha determinísticas em `faults.rs` (`FaultyWriter` com fragmentação, limite de vazão por tempo e stall único; quadros malformados montados à mão). `tests/faults.rs` cobre os 12 cenários (AT-1.07/1.10/1.11/1.12/1.14, IT-1.03/1.04, FT-1.01/1.03/1.06, slow e drop-ping). `lc-server` ganhou `ServerHandle::active_connections()` (observabilidade; remove handles terminados) para o IT-1.03. O IT de fragmentação usa `pattern43.h264` (128 KB) para não estourar o prazo de 5 s com `--fragment 1`; os totais do servidor são comparados com ±2%. `MockConfig`/`Summary`/`MockError` foram para `config.rs` e `session` os reexporta (limite de ~300 linhas; `session.rs` ficou com 280).
 - F1-T11a: `mock-sender` (lib + bin) com parser da URI (16 vetores), `--state-file` para reconexão via `device`, vídeo Annex-B com flags/PTS e áudio seno em blocos de 10 ms. Pacing com `interval` + `MissedTickBehavior::Burst` em vez de `Delay` (desvio justificado): a granularidade do timer do Windows (~15,6 ms) transformava 33,3 ms em ~46,8 ms (~21 fps) e 10 ms em ~15,6 ms (~128 blocos/2 s); com Burst a média fica em ~60 quadros e ~200 blocos por 2 s. `session.rs` passou de 300 linhas, então as tasks de mídia foram extraídas para `media.rs` (precedente: `atomic.rs` no F1-T05). `--seconds` permite execução limitada; sem ele roda até o vídeo acabar ou Ctrl+C.
 - F1-T16: auditoria de todos os `tracing::*!` (0 valores sensíveis logados — token/`deviceKey`/`audioTicket` nunca eram impressos; só o `deviceId`, que não é segredo). `redact::short`/`Redacted` disponíveis para uso futuro; spans `conn{conn=<id>}` (instrumenta `run_conn`) e `session{session=<4 chars>…}` (instrumenta `session_loop`, com log "sessão iniciada"). `tests/log_redaction.rs` captura TRACE via `MakeWriter` + `set_default` em runtime `current_thread` e cobre pareamento/áudio/reconexão/token errado/ticket reutilizado.
 - F1-T10: keepalive (PING 2 s/PONG, liveness 6 s, EWMA α=0,3) e agregador de stats a 500 ms; trabalho parcial do worker cancelado foi auditado e completado (`ConnShared::new` recebe `KeepaliveTiming {ping_interval, liveness_timeout, stats_interval}` para satisfazer `too_many_arguments`; `f32`/`compute_stats` reordenados em `stats.rs` para o rustdoc). `for_tests` mantém keepalive solto (ping 30 s/liveness 90 s) para não derrubar clientes de teste antigos; testes de keepalive passam valores pequenos explícitos.
@@ -88,7 +89,7 @@ Ordem de execução (respeite as dependências). A lógica de rede fica na crate
 | [x] | F1-T10 | Keepalive, RTT e agregador de estatísticas (500 ms) | A | T09b | `docs/tasks/fase-1/F1-T10.md` |
 | [x] | F1-T16 | Logs com redação de segredos | A | T04b | `docs/tasks/fase-1/F1-T16.md` |
 | [x] | F1-T11a | `mock-sender`: pareamento, reconexão, vídeo/áudio | A | T09b, F0-T13 | `docs/tasks/fase-1/F1-T11a.md` |
-| [ ] | F1-T11b | `mock-sender`: flags de falha + AT/FT automatizados | A | T11a, T10 | `docs/tasks/fase-1/F1-T11b.md` |
+| [x] | F1-T11b | `mock-sender`: flags de falha + AT/FT automatizados | A | T11a, T10 | `docs/tasks/fase-1/F1-T11b.md` |
 | [ ] | F1-T13 | Integração, desempenho e *soak* (cria `soak.ps1`) | A+H | T11b, T15, T16, T07 | `docs/tasks/fase-1/F1-T13.md` |
 | [ ] | F1-GATE | Portão da Fase 1 (protocolo v1.0 e relatório) | A | todas | `docs/tasks/fase-1/F1-GATE.md` |
 
