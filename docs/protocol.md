@@ -1,4 +1,4 @@
-# Protocolo LocalCamera — v1 (rascunho a ser finalizado na Fase 1)
+# Protocolo LocalCamera — v1.0
 
 Esta é a **fonte da verdade** do protocolo. Toda mudança aqui exige atualizar `docs/protocol-vectors.json` e os três lados (Rust, TypeScript, Kotlin) **no mesmo commit**.
 
