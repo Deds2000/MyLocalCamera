@@ -71,12 +71,7 @@ fn vectors_json_all() {
             "ok" => {
                 let m = Message::from_frame(&f)
                     .unwrap_or_else(|e| panic!("vetor {} deveria ser Ok: {e}", v.name));
-                assert_eq!(
-                    roundtrip(&m, &v.name),
-                    m,
-                    "ida e volta do vetor {}",
-                    v.name
-                );
+                assert_eq!(roundtrip(&m, &v.name), m, "ida e volta do vetor {}", v.name);
                 // UT-1.09: reason desconhecido é `Other` (não erro).
                 if v.name == "welcome_unknown_reason" {
                     match &m {

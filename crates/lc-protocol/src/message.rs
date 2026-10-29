@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::ProtocolError;
 use crate::frame::{encode_frame, Frame};
 use crate::json::{
-    AudioHello, AudioTicket, Bye, Hello, Pending, SetPayload, State, Stats, StreamConfig,
-    Welcome,
+    AudioHello, AudioTicket, Bye, Hello, Pending, SetPayload, State, Stats, StreamConfig, Welcome,
 };
 use crate::types::msg;
 
@@ -55,9 +54,12 @@ impl Message {
         match f.msg_type {
             msg::HELLO => {
                 if f.payload.len() > MAX_HELLO_PAYLOAD {
-                    return Err(ProtocolError::TooLarge(f.payload.len().try_into().expect(
-                        "tamanho de payload menor que u32::MAX",
-                    )));
+                    return Err(ProtocolError::TooLarge(
+                        f.payload
+                            .len()
+                            .try_into()
+                            .expect("tamanho de payload menor que u32::MAX"),
+                    ));
                 }
                 Ok(Self::Hello(decode_json(&f.payload)?))
             }
@@ -98,7 +100,10 @@ impl Message {
                 let payload = json_bytes(m)?;
                 if payload.len() > MAX_HELLO_PAYLOAD {
                     return Err(ProtocolError::TooLarge(
-                        payload.len().try_into().expect("tamanho de payload menor que u32::MAX"),
+                        payload
+                            .len()
+                            .try_into()
+                            .expect("tamanho de payload menor que u32::MAX"),
                     ));
                 }
                 encode_frame(msg::HELLO, 0, 0, pts_us, &payload)
@@ -146,7 +151,9 @@ fn read_u64(payload: &Bytes, what: &str) -> Result<u64, ProtocolError> {
         )));
     }
     // Invariante: `payload.len() == 8` foi verificado acima.
-    Ok(u64::from_le_bytes(payload[..8].try_into().expect("fatia de 8 bytes")))
+    Ok(u64::from_le_bytes(
+        payload[..8].try_into().expect("fatia de 8 bytes"),
+    ))
 }
 
 /// Serializa `value` para JSON e monta o quadro (`stream` fixo por chamada).
@@ -198,10 +205,7 @@ mod tests {
                 "caps": {"cameras": [], "audio": true, "novo": 5}
             }"#,
         );
-        assert!(matches!(
-            Message::from_frame(&f),
-            Ok(Message::Hello(_))
-        ));
+        assert!(matches!(Message::from_frame(&f), Ok(Message::Hello(_))));
     }
 
     /// Assert que `from_frame` devolveu `BadJson(_)` e descarta a mensagem do erro.
@@ -224,15 +228,20 @@ mod tests {
             }"#,
         );
         assert_bad_json(Message::from_frame(&sem_auth).expect_err("deve falhar"));
-        let sem_rev =
-            json_frame(msg::STATE, r#"{"camera": {"mode": "single", "active": "back"}}"#);
+        let sem_rev = json_frame(
+            msg::STATE,
+            r#"{"camera": {"mode": "single", "active": "back"}}"#,
+        );
         assert_bad_json(Message::from_frame(&sem_rev).expect_err("deve falhar"));
     }
 
     // UT-1.09: reason desconhecido vira `Reason::Other`.
     #[test]
     fn unknown_reason_is_other() {
-        let f = json_frame(msg::WELCOME, r#"{"accepted": false, "reason": "algo_novo"}"#);
+        let f = json_frame(
+            msg::WELCOME,
+            r#"{"accepted": false, "reason": "algo_novo"}"#,
+        );
         match Message::from_frame(&f).expect("deve passar") {
             Message::Welcome(w) => {
                 use crate::json::Reason;
@@ -302,5 +311,4 @@ mod tests {
             }
         }
     }
-
 }

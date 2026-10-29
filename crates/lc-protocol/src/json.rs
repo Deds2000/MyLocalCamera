@@ -34,7 +34,9 @@ pub struct DeviceInfo {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum Auth {
-    Pair { token: String },
+    Pair {
+        token: String,
+    },
     Device {
         #[serde(rename = "deviceId")]
         device_id: String,
