@@ -17,6 +17,10 @@ pub enum CloseReason {
     Replaced,
     /// Erro de transporte (reset, erro de socket).
     ConnectionLost,
+    /// Handshake recusado (`bad_token`, `not_approved`, `revoked`,
+    /// `busy`, `version_mismatch`, `bad_audio_ticket`); o `WELCOME`
+    /// com o motivo é enviado antes do fechamento.
+    AuthDenied,
 }
 
 /// Eventos do servidor, na ordem de emissão.
@@ -33,4 +37,18 @@ pub enum ServerEvent {
     },
     /// Conexão encerrada.
     ConnectionClosed { conn_id: u64, reason: CloseReason },
+    /// Sessão iniciada (handshake aceito e `WELCOME` entregue).
+    SessionStarted {
+        conn_id: u64,
+        session_id: String,
+        device_id: String,
+        device_name: String,
+        peer: std::net::SocketAddr,
+        caps: lc_protocol::json::Caps,
+    },
+    /// Sessão encerrada (a conexão estava `Active`).
+    SessionEnded {
+        session_id: String,
+        reason: CloseReason,
+    },
 }

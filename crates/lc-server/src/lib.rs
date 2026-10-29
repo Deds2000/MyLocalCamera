@@ -1,13 +1,17 @@
 //! Servidor de rede do LocalCamera (desktop): listener TCP com fallback de
-//! porta, limite de conexões não autenticadas e laço de leitura por conexão.
+//! porta, limite de conexões não autenticadas, handshake (`HELLO` →
+//! `WELCOME`) e laço de sessão por conexão.
 //! Sem dependência de Tauri; será usado por `desktop/src-tauri`.
 
 pub mod audio;
 pub mod config;
 pub mod conn;
 pub mod events;
+pub mod handshake;
+pub mod sessions;
 pub mod state;
 pub mod trust;
+pub mod version;
 
 use std::io;
 use std::sync::atomic::AtomicU64;
@@ -18,8 +22,12 @@ use tokio::net::TcpListener;
 use tokio::sync::{mpsc, watch, Semaphore};
 use tokio::task::JoinHandle;
 
+use crate::audio::TicketStore;
 use crate::config::ServerConfig;
 use crate::events::ServerEvent;
+use crate::handshake::ServerCtx;
+use crate::sessions::SessionRegistry;
+use crate::trust::{TrustError, TrustStore};
 
 /// Capacidade da fila de eventos.
 const EVENTS_CAPACITY: usize = 64;
@@ -30,6 +38,9 @@ pub enum ServerError {
     /// Falha ao ligar o listener (mesmo após o fallback de porta).
     #[error("falha ao ligar o listener: {0}")]
     Bind(#[from] io::Error),
+    /// Falha ao abrir a loja de confiança (`trust.json`).
+    #[error("loja de confiança: {0}")]
+    Trust(#[from] TrustError),
 }
 
 /// Alça do servidor em execução.
@@ -39,6 +50,7 @@ pub struct ServerHandle {
     conns: Arc<Mutex<Vec<JoinHandle<()>>>>,
     events_rx: mpsc::Receiver<ServerEvent>,
     port: u16,
+    ctx: Arc<ServerCtx>,
 }
 
 impl ServerHandle {
@@ -46,6 +58,13 @@ impl ServerHandle {
     #[must_use]
     pub fn local_port(&self) -> u16 {
         self.port
+    }
+
+    /// Loja de confiança (token de pareamento e dispositivos confiáveis) —
+    /// usada pela UI no fluxo de aprovação (F1-T06) e em testes.
+    #[must_use]
+    pub fn trust(&self) -> Arc<Mutex<TrustStore>> {
+        self.ctx.trust.clone()
     }
 
     /// Recebedor dos eventos do servidor, na ordem de emissão.
@@ -87,21 +106,26 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
     let port = listener.local_addr()?.port();
     let _ = events_tx.send(ServerEvent::Listening { port }).await;
 
+    let trust = Arc::new(Mutex::new(TrustStore::open(&cfg.data_dir)?));
+    let pc_id = trust.lock().unwrap_or_else(|p| p.into_inner()).pc_id().to_owned();
+    let ctx = Arc::new(ServerCtx {
+        trust,
+        tickets: Arc::new(Mutex::new(TicketStore::new())),
+        sessions: Arc::new(SessionRegistry::new()),
+        auto_approve: cfg.auto_approve,
+        pc_id,
+        pc_name: cfg.pc_name.clone(),
+        app_version: cfg.app_version.clone(),
+    });
+
     let unauth = Arc::new(Semaphore::new(cfg.max_unauth_conns));
     let next_id = Arc::new(AtomicU64::new(1));
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let conns: Arc<Mutex<Vec<JoinHandle<()>>>> = Arc::new(Mutex::new(Vec::new()));
     let hello_timeout: Duration = cfg.hello_timeout;
 
-    let accept = tokio::spawn(conn::accept_loop(
-        listener,
-        unauth,
-        next_id,
-        events_tx,
-        conns.clone(),
-        shutdown_rx,
-        hello_timeout,
-    ));
+    let shared = conn::ConnShared::new(ctx.clone(), events_tx.clone(), shutdown_rx, hello_timeout);
+    let accept = tokio::spawn(conn::accept_loop(listener, shared, unauth, next_id, conns.clone()));
 
     Ok(ServerHandle {
         shutdown_tx,
@@ -109,6 +133,7 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
         conns,
         events_rx,
         port,
+        ctx,
     })
 }
 

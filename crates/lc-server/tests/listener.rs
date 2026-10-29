@@ -15,7 +15,8 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 
 fn test_config() -> ServerConfig {
-    ServerConfig::for_tests(std::env::temp_dir().join("lc-server-test"))
+    // `auto_approve: false` — os testes do listener não chegam ao handshake.
+    ServerConfig::for_tests(std::env::temp_dir().join("lc-server-test"), false)
 }
 
 async fn next_event(rx: &mut mpsc::Receiver<ServerEvent>) -> ServerEvent {

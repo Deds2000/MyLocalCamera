@@ -10,6 +10,8 @@ pub const DEFAULT_PORT: u16 = 48650;
 pub const DEFAULT_MAX_UNAUTH_CONNS: usize = 8;
 /// Prazo para o primeiro quadro (`HELLO`) chegar.
 pub const DEFAULT_HELLO_TIMEOUT: Duration = Duration::from_secs(5);
+/// Prazo da aprovação no PC (30 s; ver `docs/CHEATSHEET.md`).
+pub const DEFAULT_APPROVAL_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Configuração do servidor de rede.
 #[derive(Debug, Clone)]
@@ -28,12 +30,17 @@ pub struct ServerConfig {
     pub max_unauth_conns: usize,
     /// Prazo para o primeiro quadro (`HELLO`) chegar.
     pub hello_timeout: Duration,
+    /// Aprova pareamentos automaticamente (stub de aprovação — F1-T06).
+    /// Padrão **sempre** `false`.
+    pub auto_approve: bool,
+    /// Prazo da aprovação no PC (usado pelo fluxo de aprovação — F1-T06).
+    pub approval_timeout: Duration,
 }
 
 impl ServerConfig {
     /// Configuração para testes: `127.0.0.1`, porta `0` e hello de 300 ms.
     #[must_use]
-    pub fn for_tests(dir: PathBuf) -> Self {
+    pub fn for_tests(dir: PathBuf, auto_approve: bool) -> Self {
         Self {
             bind_ip: IpAddr::from(Ipv4Addr::LOCALHOST),
             port: 0,
@@ -42,6 +49,8 @@ impl ServerConfig {
             app_version: "0.0.0-test".to_owned(),
             max_unauth_conns: DEFAULT_MAX_UNAUTH_CONNS,
             hello_timeout: Duration::from_millis(300),
+            auto_approve,
+            approval_timeout: DEFAULT_APPROVAL_TIMEOUT,
         }
     }
 }
