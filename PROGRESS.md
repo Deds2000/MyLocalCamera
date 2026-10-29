@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F1-T06` (Fluxo de aprovação — `PENDING`, timeout, decisão)  ·  **Fase atual:** 1  ·  **Última atualização:** 2026-10-29
+**Próxima tarefa:** `F1-T07` (Janela de aprovação USB — 15 s, localhost)  ·  **Fase atual:** 1  ·  **Última atualização:** 2026-10-29
 
 ## Bloqueios
 (nenhum ativo)
@@ -12,6 +12,7 @@
 
 ## Observações
 (o agente anota aqui problemas fora do escopo da tarefa atual)
+- F1-T06: stub `decide_approval` removido. `Decision`/`ApprovalRequest`/`ApprovalOutcome` + eventos `ApprovalRequested`/`ApprovalResolved` em `events.rs` (conforme cartão); `trust/approval.rs` novo com `ApprovalManager` (máx. 1 pendente: `begin`/`decide`/`cancel`) e `effective_auto_approve(flag, debug_build)`. Ripples exigidos pela integração: `perform` ganhou parâmetros `events_tx`/`stream`/`buf` (fluxo pendente precisa enviar `PENDING` e ler a conexão para detectar o celular sair) e `conn.rs` chama assim; `write_msg` movido de `conn.rs` para `handshake.rs` como `pub(crate)` (compartilhado). `PENDING{timeoutS}` é calculado de `approval_timeout` (`as_secs().max(1)`: padrão 30 s → 30; teste 300 ms → 1). Timeout com decisão chegada no mesmo instante: `rx.try_recv()` antes de concluir `TimedOut` (decisão vale; race residual minúscula documentada). `conn.rs` 392 linhas e `handshake.rs` 492 (cartão fixa o arquivo; fluxo do `Pair` é o núcleo) · `tests/approval.rs` 354 (9 testes da tabela, precedentes: `tests/handshake.rs` 477).
 - F1-T04b: stub de aprovação `decide_approval(auto_approve) → ApproveAlways | Reject` — **deixado para F1-T06** (que troca por `PENDING` + timeout + decisão humana; `ApproveOnce` já está declarada no enum, inatingível até lá). Desvios mínimos do esboço do cartão (todos exigidos pela clippy/testes): `CloseReason::AuthDenied` adicionado (fechamento pós-recusa precisa de motivo); `ServerHandle::trust() -> Arc<Mutex<TrustStore>>` (testes e UI de F1-T06 leem/rotacionam token e `revoke`); `perform(ctx, conn_id, first, peer)` — 1º quadro `AUDIO_HELLO` → `bad_audio_ticket`, demais → `ProtocolError`; `SessionRegistry::claim` retorna `Granted{kicked, kick_rx}`/`Busy` (esboço omitia kick_rx); `Outcome::Accepted(Box<Accepted>)` e struct `ConnShared` (lints `large_enum_variant`/`too_many_arguments`); `for_tests(dir, auto_approve)` ganhou o 2º parâmetro (ripple: `tests/listener.rs` passa `false`). Bug corrigido pelos testes: `claim()` com `guard.take()` descartava a sessão ativa no ramo `Busy` → `as_ref()` + `take()` só na substituição. Arquivos acima de ~300 linhas: `conn.rs` 399, `tests/handshake.rs` 477 (cartão fixa esses arquivos; teste único exigido).
 - F1-T09a: `TicketStore` guarda `sessionId → Entry{ticket, issued_at}` (1 ticket por sessão); `redeem` localiza a dona do ticket com `ct_eq` (varre todas as entradas, sem saída antecipada) e **consome** o ticket também quando expirado (sem "renovação" por repetição); `Debug` mostra só contagens (sem tickets nem prefixos). Clippy exigiu `impl Default` (lint `new_without_default`).
 - F1-T05: `write_atomic`/`write_atomic_with` ficaram em `src/trust/atomic.rs` (módulo separado) para manter `store.rs` dentro do limite de ~300 linhas; os testes de `tests/trust.rs` estão dentro de `mod trust` para o filtro `cargo test -p lc-server trust` casar com eles. `sha2` 0.11 (API `Sha256::new/update/finalize`) e `getrandom` 0.4 (`fill`) confirmados no fonte do registro antes de usar.
@@ -75,7 +76,7 @@ Ordem de execução (respeite as dependências). A lógica de rede fica na crate
 | [x] | F1-T05 | Confiança: chaves, hashes, armazenamento atômico | A | T04a | `docs/tasks/fase-1/F1-T05.md` |
 | [x] | F1-T09a | Tickets de áudio (`TicketStore`, lógica pura) | A | T05 | `docs/tasks/fase-1/F1-T09a.md` |
 | [x] | F1-T04b | Handshake, autenticação, versão e sessão única | A | T04a, T05, T09a | `docs/tasks/fase-1/F1-T04b.md` |
-| [ ] | F1-T06 | Fluxo de aprovação (`PENDING`, timeout, decisão) | A | T04b | `docs/tasks/fase-1/F1-T06.md` |
+| [x] | F1-T06 | Fluxo de aprovação (`PENDING`, timeout, decisão) | A | T04b | `docs/tasks/fase-1/F1-T06.md` |
 | [ ] | F1-T07 | Janela de aprovação USB (15 s, localhost) | A | T06 | `docs/tasks/fase-1/F1-T07.md` |
 | [ ] | F1-T15 | Limitação de falhas de auth e de taxa de conexões | A | T04b | `docs/tasks/fase-1/F1-T15.md` |
 | [ ] | F1-T09b | Socket de áudio (`AUDIO_HELLO`, contadores) | A | T04b, T09a | `docs/tasks/fase-1/F1-T09b.md` |
