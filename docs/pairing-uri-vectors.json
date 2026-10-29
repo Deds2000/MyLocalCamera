@@ -1,0 +1,98 @@
+[
+  {
+    "name": "ok_single_host",
+    "uri": "localcamera://connect?v=1&hosts=192.168.0.10&port=48650&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "ok",
+    "value": { "v": 1, "hosts": ["192.168.0.10"], "port": 48650, "token": "0123456789abcdef0123456789abcdef", "pc": "11111111-1111-4111-8111-111111111111", "name": "Pixel" }
+  },
+  {
+    "name": "ok_two_hosts",
+    "uri": "localcamera://connect?v=1&hosts=192.168.0.10,10.0.0.1&port=48650&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "ok",
+    "value": { "v": 1, "hosts": ["192.168.0.10", "10.0.0.1"], "port": 48650, "token": "0123456789abcdef0123456789abcdef", "pc": "11111111-1111-4111-8111-111111111111", "name": "Pixel" }
+  },
+  {
+    "name": "ok_name_accents_and_space",
+    "uri": "localcamera://connect?v=1&hosts=192.168.0.10&port=48650&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Meu%20PC%20%C3%A7",
+    "expect": "ok",
+    "value": { "v": 1, "hosts": ["192.168.0.10"], "port": 48650, "token": "0123456789abcdef0123456789abcdef", "pc": "11111111-1111-4111-8111-111111111111", "name": "Meu PC ç" }
+  },
+  {
+    "name": "ok_unknown_param_ignored",
+    "uri": "localcamera://connect?v=1&hosts=192.168.0.10&port=48650&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel&x=1",
+    "expect": "ok",
+    "value": { "v": 1, "hosts": ["192.168.0.10"], "port": 48650, "token": "0123456789abcdef0123456789abcdef", "pc": "11111111-1111-4111-8111-111111111111", "name": "Pixel" }
+  },
+  {
+    "name": "invalid_missing_token",
+    "uri": "localcamera://connect?v=1&hosts=192.168.0.10&port=48650&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "invalid",
+    "value": null
+  },
+  {
+    "name": "invalid_token_31_chars",
+    "uri": "localcamera://connect?v=1&hosts=192.168.0.10&port=48650&token=0123456789abcdef0123456789abcde&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "invalid",
+    "value": null
+  },
+  {
+    "name": "invalid_token_non_hex",
+    "uri": "localcamera://connect?v=1&hosts=192.168.0.10&port=48650&token=zz23456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "invalid",
+    "value": null
+  },
+  {
+    "name": "invalid_port_zero",
+    "uri": "localcamera://connect?v=1&hosts=192.168.0.10&port=0&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "invalid",
+    "value": null
+  },
+  {
+    "name": "invalid_port_too_high",
+    "uri": "localcamera://connect?v=1&hosts=192.168.0.10&port=70000&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "invalid",
+    "value": null
+  },
+  {
+    "name": "invalid_hosts_empty",
+    "uri": "localcamera://connect?v=1&hosts=&port=48650&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "invalid",
+    "value": null
+  },
+  {
+    "name": "invalid_host_not_ipv4",
+    "uri": "localcamera://connect?v=1&hosts=abc&port=48650&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "invalid",
+    "value": null
+  },
+  {
+    "name": "invalid_five_hosts",
+    "uri": "localcamera://connect?v=1&hosts=1.1.1.1,2.2.2.2,3.3.3.3,4.4.4.4,5.5.5.5&port=48650&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "invalid",
+    "value": null
+  },
+  {
+    "name": "invalid_scheme_http",
+    "uri": "http://connect?v=1&hosts=192.168.0.10&port=48650&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "invalid",
+    "value": null
+  },
+  {
+    "name": "invalid_host_pair",
+    "uri": "localcamera://pair?v=1&hosts=192.168.0.10&port=48650&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "invalid",
+    "value": null
+  },
+  {
+    "name": "incompatible_v2",
+    "uri": "localcamera://connect?v=2&hosts=192.168.0.10&port=48650&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "incompatible_version",
+    "value": null
+  },
+  {
+    "name": "invalid_v_not_int",
+    "uri": "localcamera://connect?v=abc&hosts=192.168.0.10&port=48650&token=0123456789abcdef0123456789abcdef&pc=11111111-1111-4111-8111-111111111111&name=Pixel",
+    "expect": "invalid",
+    "value": null
+  }
+]
