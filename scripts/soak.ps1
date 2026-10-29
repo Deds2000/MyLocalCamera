@@ -5,6 +5,8 @@ param(
     [int]$WarmupMinutes = 1
 )
 $ErrorActionPreference = 'Stop'
+# Cultura invariavel para o -f (N1): em pt-BR "8,5" quebra o CSV (viram 2 colunas).
+[System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::InvariantCulture
 
 $end = (Get-Date).AddMinutes($Minutes)
 "t,cpu_pct,ws_mb,handles,threads" | Set-Content $Out
