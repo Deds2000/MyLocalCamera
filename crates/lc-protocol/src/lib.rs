@@ -2,10 +2,13 @@
 
 pub mod error;
 pub mod frame;
+pub mod json;
+pub mod message;
 pub mod types;
 
 pub use error::ProtocolError;
 pub use frame::{encode_frame, Frame, FrameReader};
+pub use message::Message;
 pub use types::{flags, msg, type_name};
 
 #[cfg(test)]
