@@ -6,6 +6,7 @@ members = [
     "tools/fixture-tool",
     "desktop/src-tauri",
     "crates/lc-testkit",
+    "crates/lc-server",
 ]
 
 [workspace.package]

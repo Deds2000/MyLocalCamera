@@ -1,0 +1,16 @@
+[package]
+name = "lc-server"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+bytes = "1.12.1"
+lc-protocol = { path = "../lc-protocol" }
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time"] }
+tracing = "0.1.44"
+
+[dev-dependencies]
+lc-testkit = { path = "../lc-testkit" }
+tokio = { version = "1.54.1", features = ["test-util"] }

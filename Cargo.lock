@@ -2001,6 +2001,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "lc-server"
+version = "0.0.0"
+dependencies = [
+ "bytes",
+ "lc-protocol",
+ "lc-testkit",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "lc-testkit"
 version = "0.0.0"
 dependencies = [
