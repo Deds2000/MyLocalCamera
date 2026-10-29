@@ -101,4 +101,10 @@ pub enum ServerEvent {
         request_id: u64,
         outcome: ApprovalOutcome,
     },
+    /// Janela de aprovação USB aberta (F1-T07): o primeiro pareamento
+    /// válido de localhost dentro de 15 s é aprovado sem diálogo.
+    UsbWindowOpened,
+    /// Janela de aprovação USB encerrada: `used = true` se foi
+    /// consumida por um pareamento, `false` se expirou.
+    UsbWindowClosed { used: bool },
 }

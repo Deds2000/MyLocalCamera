@@ -27,7 +27,7 @@ use crate::config::ServerConfig;
 use crate::events::{Decision, ServerEvent};
 use crate::handshake::ServerCtx;
 use crate::sessions::SessionRegistry;
-use crate::trust::{ApprovalManager, TrustError, TrustStore};
+use crate::trust::{ApprovalManager, TrustError, TrustStore, UsbWindow};
 
 /// Capacidade da fila de eventos.
 const EVENTS_CAPACITY: usize = 64;
@@ -48,6 +48,7 @@ pub struct ServerHandle {
     shutdown_tx: watch::Sender<bool>,
     accept: Option<JoinHandle<()>>,
     conns: Arc<Mutex<Vec<JoinHandle<()>>>>,
+    events_tx: mpsc::Sender<ServerEvent>,
     events_rx: mpsc::Receiver<ServerEvent>,
     port: u16,
     ctx: Arc<ServerCtx>,
@@ -73,6 +74,22 @@ impl ServerHandle {
     /// resolvido (decisão ignorada; o estado não muda).
     pub fn decide(&self, request_id: u64, decision: Decision) -> bool {
         self.ctx.approvals.decide(request_id, decision)
+    }
+
+    /// Abre a janela de aprovação USB por 15 s (F1-T07): o primeiro
+    /// `HELLO` válido de `127.0.0.1`/`::1` é aprovado sem diálogo
+    /// (`ApproveAlways`; o celular recebe `deviceKey`). O token de
+    /// pareamento continua obrigatório; peers remotos não consomem a
+    /// janela. Emite [`ServerEvent::UsbWindowOpened`] (e
+    /// [`ServerEvent::UsbWindowClosed`] no fim da janela).
+    pub async fn open_usb_window(&mut self) {
+        let now = handshake::now_secs();
+        self.ctx
+            .usb_window
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .open(now);
+        let _ = self.events_tx.send(ServerEvent::UsbWindowOpened).await;
     }
 
     /// Recebedor dos eventos do servidor, na ordem de emissão.
@@ -121,6 +138,7 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
         tickets: Arc::new(Mutex::new(TicketStore::new())),
         sessions: Arc::new(SessionRegistry::new()),
         approvals: Arc::new(ApprovalManager::new()),
+        usb_window: Arc::new(Mutex::new(UsbWindow::new())),
         approval_timeout: cfg.approval_timeout,
         auto_approve: cfg.auto_approve,
         pc_id,
@@ -141,6 +159,7 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
         shutdown_tx,
         accept: Some(accept),
         conns,
+        events_tx,
         events_rx,
         port,
         ctx,

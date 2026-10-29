@@ -5,6 +5,8 @@
 //! (só em build de debug) aprova sempre; senão o servidor envia
 //! `PENDING`, emite `ApprovalRequested` e espera decisão da UI, timeout
 //! (`approval_timeout`) ou o celular fechar a conexão (cancela o pedido).
+//! Antes do pedido de aprovação, uma janela USB aberta (15 s, só
+//! loopback, uso único — F1-T07) aprova com `ApproveAlways` sem diálogo.
 //!
 //! Segredos (`audio_ticket`, `device_key`) existem só na memória e nunca
 //! em logs/eventos: o `Debug` de [`Outcome`] os redige.
@@ -27,7 +29,8 @@ use crate::events::{
 };
 use crate::sessions::{Claim, SessionRegistry};
 use crate::trust::{
-    effective_auto_approve, secrets, ApprovalInfo, ApprovalManager, Busy, TrustStore, VerifyDevice,
+    effective_auto_approve, secrets, ApprovalInfo, ApprovalManager, Busy, TrustStore, UsbWindow,
+    VerifyDevice,
 };
 use crate::version;
 
@@ -47,6 +50,8 @@ pub struct ServerCtx {
     /// Flag de aprovação automática — só vale em build de debug
     /// (`effective_auto_approve`); em release é ignorada com aviso.
     pub auto_approve: bool,
+    /// Janela de aprovação USB (15 s, só loopback, uso único — F1-T07).
+    pub usb_window: Arc<Mutex<UsbWindow>>,
     /// Identificador estável do PC (UUID do `trust.json`).
     pub pc_id: String,
     /// Nome do PC (mostrado no `WELCOME`).
@@ -185,8 +190,34 @@ async fn perform_hello(
                 };
             }
 
-            // 2.2) Decisão de aprovação (janela USB de 15 s — F1-T07).
-            let decision = if effective_auto_approve(ctx.auto_approve, cfg!(debug_assertions))
+            // 2.2) Janela de aprovação USB (15 s, loopback, uso único —
+            //     F1-T07): o primeiro `HELLO` válido de localhost a
+            //     consome e é aprovado sem diálogo. Token inválido não
+            //     chega aqui (recusado em 2.1) e não consome a janela.
+            let (usb_expired, usb_consumed) = {
+                let mut usb = ctx
+                    .usb_window
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner());
+                let expired = usb.expire_if_stale(now);
+                let consumed = usb.try_consume(peer.ip(), now);
+                (expired, consumed)
+            };
+            if usb_expired {
+                let _ = events_tx
+                    .send(ServerEvent::UsbWindowClosed { used: false })
+                    .await;
+            }
+            if usb_consumed {
+                let _ = events_tx
+                    .send(ServerEvent::UsbWindowClosed { used: true })
+                    .await;
+            }
+
+            // 2.3) Decisão de aprovação: janela USB consumida ou
+            //     `auto_approve` (só em build de debug) aprovam direto.
+            let decision = if usb_consumed
+                || effective_auto_approve(ctx.auto_approve, cfg!(debug_assertions))
             {
                 Decision::ApproveAlways
             } else {
@@ -219,7 +250,7 @@ async fn perform_hello(
                 }
             };
 
-            // 2.3) Aplica a decisão (registro + rotação do token).
+            // 2.4) Aplica a decisão (registro + rotação do token).
             match apply_pair_decision(ctx, decision, &hello.device, &ip, now) {
                 ApplyDecision::Ok { device_key } => device_key,
                 ApplyDecision::Fail(reason) => {

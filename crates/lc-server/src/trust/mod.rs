@@ -9,6 +9,8 @@ mod atomic;
 pub mod approval;
 pub mod secrets;
 pub mod store;
+pub mod usb_window;
 
 pub use approval::{effective_auto_approve, ApprovalInfo, ApprovalManager, Busy};
 pub use store::{TrustError, TrustStore, TrustedDevice, VerifyDevice};
+pub use usb_window::{UsbWindow, USB_WINDOW_SECS};
