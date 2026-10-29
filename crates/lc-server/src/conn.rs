@@ -1,7 +1,6 @@
 //! Laço de aceitação e laço por conexão: handshake (`AwaitHello` →
 //! `WELCOME`) e laço de sessão (`Active`).
 
-use std::io;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -9,13 +8,13 @@ use std::time::Duration;
 
 use lc_protocol::json::{Bye, PcInfo, Reason, Welcome};
 use lc_protocol::{type_name, Frame, FrameReader, Message};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, oneshot, watch, OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
 
 use crate::events::{CloseReason, ServerEvent};
-use crate::handshake::{self, now_secs, Accepted, Outcome, ServerCtx};
+use crate::handshake::{self, now_secs, write_msg, Accepted, Outcome, ServerCtx};
 use crate::state::{transition, ConnState};
 use crate::version::SERVER_PROTOCOL;
 
@@ -162,8 +161,9 @@ async fn run_conn(
         state = ConnState::Authenticating;
     }
 
-    // ── 2) Handshake (versão, auth pair/device, sessão única) ──
-    let outcome = handshake::perform(&ctx, conn_id, &msg, peer).await;
+    // ── 2) Handshake (versão, auth pair/device + aprovação, sessão única) ──
+    let outcome =
+        handshake::perform(&ctx, &events_tx, &mut stream, &mut buf, conn_id, &msg, peer).await;
     match outcome {
         Outcome::Denied { reason, min_supported } => {
             // fecha **após** enviar o WELCOME (mesmo se o envio falhar)
@@ -368,13 +368,6 @@ fn denied_welcome(reason: Reason, min_supported: Option<lc_protocol::json::Proto
         reason: Some(reason),
         min_supported,
     }
-}
-
-/// Serializa e envia a mensagem (flush no fim).
-async fn write_msg(stream: &mut TcpStream, msg: &Message) -> io::Result<()> {
-    let bytes = msg.encode(0).map_err(|e| io::Error::other(format!("encode de quadro: {e}")))?;
-    stream.write_all(&bytes).await?;
-    stream.flush().await
 }
 
 /// Emite `ConnectionClosed`; o socket fecha com o drop do stream.

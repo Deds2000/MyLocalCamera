@@ -1,25 +1,34 @@
 //! Handshake `HELLO` → `WELCOME`: versão, autenticação (`pair`/`device`),
 //! sessão única e emissão de `sessionId`/`audioTicket`.
 //!
-//! A **decisão de aprovação é um stub** (resolvido no F1-T06): se
-//! `auto_approve` está ligado, aprova sempre; senão recusa.
+//! Pareamento (`pair`) com token válido exige aprovação: `auto_approve`
+//! (só em build de debug) aprova sempre; senão o servidor envia
+//! `PENDING`, emite `ApprovalRequested` e espera decisão da UI, timeout
+//! (`approval_timeout`) ou o celular fechar a conexão (cancela o pedido).
 //!
 //! Segredos (`audio_ticket`, `device_key`) existem só na memória e nunca
 //! em logs/eventos: o `Debug` de [`Outcome`] os redige.
 
 use std::fmt;
+use std::io;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use lc_protocol::json::{Auth, Caps, Hello, ProtocolVersion, Reason};
+use lc_protocol::json::{Auth, Caps, Hello, Pending, ProtocolVersion, Reason};
 use lc_protocol::Message;
-use tokio::sync::oneshot;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
+use tokio::sync::{mpsc, oneshot};
 
 use crate::audio::TicketStore;
-use crate::events::CloseReason;
+use crate::events::{
+    ApprovalOutcome, ApprovalRequest, CloseReason, Decision, ServerEvent,
+};
 use crate::sessions::{Claim, SessionRegistry};
-use crate::trust::{secrets, TrustStore, VerifyDevice};
+use crate::trust::{
+    effective_auto_approve, secrets, ApprovalInfo, ApprovalManager, Busy, TrustStore, VerifyDevice,
+};
 use crate::version;
 
 /// Dados compartilhados pelas conexões do servidor.
@@ -31,7 +40,12 @@ pub struct ServerCtx {
     pub tickets: Arc<Mutex<TicketStore>>,
     /// Registro da sessão ativa (uma única).
     pub sessions: Arc<SessionRegistry>,
-    /// Aprovação automática (stub — F1-T06): `true` = "permitir sempre".
+    /// Pedidos de aprovação de pareamento (máximo de um pendente).
+    pub approvals: Arc<ApprovalManager>,
+    /// Prazo da aprovação no PC (padrão 30 s).
+    pub approval_timeout: Duration,
+    /// Flag de aprovação automática — só vale em build de debug
+    /// (`effective_auto_approve`); em release é ignorada com aviso.
     pub auto_approve: bool,
     /// Identificador estável do PC (UUID do `trust.json`).
     pub pc_id: String,
@@ -105,35 +119,25 @@ impl fmt::Debug for Outcome {
     }
 }
 
-/// Decisão de aprovação de um novo pareamento.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Decision {
-    /// "Permitir sempre": cadastra o dispositivo e emite `deviceKey`.
-    ApproveAlways,
-    /// "Permitir só desta vez": aprova sem `deviceKey`.
-    ApproveOnce,
-    /// Recusa (`not_approved`).
-    Reject,
-}
-
-/// Decisão de aprovação — **stub** (o diálogo real chega no F1-T06):
-/// `auto_approve` liga → aprova sempre; desliga → recusa.
-#[must_use]
-pub fn decide_approval(auto_approve: bool) -> Decision {
-    if auto_approve {
-        Decision::ApproveAlways
-    } else {
-        Decision::Reject
-    }
-}
-
 /// Executa o handshake `HELLO` → `WELCOME` sobre o primeiro quadro.
 ///
 /// Ordem: versão → autenticação (`pair`/`device`) → sessão única.
+/// `events_tx`/`stream`/`buf` são usados só no fluxo de aprovação
+/// pendente (`PENDING` + leitura para detectar o celular sair).
 /// Nunca `unwrap()`s; erros de persistência degradam para recusa.
-pub async fn perform(ctx: &ServerCtx, conn_id: u64, first: &Message, peer: SocketAddr) -> Outcome {
+pub async fn perform(
+    ctx: &ServerCtx,
+    events_tx: &mpsc::Sender<ServerEvent>,
+    stream: &mut TcpStream,
+    buf: &mut [u8],
+    conn_id: u64,
+    first: &Message,
+    peer: SocketAddr,
+) -> Outcome {
     match first {
-        Message::Hello(hello) => perform_hello(ctx, conn_id, hello, peer),
+        Message::Hello(hello) => {
+            perform_hello(ctx, events_tx, stream, buf, conn_id, hello, peer).await
+        }
         // `AUDIO_HELLO` no socket principal é papel do socket de áudio
         // (F1-T09b): recusar com `bad_audio_ticket`.
         Message::AudioHello(_) => Outcome::Denied {
@@ -145,8 +149,11 @@ pub async fn perform(ctx: &ServerCtx, conn_id: u64, first: &Message, peer: Socke
     }
 }
 
-fn perform_hello(
+async fn perform_hello(
     ctx: &ServerCtx,
+    events_tx: &mpsc::Sender<ServerEvent>,
+    stream: &mut TcpStream,
+    buf: &mut [u8],
     conn_id: u64,
     hello: &Hello,
     peer: SocketAddr,
@@ -163,15 +170,66 @@ fn perform_hello(
 
     // 2) Autenticação (o `Denied` carrega `min_supported: None`).
     let device_key = match &hello.auth {
-        Auth::Pair { token } => match pair_auth(ctx, token, &hello.device.id, &hello.device.name, &ip, now) {
-            PairAuth::Ok { device_key } => device_key,
-            PairAuth::Fail(reason) => {
+        Auth::Pair { token } => {
+            // 2.1) Token (comparação em tempo constante na loja).
+            let token_ok = {
+                let trust = ctx.trust.lock().unwrap_or_else(|p| p.into_inner());
+                trust.verify_pair_token(token)
+            };
+            if !token_ok {
+                // Falha de auth registrada para o limitador do F1-T15.
+                tracing::debug!(device_id = %hello.device.id, "pareamento recusado: token inválido");
                 return Outcome::Denied {
-                    reason,
+                    reason: Reason::BadToken,
                     min_supported: None,
+                };
+            }
+
+            // 2.2) Decisão de aprovação (janela USB de 15 s — F1-T07).
+            let decision = if effective_auto_approve(ctx.auto_approve, cfg!(debug_assertions))
+            {
+                Decision::ApproveAlways
+            } else {
+                if ctx.auto_approve {
+                    tracing::warn!("auto_approve é ignorado fora de build de debug");
+                }
+                match pending_approval(ctx, events_tx, stream, buf, conn_id, &hello.device, &ip)
+                    .await
+                {
+                    PairApproval::Decided(d) => d,
+                    PairApproval::Busy => {
+                        return Outcome::Denied {
+                            reason: Reason::Busy,
+                            min_supported: None,
+                        };
+                    }
+                    PairApproval::TimedOut => {
+                        tracing::info!(device_id = %hello.device.id, "aprovação expirou (timeout)");
+                        return Outcome::Denied {
+                            reason: Reason::NotApproved,
+                            min_supported: None,
+                        };
+                    }
+                    PairApproval::Gone => {
+                        // pedido cancelado e
+                        // `ApprovalResolved{Cancelled}` emitidos em
+                        // `pending_approval`; o par já foi embora
+                        return Outcome::Close(CloseReason::PeerClosed);
+                    }
+                }
+            };
+
+            // 2.3) Aplica a decisão (registro + rotação do token).
+            match apply_pair_decision(ctx, decision, &hello.device, &ip, now) {
+                ApplyDecision::Ok { device_key } => device_key,
+                ApplyDecision::Fail(reason) => {
+                    return Outcome::Denied {
+                        reason,
+                        min_supported: None,
+                    };
                 }
             }
-        },
+        }
         Auth::Device { device_id, key } => match device_auth(ctx, device_id, key, &ip, now) {
             DeviceAuth::Ok => None, // reconexão: WELCOME sem `deviceKey`
             DeviceAuth::Fail(reason) => {
@@ -210,42 +268,35 @@ fn perform_hello(
     }
 }
 
-/// Resultado da autenticação `pair`.
-enum PairAuth {
-    /// Token válido e aprovado; `device_key` só em "permitir sempre".
+/// Resultado da aplicação da decisão de aprovação.
+enum ApplyDecision {
+    /// Aprovado; `device_key` só em "permitir sempre".
     Ok { device_key: Option<String> },
     /// Recusar com `reason`.
     Fail(Reason),
 }
 
-fn pair_auth(
+/// Aplica a decisão de aprovação: cadastra o dispositivo (só
+/// "permitir sempre") e rotaciona o token de pareamento.
+fn apply_pair_decision(
     ctx: &ServerCtx,
-    token: &str,
-    device_id: &str,
-    device_name: &str,
+    decision: Decision,
+    device: &lc_protocol::json::DeviceInfo,
     ip: &str,
     now: u64,
-) -> PairAuth {
+) -> ApplyDecision {
     let mut trust = ctx.trust.lock().unwrap_or_else(|p| p.into_inner());
-    // `verify_pair_token` compara em tempo constante.
-    if !trust.verify_pair_token(token) {
-        // Falha de auth registrada para o limitador do F1-T15.
-        tracing::debug!(device_id, "pareamento recusado: token inválido");
-        return PairAuth::Fail(Reason::BadToken);
-    }
-
-    // Decisão de aprovação — **stub** (F1-T06).
-    let device_key = match decide_approval(ctx.auto_approve) {
-        Decision::Reject => return PairAuth::Fail(Reason::NotApproved),
-        Decision::ApproveOnce => None,
-        Decision::ApproveAlways => match trust.add_device(device_id, device_name, ip, now) {
+    let device_key = match decision {
+        Decision::ApproveAlways => match trust.add_device(&device.id, &device.name, ip, now) {
             Ok(key) => Some(key),
             Err(e) => {
                 tracing::error!(error = %e, "falha ao cadastrar dispositivo confiável");
                 // Dispositivo não ficou cadastrado → "não aprovado".
-                return PairAuth::Fail(Reason::NotApproved);
+                return ApplyDecision::Fail(Reason::NotApproved);
             }
         },
+        Decision::ApproveOnce => None,
+        Decision::Reject => return ApplyDecision::Fail(Reason::NotApproved),
     };
 
     // Rotaciona o token de pareamento (nas duas aprovações). Se falhar,
@@ -253,7 +304,129 @@ fn pair_auth(
     if let Err(e) = trust.regenerate_token() {
         tracing::error!(error = %e, "falha ao rotacionar token de pareamento");
     }
-    PairAuth::Ok { device_key }
+    ApplyDecision::Ok { device_key }
+}
+
+/// Desfecho da espera pela decisão de aprovação.
+enum PairApproval {
+    /// Decisão da UI (`decide` já removeu o pedido pendente).
+    Decided(Decision),
+    /// Estourou o prazo de aprovação (`not_approved`).
+    TimedOut,
+    /// Celular desconectou (ou a conexão quebrou) antes da decisão.
+    Gone,
+    /// Já havia um pedido de aprovação pendente (`busy`).
+    Busy,
+}
+
+/// Abre o pedido de aprovação (máximo de um pendente), envia
+/// `PENDING{timeoutS}` ao celular, emite `ApprovalRequested` e espera:
+/// decisão da UI, timeout (`approval_timeout`) ou o celular fechar a
+/// conexão. Sempre termina emitindo `ApprovalResolved` e removendo o
+/// pedido pendente.
+async fn pending_approval(
+    ctx: &ServerCtx,
+    events_tx: &mpsc::Sender<ServerEvent>,
+    stream: &mut TcpStream,
+    buf: &mut [u8],
+    conn_id: u64,
+    device: &lc_protocol::json::DeviceInfo,
+    ip: &str,
+) -> PairApproval {
+    let info = ApprovalInfo {
+        device_id: device.id.clone(),
+        name: device.name.clone(),
+        model: device.model.clone(),
+        ip: ip.to_owned(),
+    };
+    let (request_id, mut rx) = match ctx.approvals.begin(&info) {
+        Err(Busy) => {
+            // Um pedido por vez: outro pareamento durante o pendente.
+            tracing::debug!(device_id = %device.id, "pareamento recusado: pedido pendente em andamento");
+            return PairApproval::Busy;
+        }
+        Ok(v) => v,
+    };
+
+    let timeout_s = ctx.approval_timeout.as_secs().max(1) as u32;
+    let pending = Message::Pending(Pending { timeout_s });
+    if let Err(e) = write_msg(stream, &pending).await {
+        // O par já não está mais aqui: cancela o pedido e fecha.
+        cancel_resolved(ctx, events_tx, request_id, ApprovalOutcome::Cancelled).await;
+        tracing::warn!(conn_id, error = %e, "falha ao enviar PENDING; encerrando");
+        return PairApproval::Gone;
+    }
+
+    let _ = events_tx
+        .send(ServerEvent::ApprovalRequested(ApprovalRequest {
+            request_id,
+            device_id: device.id.clone(),
+            name: device.name.clone(),
+            model: device.model.clone(),
+            ip: ip.to_owned(),
+        }))
+        .await;
+
+    let deadline = tokio::time::sleep(ctx.approval_timeout);
+    tokio::pin!(deadline);
+    let wait = loop {
+        tokio::select! {
+            // o `Receiver` é o próprio `Future` (tokio::sync::oneshot)
+            res = &mut rx => break match res {
+                Ok(d) => PairApproval::Decided(d),
+                // `tx` caiu sem decisão (defensivo; o normal é `Gone`
+                // pela leitura abaixo).
+                Err(_) => PairApproval::Gone,
+            },
+            _ = &mut deadline => break match rx.try_recv() {
+                // Decisão chegou junto com o timeout: vale a decisão.
+                Ok(d) => PairApproval::Decided(d),
+                Err(_) => PairApproval::TimedOut,
+            },
+            res = stream.read(buf) => match res {
+                Ok(0) => break PairApproval::Gone, // celular fechou
+                Ok(n) => {
+                    // O celular não manda nada antes do WELCOME;
+                    // consome e segue esperando.
+                    tracing::debug!(conn_id, bytes = n, "dados durante pedido pendente; ignorando");
+                }
+                Err(e) => {
+                    tracing::warn!(conn_id, error = %e, "erro de leitura durante pedido pendente");
+                    break PairApproval::Gone;
+                }
+            },
+        }
+    };
+
+    let outcome = match &wait {
+        PairApproval::Decided(d) => match d {
+            Decision::Reject => ApprovalOutcome::Rejected,
+            other => ApprovalOutcome::Approved(*other),
+        },
+        PairApproval::TimedOut => ApprovalOutcome::TimedOut,
+        // `Busy` não chega aqui (retorna antes do wait); `Cancelled`
+        // é o desfecho mais conservador.
+        PairApproval::Gone | PairApproval::Busy => ApprovalOutcome::Cancelled,
+    };
+    cancel_resolved(ctx, events_tx, request_id, outcome).await;
+    wait
+}
+
+/// Emite `ApprovalResolved` e libera o pedido pendente (no-op se a
+/// decisão da UI já o removeu).
+async fn cancel_resolved(
+    ctx: &ServerCtx,
+    events_tx: &mpsc::Sender<ServerEvent>,
+    request_id: u64,
+    outcome: ApprovalOutcome,
+) {
+    let _ = events_tx
+        .send(ServerEvent::ApprovalResolved {
+            request_id,
+            outcome,
+        })
+        .await;
+    ctx.approvals.cancel(request_id);
 }
 
 /// Resultado da autenticação `device`.
@@ -285,16 +458,19 @@ fn device_auth(
     }
 }
 
+/// Serializa e envia a mensagem (flush no fim). Compartilhado com
+/// `conn.rs` (que importa esta função).
+pub(crate) async fn write_msg(stream: &mut TcpStream, msg: &Message) -> io::Result<()> {
+    let bytes = msg
+        .encode(0)
+        .map_err(|e| io::Error::other(format!("encode de quadro: {e}")))?;
+    stream.write_all(&bytes).await?;
+    stream.flush().await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// UT: o stub aprova sempre com `auto_approve` e recusa sem ele.
-    #[test]
-    fn approval_stub_follows_config() {
-        assert_eq!(decide_approval(true), Decision::ApproveAlways);
-        assert_eq!(decide_approval(false), Decision::Reject);
-    }
 
     /// UT: `Outcome::Debug` nunca expõe os segredos.
     #[test]

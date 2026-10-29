@@ -6,7 +6,9 @@
 //! escrita atômica e recuperação de arquivo corrompido.
 
 mod atomic;
+pub mod approval;
 pub mod secrets;
 pub mod store;
 
+pub use approval::{effective_auto_approve, ApprovalInfo, ApprovalManager, Busy};
 pub use store::{TrustError, TrustStore, TrustedDevice, VerifyDevice};

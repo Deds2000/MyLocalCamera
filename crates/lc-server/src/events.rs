@@ -1,5 +1,47 @@
 //! Eventos emitidos pelo servidor para a camada acima (Tauri/UI).
 
+/// Pedido de aprovação de um novo pareamento (dispositivo desconhecido).
+///
+/// Sem segredos: o token de pareamento nunca aparece aqui.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApprovalRequest {
+    /// Identificador do pedido (alvo de [`ServerEvent::ApprovalResolved`]
+    /// e de `ServerHandle::decide`).
+    pub request_id: u64,
+    /// ID do dispositivo que pede pareamento.
+    pub device_id: String,
+    /// Nome informado no `HELLO`.
+    pub name: String,
+    /// Modelo informado no `HELLO`.
+    pub model: String,
+    /// IP de onde veio o pareamento.
+    pub ip: String,
+}
+
+/// Decisão da UI sobre um pedido de aprovação.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Decision {
+    /// "Permitir sempre": cadastra o dispositivo e emite `deviceKey`.
+    ApproveAlways,
+    /// "Permitir só desta vez": aprova sem `deviceKey`.
+    ApproveOnce,
+    /// Recusa (`not_approved`).
+    Reject,
+}
+
+/// Desfecho de um pedido de aprovação.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ApprovalOutcome {
+    /// A UI aprovou (e como).
+    Approved(Decision),
+    /// A UI recusou.
+    Rejected,
+    /// Estourou o prazo de aprovação (padrão 30 s).
+    TimedOut,
+    /// O celular desconectou durante o pedido.
+    Cancelled,
+}
+
 /// Motivo do fechamento de uma conexão.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CloseReason {
@@ -50,5 +92,13 @@ pub enum ServerEvent {
     SessionEnded {
         session_id: String,
         reason: CloseReason,
+    },
+    /// Novo dispositivo pediu pareamento; aguardando a decisão da UI.
+    ApprovalRequested(ApprovalRequest),
+    /// Pedido de aprovação resolvido (aprovado, recusado, timeout ou
+    /// cancelado por desconexão do celular).
+    ApprovalResolved {
+        request_id: u64,
+        outcome: ApprovalOutcome,
     },
 }

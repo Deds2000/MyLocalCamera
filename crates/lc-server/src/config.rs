@@ -30,10 +30,11 @@ pub struct ServerConfig {
     pub max_unauth_conns: usize,
     /// Prazo para o primeiro quadro (`HELLO`) chegar.
     pub hello_timeout: Duration,
-    /// Aprova pareamentos automaticamente (stub de aprovação — F1-T06).
-    /// Padrão **sempre** `false`.
+    /// Aprova pareamentos automaticamente **em build de debug** (em
+    /// release é ignorado com aviso no log). Padrão **sempre** `false`.
     pub auto_approve: bool,
-    /// Prazo da aprovação no PC (usado pelo fluxo de aprovação — F1-T06).
+    /// Prazo da aprovação no PC (`PENDING` + timeout do fluxo de
+    /// aprovação — F1-T06).
     pub approval_timeout: Duration,
 }
 

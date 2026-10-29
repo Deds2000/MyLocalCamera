@@ -24,10 +24,10 @@ use tokio::task::JoinHandle;
 
 use crate::audio::TicketStore;
 use crate::config::ServerConfig;
-use crate::events::ServerEvent;
+use crate::events::{Decision, ServerEvent};
 use crate::handshake::ServerCtx;
 use crate::sessions::SessionRegistry;
-use crate::trust::{TrustError, TrustStore};
+use crate::trust::{ApprovalManager, TrustError, TrustStore};
 
 /// Capacidade da fila de eventos.
 const EVENTS_CAPACITY: usize = 64;
@@ -65,6 +65,14 @@ impl ServerHandle {
     #[must_use]
     pub fn trust(&self) -> Arc<Mutex<TrustStore>> {
         self.ctx.trust.clone()
+    }
+
+    /// Decide um pedido de aprovação pendente (`ApprovalRequested`).
+    ///
+    /// Devolve `false` se o `request_id` é desconhecido ou já foi
+    /// resolvido (decisão ignorada; o estado não muda).
+    pub fn decide(&self, request_id: u64, decision: Decision) -> bool {
+        self.ctx.approvals.decide(request_id, decision)
     }
 
     /// Recebedor dos eventos do servidor, na ordem de emissão.
@@ -112,6 +120,8 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
         trust,
         tickets: Arc::new(Mutex::new(TicketStore::new())),
         sessions: Arc::new(SessionRegistry::new()),
+        approvals: Arc::new(ApprovalManager::new()),
+        approval_timeout: cfg.approval_timeout,
         auto_approve: cfg.auto_approve,
         pc_id,
         pc_name: cfg.pc_name.clone(),
