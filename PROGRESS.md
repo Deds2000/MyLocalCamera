@@ -3,10 +3,12 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F0-S5` (parte humana: 6 execuções × 10 min) → depois `F0-GATE`  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-28
+**Próxima tarefa:** `F0-GATE` (S5 concluído: veredito **B** — JPEG do Rust; ADR 0005 aceito; 150/200% pulados por decisão do usuário)  ·  **Fase atual:** 0  ·  **Última atualização:** 2026-10-29
 
 ## Bloqueios
-(nenhum)
+(nenhum ativo)
+- ~~F0-S5 — grupos 150%/200% exigiam mudança de escala do Windows, que neste PC só vale após sign-out~~ → **resolvido por decisão do usuário (2026-10-29): pular 150/200%; veredito do S5 com 100% apenas.** (Contexto: testado que `LogPixels` + broadcast + reinício do explorer + `SPI_SETLOGPIXELSPERINCH` não aplicam a escala sem sign-out. O usuário deixou a escala em 150% nas Configurações sem aplicar — pedir para reverter a 100% para evitar surpresa em sign-out futuro.)
+- **Restrição permanente:** NÃO matar os processos ffmpeg do app de compressão de vídeo do usuário (PIDs ~30096/35100, sujeitos a mudança) — ele perde o progresso da compressão.
 
 ## Observações
 (o agente anota aqui problemas fora do escopo da tarefa atual)
@@ -24,7 +26,7 @@
 - F0-T11: `gradlew connectedDebugAndroidTest` (raiz) falha em `:capacitor-cordova-android-plugins:checkDebugAndroidTestDuplicateClasses` (stdlib 1.8.22 + jdk7/jdk8 1.6.21, módulo gerado). Usar `gradlew :app:connectedDebugAndroidTest`; 2 testes passaram no Samsung.
 - F0-T06: `ci.ps1 -Fast` = 17,5 s; completo = 22,9 s; hook `pre-push` ativo. FT-0.01 a FT-0.05 verificados e revertidos (FT-0.01 parou no lint antes do typecheck; typecheck direto também falha).
 - F0-S3: veredito **CameraX (única) + Camera2 (dual)**. T1/T2 1080p30 estáveis 10 min (29,7 fps, jitter <1); dual T4 = back+front/ultrawide a 1080p cada, 10 min. **60 fps não oferecido** (`offers60=false`; Camera2 em alvo 60 trava, 0 frames). Armadilha: CameraX `setTargetResolution` cai em 1088x1088 → usar `ResolutionSelector` 16:9. Encoder `OMX.qcom.video.encoder.avc`, sem `KEY_LOW_LATENCY`, 1º keyframe 0,7–1,1 s. **Pendente (humano):** testes de interrupção (tela apagando → exige serviço em primeiro plano na Fase 2).
-- F0-S5: parte do agente pronta (protótipo Tauri+React em `spikes/s5/`, medições iniciais 60 s: A WebCodecs 30 fps/1,13 MB/s/11 ms/53 MB; B JPEG 30 fps/0,66 MB/s/8–9 ms/36 MB; ambos memória flat). Coleta do humano automatizada por `spikes/s5/run-s5.ps1` (CPU/mem/GPU por processo a 1 s; **não altera o DPI do Windows** — `-Dpi` é rótulo; GPU por PID via instâncias `pid_<PID>` em processo separado; CSV→`docs/spikes/tmp/`). **Veredito A/B + ADR 0005 pendentes do humano** (6 execuções × 10 min — `spikes/s5/ROTEIRO-HUMANO.md`).
+- F0-S5: parte do agente pronta (protótipo Tauri+React em `spikes/s5/`, medições iniciais 60 s: A WebCodecs 30 fps/1,13 MB/s/11 ms/53 MB; B JPEG 30 fps/0,66 MB/s/8–9 ms/36 MB; ambos memória flat). Coleta automatizada por `spikes/s5/run-s5.ps1` (CPU/mem/GPU por processo a 1 s; `-Dpi` é rótulo; CSV→`docs/spikes/tmp/`). **Status (2026-10-29): CONCLUÍDO** — grupo 100% medido (~8,5 min de dados por modo, app encerrou por timer próprio; drops=0 nos dois): A 29,99 fps / 1,133 MB/s / lat 12/20 ms / main 28,3% + árvore 54% / mem 29→55 MB flat (GPU `n/a` na execução longa, 14,1% no smoke); B 29,77 fps / 0,653 MB/s / lat 10/14 ms / main 16,7% + árvore 48,2% / mem 29→37 MB flat / GPU 1,1% → **veredito B** (ADR 0005). Seção "janela minimizada" do modelo do cartão ficou pendente (fora do critério de pronto; follow-up). CSVs/JSON em `docs/spikes/tmp/s5-{A,B}-100.*` + `spikes/s5/auto-{A,B}-100.json`; custo de decodificação H.264 medido por VELOCIDADE (contabilidade de CPU por processo desconfiável nesta máquina — `Process.CPU`/`GetProcessTimes` inconsistentes p/ ffmpeg): sw 682 fps / sw 1-thread 205 fps / d3d11va 233 fps → 30 fps de preview custa ~4,4% de 1 núcleo (sw multi) / ~14,6% (sw 1 núcleo) / ~0 (GPU) — `spikes/s5/measure-decode.ps1` + `docs/spikes/tmp/s5-decode.json`. Fixture `hd30.h264` = 300 frames @ 25 fps (12 s, não 30 fps como o nome sugere). Grupos 150/200% bloqueados por sign-out (ver Bloqueios).
 - F0-T10: e2e **não incluído no `ci.ps1`** — incluir na Fase 2, junto com o catálogo real.
 - F0-T10: `snapshotDir` ficou descontinuada no Playwright (1.64); usado `snapshotPathTemplate: "e2e/__snapshots__/{projectName}/{arg}{ext}"` (mesmo diretório do cartão). No Playwright 1.64 o `testInfo` é o 2º argumento do teste (não fixture), e `devices["iPhone 13"]` traz `webkit` - projeto mobile fixado em `chromium`.
 - F0-S1: câmera de teste removida; depois do reboot, o sample enumerou o device mas `Remove` retornou `MF_E_NOT_FOUND`; câmera sumiu das Configurações e os arquivos do spike foram removidos.
@@ -53,7 +55,7 @@ Ordem de execução (respeite as dependências):
 | [x] | F0-S1 | Spike S1 — câmera virtual × NVIDIA Broadcast | A+H | T01 | `docs/tasks/fase-0/F0-S1.md` |
 | [x] | F0-S2 | Spike S2 — canal Frame Server ↔ app (pipe nomeado, veredito aceito; ADR 0003; cleanup de admin pendente por falta de elevação) | A+H | S1 | `docs/tasks/fase-0/F0-S2.md` |
 | [x] | F0-S3 | Spike S3 — CameraX × Camera2 (e câmeras simultâneas) | A+H | T03 | `docs/tasks/fase-0/F0-S3.md` |
-| [~] | F0-S5 | Spike S5 — estratégia de preview (parte do agente pronta; falta o humano — ROTEIRO-HUMANO.md) | A+H | T02, T13 | `docs/tasks/fase-0/F0-S5.md` |
+| [x] | F0-S5 | Spike S5 — estratégia de preview (veredito **B** — JPEG do Rust; ADR 0005; 150/200% pulados por decisão do usuário) | A+H | T02, T13 | `docs/tasks/fase-0/F0-S5.md` |
 | [ ] | F0-GATE | Portão da Fase 0 (todos os testes e relatório) | A+H | todas | `docs/tasks/fase-0/F0-GATE.md` |
 
 ## Fase 1 — Protocolo e rede  → `docs/phases/fase-1-protocolo-e-rede.md`
