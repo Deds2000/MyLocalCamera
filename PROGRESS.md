@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F1-T04a` (`lc-server`: listener, limites e laço de leitura)  ·  **Fase atual:** 1  ·  **Última atualização:** 2026-10-29
+**Próxima tarefa:** `F1-T05` (Confiança: chaves, hashes, armazenamento atômico)  ·  **Fase atual:** 1  ·  **Última atualização:** 2026-10-29
 
 ## Bloqueios
 (nenhum ativo)
@@ -12,6 +12,7 @@
 
 ## Observações
 (o agente anota aqui problemas fora do escopo da tarefa atual)
+- F1-T04a: o rascunho do cartão sugeria `shutdown(self)`, mas isso consumiria o receiver de eventos e tornaria o teste `shutdown_closes_all` impossível de verificar; mantido `shutdown(&mut self)` (idempotente) para permitir ler os `ConnectionClosed{Shutdown}` após o shutdown. Resto da API do cartão intacto.
 - F0-T04 (resolvido em F0-T03): `typescript` do `packages/shared` foi alinhado para `~6.0.3`; a versão 7.0.2 duplicava os tipos do i18next e quebrava o typecheck do mobile.
 - F0-T02: shadcn/ui criado manualmente (CLI que geraria Tailwind 4 foi pulada); `baseUrl` removido do tsconfig por TS5101; chave extra i18n `desktop.smoke.close` para o label do X do Dialog.
 - F0-T03: `@capacitor/app` estável existe só até 8.1.2; core/cli/android em 8.5.3, peer >=8 (compatível).
@@ -67,7 +68,7 @@ Ordem de execução (respeite as dependências). A lógica de rede fica na crate
 | [x] | F1-T02a | `lc-protocol`: cabeçalho e `FrameReader` | A | T01 | `docs/tasks/fase-1/F1-T02a.md` |
 | [x] | F1-T02b | `lc-protocol`: mensagens JSON (serde) e `Message` | A | T02a | `docs/tasks/fase-1/F1-T02b.md` |
 | [x] | F1-T03 | Tipos/validadores TS + URI de pareamento (+ vetores de URI) | A | T01 | `docs/tasks/fase-1/F1-T03.md` |
-| [ ] | F1-T04a | `lc-server`: listener, limites e laço de leitura | A | T02b | `docs/tasks/fase-1/F1-T04a.md` |
+| [x] | F1-T04a | `lc-server`: listener, limites e laço de leitura | A | T02b | `docs/tasks/fase-1/F1-T04a.md` |
 | [ ] | F1-T05 | Confiança: chaves, hashes, armazenamento atômico | A | T04a | `docs/tasks/fase-1/F1-T05.md` |
 | [ ] | F1-T09a | Tickets de áudio (`TicketStore`, lógica pura) | A | T05 | `docs/tasks/fase-1/F1-T09a.md` |
 | [ ] | F1-T04b | Handshake, autenticação, versão e sessão única | A | T04a, T05, T09a | `docs/tasks/fase-1/F1-T04b.md` |
