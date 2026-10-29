@@ -6,6 +6,7 @@ pub mod config;
 pub mod conn;
 pub mod events;
 pub mod state;
+pub mod trust;
 
 use std::io;
 use std::sync::atomic::AtomicU64;
