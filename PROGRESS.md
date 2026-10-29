@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F1-T02b` (`lc-protocol`: mensagens JSON (serde) e `Message`)  ·  **Fase atual:** 1  ·  **Última atualização:** 2026-10-29
+**Próxima tarefa:** `F1-T03` (Tipos/validadores TS + URI de pareamento (+ vetores de URI))  ·  **Fase atual:** 1  ·  **Última atualização:** 2026-10-29
 
 ## Bloqueios
 (nenhum ativo)
@@ -65,7 +65,7 @@ Ordem de execução (respeite as dependências). A lógica de rede fica na crate
 |---|---|---|---|---|---|
 | [x] | F1-T01 | Vetores de teste do protocolo (`protocol-vectors.json`) | A | F0-GATE | `docs/tasks/fase-1/F1-T01.md` |
 | [x] | F1-T02a | `lc-protocol`: cabeçalho e `FrameReader` | A | T01 | `docs/tasks/fase-1/F1-T02a.md` |
-| [ ] | F1-T02b | `lc-protocol`: mensagens JSON (serde) e `Message` | A | T02a | `docs/tasks/fase-1/F1-T02b.md` |
+| [x] | F1-T02b | `lc-protocol`: mensagens JSON (serde) e `Message` | A | T02a | `docs/tasks/fase-1/F1-T02b.md` |
 | [ ] | F1-T03 | Tipos/validadores TS + URI de pareamento (+ vetores de URI) | A | T01 | `docs/tasks/fase-1/F1-T03.md` |
 | [ ] | F1-T04a | `lc-server`: listener, limites e laço de leitura | A | T02b | `docs/tasks/fase-1/F1-T04a.md` |
 | [ ] | F1-T05 | Confiança: chaves, hashes, armazenamento atômico | A | T04a | `docs/tasks/fase-1/F1-T05.md` |
