@@ -2,6 +2,7 @@
 //! porta, limite de conexões não autenticadas e laço de leitura por conexão.
 //! Sem dependência de Tauri; será usado por `desktop/src-tauri`.
 
+pub mod audio;
 pub mod config;
 pub mod conn;
 pub mod events;
