@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F2-T11` (`StateReducer.kt`) — ordem da noite: T11 → T09 → T10 (código/sem dispositivo); T06/T07/T08/T12/T13/T14/T15 aguardam o aparelho  ·  **Fase atual:** 2  ·  **Última atualização:** 2026-10-30
+**Próxima tarefa:** `F2-T09` (`PrimaryConnection.kt`) — ordem da noite: T09 → T10 (código/sem dispositivo); T06/T07/T08/T12/T13/T14/T15 aguardam o aparelho  ·  **Fase atual:** 2  ·  **Última atualização:** 2026-10-30
 
 ## Bloqueios
 - **Dispositivo desconectado (2026-10-30, noite):** `adb devices` vazio; usuário foi dormir. Pendem as partes H que exigem o Moto G (serial `0030261879`): **ST-2.01** (F2-T05, backup), e as partes de dispositivo de F2-T06/T07/T08/T12/T13/T14/T15. O agente segue com as partes A (código + testes JVM) e as tarefas puras. Ao religar o aparelho, rodar as pendências na ordem.
@@ -117,7 +117,7 @@ Ordem de execução (respeite as dependências). Kotlin em `mobile/android/app/s
 | [ ] | F2-T07 | `CameraBackend` (CameraX, veredito S3) | A+H | T06 | `docs/tasks/fase-2/F2-T07.md` |
 | [ ] | F2-T08 | `VideoEncoder.kt` (MediaCodec H.264 CBR) | A+H | T07 | `docs/tasks/fase-2/F2-T08.md` |
 | [ ] | F2-T09 | `PrimaryConnection.kt` (hosts paralelos, backoff) | A | T04, T05 | `docs/tasks/fase-2/F2-T09.md` |
-| [ ] | F2-T11 | `StateReducer.kt` | A | T04 | `docs/tasks/fase-2/F2-T11.md` |
+| [x] | F2-T11 | `StateReducer.kt` — estado mínimo Fase 2 (rev/camera/video/presentation/audio), `applySet` puro (@Synchronized, rev +1/call, chaves Fase 2 só; desconhecido/inválido→no-op+log sem crash), `stateJson()` canônico idêntico ao vetor `state_basic` (ordem fixa — org.json não preserva ordem/1.0; bug `equals` do org.json 20260814 contornado), `onRotation` callback; UT-2.06 8/8 verde | A | T04 | `docs/tasks/fase-2/F2-T11.md` |
 | [ ] | F2-T10 | `SendQueue.kt` (2 faixas, descarte por tempo) | A | T09 | `docs/tasks/fase-2/F2-T10.md` |
 | [ ] | F2-T16 | Rede do Android (Wi-Fi sem internet vs. móveis) | A+H | T09 | `docs/tasks/fase-2/F2-T16.md` |
 | [ ] | F2-T12 | `StreamingService` (foreground) | A+H | T08, T09 | `docs/tasks/fase-2/F2-T12.md` |
