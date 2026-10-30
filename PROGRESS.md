@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F2-T03b` (Textos i18n)  ·  **Fase atual:** 2  ·  **Última atualização:** 2026-10-30
+**Próxima tarefa:** `F2-T03` (Telas e roteamento)  ·  **Fase atual:** 2  ·  **Última atualização:** 2026-10-30
 
 ## Bloqueios
 (nenhum ativo)
@@ -106,7 +106,7 @@ Ordem de execução (respeite as dependências). Kotlin em `mobile/android/app/s
 |---|---|---|---|---|---|
 | [x] | F2-T01 | Capacitor e deep link (`localcamera://connect`) — `appUrlOpen` no frio e no quente (logcat no Moto G (5)), token mascarado, ST-2.05 confirmado na fonte | A+H | F1-GATE | `docs/tasks/fase-2/F2-T01.md` |
 | [x] | F2-T03a | Tokens e componentes próprios — 6 componentes (CountdownRing, BigToggle, LiveRing, StatTile, SegmentedControl, StatusChip) + catalog-exports; typecheck/lint/test verdes; preview em App.tsx | A | T01 | `docs/tasks/fase-2/F2-T03a.md` |
-| [ ] | F2-T03b | Textos i18n (JSON + `strings.xml`) | A | T01 | `docs/tasks/fase-2/F2-T03b.md` |
+| [x] | F2-T03b | Textos i18n (JSON + `strings.xml`) — 110 chaves common.*/mobile.* (pt-BR/en, `mobile.smoke.*` mantida) + 9 chaves Android em values/ + values-pt-rBR/; paridade, typecheck e lint verdes; verificação literal contra copy.md (0 divergências) | A | T01 | `docs/tasks/fase-2/F2-T03b.md` |
 | [ ] | F2-T03 | Telas e roteamento | A | T03a, T03b | `docs/tasks/fase-2/F2-T03.md` |
 | [ ] | F2-T03c | Catálogo (`?catalog`) | A | T03 | `docs/tasks/fase-2/F2-T03c.md` |
 | [ ] | F2-T04 | `ProtocolCodec.kt` (vetores 100%) | A | F1-GATE | `docs/tasks/fase-2/F2-T04.md` |
