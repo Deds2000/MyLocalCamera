@@ -44,6 +44,8 @@ dependencies {
     // org.json real para os testes de unidade JVM (o Android traz em main).
     testImplementation "org.json:json:20260814"
     testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0"
+    // F2-T09: PrimaryConnection usa coroutines/suspend no fonte principal.
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
