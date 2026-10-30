@@ -2,7 +2,50 @@
   "common": {
     "appName": "LocalCamera",
     "actions": {
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "close": "Close",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "retry": "Try again",
+      "fix": "Fix",
+      "remove": "Remove",
+      "back": "Back",
+      "openSettings": "Open settings"
+    },
+    "state": {
+      "idle": "Disconnected",
+      "connecting": "Connecting…",
+      "pending": "Waiting for approval…",
+      "streaming": "Streaming",
+      "reconnecting": "Reconnecting…",
+      "live": "LIVE"
+    },
+    "camera": {
+      "back": "Back",
+      "front": "Front",
+      "dual": "Dual"
+    },
+    "transport": {
+      "wifi": "Wi-Fi",
+      "usb": "USB"
+    },
+    "units": {
+      "mbps": "{{value}} Mbps",
+      "ms": "{{value}} ms",
+      "fps": "{{value}} fps"
+    },
+    "errors": {
+      "bad_token": "Invalid pairing code. Scan the QR code again.",
+      "not_approved": "The connection wasn't approved on the PC.",
+      "revoked": "This device was removed from the PC. Pair again with the QR code.",
+      "busy": "The PC is already connected to another phone.",
+      "version_mismatch": {
+        "phone": "Update the phone app (version {{phone}}; the PC uses {{pc}}).",
+        "pc": "Update the PC app (version {{pc}}; the phone uses {{phone}})."
+      },
+      "generic": "Communication failed. Trying to reconnect.",
+      "noNetwork": "No network. Connect to Wi-Fi or use a USB cable."
     }
   },
   "desktop": {
@@ -16,6 +59,119 @@
     }
   },
   "mobile": {
+    "permissions": {
+      "title": "We need a few permissions",
+      "camera": "Camera — to send video to your PC.",
+      "mic": "Microphone — to send audio.",
+      "notifications": "Notifications — keep the stream running.",
+      "grant": "Allow",
+      "granted": "Granted",
+      "denied": "Permission denied. Turn it on in Android settings.",
+      "continue": "Continue",
+      "cameraRequired": "The camera is required to continue."
+    },
+    "home": {
+      "title": "Ready to connect",
+      "scan": "Scan QR code",
+      "manual": "Enter manually",
+      "reconnect": "Reconnect to {{name}}",
+      "seen": "seen {{when}}",
+      "usbTip": "Prefer a cable? Plug in USB and click Connect in the PC app.",
+      "knownPcs": "My PCs"
+    },
+    "scan": {
+      "title": "Scan QR code",
+      "hint": "Point at the QR code shown on your PC",
+      "invalid": "This QR code isn't from LocalCamera.",
+      "torch": "Flashlight"
+    },
+    "manual": {
+      "title": "Enter manually",
+      "address": "PC address",
+      "port": "Port",
+      "code": "Pairing code",
+      "paste": "Paste link",
+      "connect": "Connect",
+      "invalidAddress": "Invalid address.",
+      "invalidCode": "The code has 32 characters (0–9, a–f)."
+    },
+    "connecting": {
+      "title": "Connecting to {{name}}…",
+      "failed": "Couldn't connect."
+    },
+    "pending": {
+      "title": "Approve on your PC",
+      "body": "A prompt appeared on your computer. Click \"Always allow\"."
+    },
+    "reconnect": {
+      "title": "Reconnecting",
+      "discovery": "Looking for your PC on the network…",
+      "lastAddresses": "Trying the last known addresses…",
+      "failed": "We couldn't find your PC. Scan the QR code."
+    },
+    "stream": {
+      "status": "Streaming to {{name}}",
+      "bitrate": "Bitrate",
+      "latency": "Latency",
+      "dropped": "Dropped frames",
+      "camera": "Camera",
+      "dualBoth": "Back + Front",
+      "mic": "Microphone",
+      "mirror": "Mirror",
+      "rotate": "Rotate",
+      "stop": "Stop",
+      "stopConfirmTitle": "Stop streaming?",
+      "warnSlow": "Slow network — quality lowered.",
+      "warnHot": "The device is getting warm.",
+      "warnBattery": "The system may pause the stream."
+    },
+    "knownPcs": {
+      "title": "My PCs",
+      "empty": "No paired PCs yet.",
+      "forget": "Forget",
+      "forgetConfirm": "Forget \"{{name}}\"? You'll need to scan the QR and approve again."
+    },
+    "error": {
+      "badToken": {
+        "title": "Invalid code"
+      },
+      "notApproved": {
+        "title": "Connection not approved"
+      },
+      "revoked": {
+        "title": "This device was removed from the PC"
+      },
+      "busy": {
+        "title": "PC busy"
+      },
+      "version": {
+        "title": "Update the app"
+      },
+      "generic": {
+        "title": "Communication failed"
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "transmission": "Streaming",
+      "background": "Keep streaming with the screen off",
+      "backgroundHint": "Keeps the camera active in the background, with a notification.",
+      "keepScreenOn": "Keep the screen on",
+      "keepScreenOnHint": "The screen stays on while the app is open and streaming.",
+      "bothOff": "Streaming stops when you leave the app.",
+      "defaultQuality": "Default quality",
+      "micSource": "Microphone source",
+      "micSourceMic": "Microphone",
+      "micSourceVoice": "Voice communication",
+      "language": "Language",
+      "batteryHelp": "Battery optimization",
+      "about": "About"
+    },
+    "battery": {
+      "title": "Keep the system from pausing the stream",
+      "body": "Some manufacturers close background apps to save battery. Set LocalCamera to \"Unrestricted\".",
+      "open": "Open battery settings"
+    },
     "smoke": {
       "title": "LocalCamera",
       "open": "Open",

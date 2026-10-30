@@ -2,6 +2,14 @@
 <resources>
     <string name="app_name">LocalCamera</string>
     <string name="title_activity_main">LocalCamera</string>
+    <string name="channel_streaming_name">Streaming</string>
+    <string name="channel_streaming_desc">Shows when LocalCamera is streaming</string>
+    <string name="notif_title_streaming">LocalCamera — streaming</string>
+    <string name="notif_text_streaming">{PC} · {quality} · {transport}</string>
+    <string name="notif_text_reconnecting">Reconnecting…</string>
+    <string name="notif_action_stop">Stop</string>
+    <string name="permission_rationale_camera">We use the camera to send video to your PC.</string>
+    <string name="permission_rationale_mic">We use the microphone to send audio to your PC.</string>
     <string name="package_name">com.localcamera.app</string>
     <string name="custom_url_scheme">com.localcamera.app</string>
 </resources>

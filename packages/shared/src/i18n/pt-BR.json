@@ -2,7 +2,50 @@
   "common": {
     "appName": "LocalCamera",
     "actions": {
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "confirm": "Confirmar",
+      "close": "Fechar",
+      "copy": "Copiar",
+      "copied": "Copiado!",
+      "retry": "Tentar de novo",
+      "fix": "Corrigir",
+      "remove": "Remover",
+      "back": "Voltar",
+      "openSettings": "Abrir configurações"
+    },
+    "state": {
+      "idle": "Desconectado",
+      "connecting": "Conectando…",
+      "pending": "Aguardando aprovação…",
+      "streaming": "Transmitindo",
+      "reconnecting": "Reconectando…",
+      "live": "AO VIVO"
+    },
+    "camera": {
+      "back": "Traseira",
+      "front": "Frontal",
+      "dual": "Dupla"
+    },
+    "transport": {
+      "wifi": "Wi-Fi",
+      "usb": "USB"
+    },
+    "units": {
+      "mbps": "{{value}} Mbps",
+      "ms": "{{value}} ms",
+      "fps": "{{value}} fps"
+    },
+    "errors": {
+      "bad_token": "Código de pareamento inválido. Escaneie o QR code de novo.",
+      "not_approved": "A conexão não foi aprovada no PC.",
+      "revoked": "Este aparelho foi removido do PC. Pareie de novo com o QR code.",
+      "busy": "O PC já está conectado a outro celular.",
+      "version_mismatch": {
+        "phone": "Atualize o app do celular (versão {{phone}}; o PC usa {{pc}}).",
+        "pc": "Atualize o app do PC (versão {{pc}}; o celular usa {{phone}})."
+      },
+      "generic": "Falha na comunicação. Tentando reconectar.",
+      "noNetwork": "Sem rede. Conecte-se ao Wi-Fi ou use o cabo USB."
     }
   },
   "desktop": {
@@ -16,6 +59,119 @@
     }
   },
   "mobile": {
+    "permissions": {
+      "title": "Precisamos de algumas permissões",
+      "camera": "Câmera — para enviar a imagem ao PC.",
+      "mic": "Microfone — para enviar o áudio.",
+      "notifications": "Notificações — mantêm a transmissão ativa.",
+      "grant": "Permitir",
+      "granted": "Concedida",
+      "denied": "Permissão negada. Ative nas configurações do Android.",
+      "continue": "Continuar",
+      "cameraRequired": "A câmera é obrigatória para continuar."
+    },
+    "home": {
+      "title": "Pronto para conectar",
+      "scan": "Escanear QR code",
+      "manual": "Inserir manualmente",
+      "reconnect": "Reconectar a {{name}}",
+      "seen": "visto {{when}}",
+      "usbTip": "Prefere cabo? Plugue o USB e toque em Conectar no app do PC.",
+      "knownPcs": "Meus PCs"
+    },
+    "scan": {
+      "title": "Escanear QR code",
+      "hint": "Aponte para o QR code exibido no PC",
+      "invalid": "Este QR code não é do LocalCamera.",
+      "torch": "Lanterna"
+    },
+    "manual": {
+      "title": "Inserir manualmente",
+      "address": "Endereço do PC",
+      "port": "Porta",
+      "code": "Código de pareamento",
+      "paste": "Colar link",
+      "connect": "Conectar",
+      "invalidAddress": "Endereço inválido.",
+      "invalidCode": "O código tem 32 caracteres (0–9, a–f)."
+    },
+    "connecting": {
+      "title": "Conectando a {{name}}…",
+      "failed": "Não foi possível conectar."
+    },
+    "pending": {
+      "title": "Aprove no PC",
+      "body": "Um aviso apareceu no computador. Toque em \"Permitir sempre\"."
+    },
+    "reconnect": {
+      "title": "Reconectando",
+      "discovery": "Procurando o PC na rede…",
+      "lastAddresses": "Tentando os últimos endereços…",
+      "failed": "Não encontramos o PC. Escaneie o QR code."
+    },
+    "stream": {
+      "status": "Transmitindo para {{name}}",
+      "bitrate": "Bitrate",
+      "latency": "Latência",
+      "dropped": "Quadros perdidos",
+      "camera": "Câmera",
+      "dualBoth": "Traseira + Frontal",
+      "mic": "Microfone",
+      "mirror": "Espelho",
+      "rotate": "Girar",
+      "stop": "Parar",
+      "stopConfirmTitle": "Parar a transmissão?",
+      "warnSlow": "Rede lenta — qualidade reduzida.",
+      "warnHot": "O aparelho está esquentando.",
+      "warnBattery": "O sistema pode pausar a transmissão."
+    },
+    "knownPcs": {
+      "title": "Meus PCs",
+      "empty": "Nenhum PC pareado ainda.",
+      "forget": "Esquecer",
+      "forgetConfirm": "Esquecer \"{{name}}\"? Será preciso escanear o QR e aprovar de novo."
+    },
+    "error": {
+      "badToken": {
+        "title": "Código inválido"
+      },
+      "notApproved": {
+        "title": "Conexão não aprovada"
+      },
+      "revoked": {
+        "title": "Este aparelho foi removido do PC"
+      },
+      "busy": {
+        "title": "PC ocupado"
+      },
+      "version": {
+        "title": "Atualize o app"
+      },
+      "generic": {
+        "title": "Falha na comunicação"
+      }
+    },
+    "settings": {
+      "title": "Configurações",
+      "transmission": "Transmissão",
+      "background": "Continuar transmitindo com a tela apagada",
+      "backgroundHint": "Mantém a câmera ativa em segundo plano, com uma notificação.",
+      "keepScreenOn": "Manter a tela ligada",
+      "keepScreenOnHint": "A tela não apaga enquanto o app está aberto transmitindo.",
+      "bothOff": "A transmissão para quando você sair do app.",
+      "defaultQuality": "Qualidade padrão",
+      "micSource": "Fonte do microfone",
+      "micSourceMic": "Microfone",
+      "micSourceVoice": "Comunicação de voz",
+      "language": "Idioma",
+      "batteryHelp": "Otimização de bateria",
+      "about": "Sobre"
+    },
+    "battery": {
+      "title": "Evite que o sistema pause a transmissão",
+      "body": "Alguns fabricantes encerram apps em segundo plano para economizar bateria. Defina o LocalCamera como \"Sem restrições\".",
+      "open": "Abrir configurações de bateria"
+    },
     "smoke": {
       "title": "LocalCamera",
       "open": "Abrir",

@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LocalCamera</string>
+    <string name="channel_streaming_name">Transmissão</string>
+    <string name="channel_streaming_desc">Mostra quando o LocalCamera está transmitindo</string>
+    <string name="notif_title_streaming">LocalCamera — transmitindo</string>
+    <string name="notif_text_streaming">{PC} · {qualidade} · {transporte}</string>
+    <string name="notif_text_reconnecting">Reconectando…</string>
+    <string name="notif_action_stop">Parar</string>
+    <string name="permission_rationale_camera">Usamos a câmera para enviar a imagem ao seu PC.</string>
+    <string name="permission_rationale_mic">Usamos o microfone para enviar o áudio ao seu PC.</string>
+</resources>
