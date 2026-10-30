@@ -57,6 +57,9 @@ dependencies {
     implementation "androidx.camera:camera-lifecycle:$cameraxVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    // F2-T07: GrantPermissionRule concede a permissão CAMERA ao app alvo no
+    // smoke (mesma linha 1.7.0 já resolvida de core/runner pelo espresso).
+    androidTestImplementation "androidx.test:rules:1.7.0"
     implementation project(':capacitor-cordova-android-plugins')
 }
 

@@ -46,4 +46,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- F2-T07: câmera (o smoke do cartão a requer; F2-T12 acrescenta o resto). -->
+    <uses-permission android:name="android.permission.CAMERA" />
 </manifest>
