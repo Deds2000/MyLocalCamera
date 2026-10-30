@@ -223,6 +223,7 @@ Regras: nenhuma frase vem da rede (só **códigos**); textos em pt-BR podem ser 
 | `mobile.manual.paste` | Colar link | Paste link |
 | `mobile.manual.connect` | Conectar | Connect |
 | `mobile.manual.invalidAddress` | Endereço inválido. | Invalid address. |
+| `mobile.manual.invalidPort` | Porta inválida. | Invalid port. |
 | `mobile.manual.invalidCode` | O código tem 32 caracteres (0–9, a–f). | The code has 32 characters (0–9, a–f). |
 | `mobile.connecting.title` | Conectando a {{name}}… | Connecting to {{name}}… |
 | `mobile.connecting.failed` | Não foi possível conectar. | Couldn't connect. |
@@ -238,6 +239,7 @@ Regras: nenhuma frase vem da rede (só **códigos**); textos em pt-BR podem ser 
 | `mobile.stream.dropped` | Quadros perdidos | Dropped frames |
 | `mobile.stream.camera` | Câmera | Camera |
 | `mobile.stream.dualBoth` | Traseira + Frontal | Back + Front |
+| `mobile.stream.dualUnavailable` | Câmera dupla indisponível neste aparelho. | Dual camera isn't available on this device. |
 | `mobile.stream.mic` | Microfone | Microphone |
 | `mobile.stream.mirror` | Espelho | Mirror |
 | `mobile.stream.rotate` | Girar | Rotate |

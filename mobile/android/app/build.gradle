@@ -46,6 +46,15 @@ dependencies {
     testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0"
     // F2-T09: PrimaryConnection usa coroutines/suspend no fonte principal.
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0"
+    // F2-T06: CameraX — estável 1.6.2, confirmada nas release notes oficiais
+    // (https://developer.android.com/jetpack/androidx/releases/camera,
+    // 26/ago/2026; a 1.7.0-rc01 de 21/out/2026 é RC, não estável).
+    // Mesma versão usada e validada no spike S3 (docs/spikes/S3.md).
+    // Camera2 é API de plataforma (compileSdk 36), sem artifact próprio.
+    def cameraxVersion = "1.6.2"
+    implementation "androidx.camera:camera-core:$cameraxVersion"
+    implementation "androidx.camera:camera-camera2:$cameraxVersion"
+    implementation "androidx.camera:camera-lifecycle:$cameraxVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
