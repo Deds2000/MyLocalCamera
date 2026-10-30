@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H** = humano (o agente para e entrega o roteiro) · **A+H** = agente prepara, humano executa a parte manual.
 
-**Próxima tarefa:** `F2-T04` (`ProtocolCodec.kt`, vetores 100%)  ·  **Fase atual:** 2  ·  **Última atualização:** 2026-10-30
+**Próxima tarefa:** `F2-T05a` (Parser da URI `localcamera://connect`)  ·  **Fase atual:** 2  ·  **Última atualização:** 2026-10-30
 
 ## Bloqueios
 (nenhum ativo)
@@ -110,7 +110,7 @@ Ordem de execução (respeite as dependências). Kotlin em `mobile/android/app/s
 | [x] | F2-T03b | Textos i18n (JSON + `strings.xml`) — 110 chaves common.*/mobile.* (pt-BR/en, `mobile.smoke.*` mantida) + 9 chaves Android em values/ + values-pt-rBR/; paridade, typecheck e lint verdes; verificação literal contra copy.md (0 divergências) | A | T01 | `docs/tasks/fase-2/F2-T03b.md` |
 | [x] | F2-T03 | Telas e roteamento — 9 telas (§3.3–§3.10) + roteamento por `selectScreen`, botão voltar por tela (`backAction` + listener `backButton`), `state/connection.ts` (reducer/UT-2.08/2.09/2.12) + `screens/` (UT-2.11); smoke removido; mobile 30/30 + typecheck/lint + shared 13/13 verdes | A | T03a, T03b | `docs/tasks/fase-2/F2-T03.md` |
 | [x] | F2-T03c | Catálogo (`?catalog`) — `CatalogScreen.tsx` (6 componentes × estados, `data-testid`) + rota dev (`import.meta.env.DEV` → DCE: build 0 ocorrências no bundle) + `e2e/catalog-mobile.spec.ts` (UT-2.13/2.14, roda em F2-T14) + 20 chaves `catalog.*`; `@axe-core/playwright` em devDep raiz; build/test/typecheck/lint verdes | A | T03 | `docs/tasks/fase-2/F2-T03c.md` |
-| [ ] | F2-T04 | `ProtocolCodec.kt` (vetores 100%) | A | F1-GATE | `docs/tasks/fase-2/F2-T04.md` |
+| [x] | F2-T04 | `ProtocolCodec.kt` — Frame/FrameReader (incremental, valida length antes de consumir, envenena em BadMagic/TooLarge, UNKNOWN não derruba)/FrameWriter/Messages+Encode (org.json); 32/32 vetores UT-2.01+UT-2.02 (roundtrip byte-a-byte + fragmentação byte a byte); `testImplementation org.json:json` (só testes); BUILD SUCCESSFUL | A | F1-GATE | `docs/tasks/fase-2/F2-T04.md` |
 | [ ] | F2-T05a | Parser da URI `localcamera://connect` | A | F1-GATE | `docs/tasks/fase-2/F2-T05a.md` |
 | [ ] | F2-T05 | `PairingStore.kt` (Keystore, fora do backup) | A+H | T01 | `docs/tasks/fase-2/F2-T05.md` |
 | [ ] | F2-T06 | `CapabilitiesProbe` | A+H | T01 | `docs/tasks/fase-2/F2-T06.md` |

@@ -41,6 +41,8 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
+    // org.json real para os testes de unidade JVM (o Android traz em main).
+    testImplementation "org.json:json:20260814"
     testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
