@@ -24,8 +24,8 @@ describe("UT-0.03 paridade i18n", () => {
 
   it("detecta diferença quando uma chave falta", () => {
     const enSemChave: JsonObject = JSON.parse(JSON.stringify(en));
-    const smoke = (enSemChave.mobile as JsonObject).smoke as JsonObject;
-    delete smoke.close;
+    const actions = (enSemChave.common as JsonObject).actions as JsonObject;
+    delete actions.close;
     expect(flatten(enSemChave)).not.toEqual(flatten(ptBR as JsonObject));
   });
 });

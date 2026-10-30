@@ -93,6 +93,7 @@
       "paste": "Colar link",
       "connect": "Conectar",
       "invalidAddress": "Endereço inválido.",
+      "invalidPort": "Porta inválida.",
       "invalidCode": "O código tem 32 caracteres (0–9, a–f)."
     },
     "connecting": {
@@ -121,6 +122,7 @@
       "rotate": "Girar",
       "stop": "Parar",
       "stopConfirmTitle": "Parar a transmissão?",
+      "dualUnavailable": "Câmera dupla indisponível neste aparelho.",
       "warnSlow": "Rede lenta — qualidade reduzida.",
       "warnHot": "O aparelho está esquentando.",
       "warnBattery": "O sistema pode pausar a transmissão."
@@ -171,14 +173,6 @@
       "title": "Evite que o sistema pause a transmissão",
       "body": "Alguns fabricantes encerram apps em segundo plano para economizar bateria. Defina o LocalCamera como \"Sem restrições\".",
       "open": "Abrir configurações de bateria"
-    },
-    "smoke": {
-      "title": "LocalCamera",
-      "open": "Abrir",
-      "tabA": "Aba A",
-      "tabB": "Aba B",
-      "dialogTitle": "Diálogo de exemplo",
-      "close": "Fechar"
     }
   }
 }

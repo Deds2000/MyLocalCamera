@@ -8,6 +8,7 @@ import "@fontsource-variable/jetbrains-mono";
 import "./index.css";
 import App from "./App";
 import { setPendingDeepLink } from "./deep-link";
+import { AppProvider } from "./state/AppProvider";
 
 // Deep link `localcamera://connect` (F2-T01): registrado antes de o React
 // montar, para não perder `appUrlOpen` durante o bootstrap.
@@ -21,7 +22,9 @@ async function bootstrap() {
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
       <I18nextProvider i18n={i18n}>
-        <App />
+        <AppProvider>
+          <App />
+        </AppProvider>
       </I18nextProvider>
     </React.StrictMode>,
   );

@@ -93,6 +93,7 @@
       "paste": "Paste link",
       "connect": "Connect",
       "invalidAddress": "Invalid address.",
+      "invalidPort": "Invalid port.",
       "invalidCode": "The code has 32 characters (0–9, a–f)."
     },
     "connecting": {
@@ -121,6 +122,7 @@
       "rotate": "Rotate",
       "stop": "Stop",
       "stopConfirmTitle": "Stop streaming?",
+      "dualUnavailable": "Dual camera isn't available on this device.",
       "warnSlow": "Slow network — quality lowered.",
       "warnHot": "The device is getting warm.",
       "warnBattery": "The system may pause the stream."
@@ -171,14 +173,6 @@
       "title": "Keep the system from pausing the stream",
       "body": "Some manufacturers close background apps to save battery. Set LocalCamera to \"Unrestricted\".",
       "open": "Open battery settings"
-    },
-    "smoke": {
-      "title": "LocalCamera",
-      "open": "Open",
-      "tabA": "Tab A",
-      "tabB": "Tab B",
-      "dialogTitle": "Example dialog",
-      "close": "Close"
     }
   }
 }
