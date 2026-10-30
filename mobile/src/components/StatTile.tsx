@@ -15,6 +15,7 @@ export function StatTile({ label, value, unit, hint, className }: StatTileProps)
         "flex flex-col gap-1 rounded-md border border-glass-border bg-glass-strong px-3 py-2",
         className,
       )}
+      role="group"
       aria-label={label}
     >
       <span className="text-xs text-text-muted">{label}</span>

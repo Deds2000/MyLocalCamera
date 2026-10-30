@@ -58,6 +58,28 @@
       "close": "Close"
     }
   },
+  "catalog": {
+    "title": "Component catalog",
+    "subtitle": "Development only — not part of the app.",
+    "statusChip": "StatusChip",
+    "countdownRing": "CountdownRing",
+    "countdownSeconds": "{{seconds}} s",
+    "bigToggle": "BigToggle",
+    "toggleOn": "On",
+    "toggleOff": "Off",
+    "liveRing": "LiveRing",
+    "liveOn": "Live",
+    "liveOff": "Paused",
+    "statTile": "StatTile",
+    "statNormal": "Normal",
+    "statSlow": "Slow network",
+    "segmentedControl": "SegmentedControl",
+    "dialog": "Dialog",
+    "dialogOpen": "Open dialog",
+    "dialogTitle": "Catalog dialog",
+    "dialogBody": "Example of the shadcn dialog.",
+    "dialogClose": "Close"
+  },
   "mobile": {
     "permissions": {
       "title": "We need a few permissions",

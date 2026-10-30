@@ -58,6 +58,28 @@
       "close": "Fechar"
     }
   },
+  "catalog": {
+    "title": "Catálogo de componentes",
+    "subtitle": "Só para desenvolvimento — não faz parte do app.",
+    "statusChip": "StatusChip",
+    "countdownRing": "CountdownRing",
+    "countdownSeconds": "{{seconds}} s",
+    "bigToggle": "BigToggle",
+    "toggleOn": "Ligado",
+    "toggleOff": "Desligado",
+    "liveRing": "LiveRing",
+    "liveOn": "Ao vivo",
+    "liveOff": "Pausado",
+    "statTile": "StatTile",
+    "statNormal": "Normal",
+    "statSlow": "Rede lenta",
+    "segmentedControl": "SegmentedControl",
+    "dialog": "Dialog",
+    "dialogOpen": "Abrir diálogo",
+    "dialogTitle": "Diálogo do catálogo",
+    "dialogBody": "Exemplo do diálogo do shadcn.",
+    "dialogClose": "Fechar"
+  },
   "mobile": {
     "permissions": {
       "title": "Precisamos de algumas permissões",

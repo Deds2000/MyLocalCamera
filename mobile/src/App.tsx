@@ -21,6 +21,7 @@ import {
 import { useApp } from "@/state/AppProvider";
 import { backAction, selectScreen } from "@/state/connection";
 import { AwaitingApprovalScreen } from "@/screens/AwaitingApprovalScreen";
+import { CatalogScreen } from "@/screens/CatalogScreen";
 import { ConnectingScreen } from "@/screens/ConnectingScreen";
 import { DefinitiveErrorScreen } from "@/screens/DefinitiveErrorScreen";
 import { HomeScreen } from "@/screens/HomeScreen";
@@ -143,6 +144,16 @@ function App() {
       if (handle) void handle.remove().catch(() => {});
     };
   }, [dispatch]);
+
+  // F2-T03c — rota `?catalog` (só dev): no build `import.meta.env.DEV` vira
+  // `false`, a condição some e o `<CatalogScreen/>` (com o import) sai pelo
+  // tree-shaking — o catálogo não existe no bundle de produção.
+  if (
+    import.meta.env.DEV &&
+    new URLSearchParams(window.location.search).has("catalog")
+  ) {
+    return <CatalogScreen />;
+  }
 
   // O diálogo só faz sentido em transmissão; se o estado sair de
   // streaming/reconnecting por outro meio, ele simplesmente não abre.
