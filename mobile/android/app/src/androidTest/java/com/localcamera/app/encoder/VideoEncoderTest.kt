@@ -36,7 +36,7 @@ class VideoEncoderTest {
     private var collector: Thread? = null
 
     @Test
-    fun `it201 annex-b keyframes com sps e pps intervalo 1s`() {
+    fun it201_annexb_keyframes_com_sps_e_pps_intervalo_1s() {
         setUp()
         val runMs = pump(decoder!!, RUN_MS)
         tearDown()
@@ -72,7 +72,7 @@ class VideoEncoderTest {
     }
 
     @Test
-    fun `it202 cbr 8mbps mais ou menos 15 por cento`() {
+    fun it202_cbr_8mbps_mais_ou_menos_15_por_cento() {
         setUp()
         val runMs = pump(decoder!!, RUN_MS)
         tearDown()
@@ -86,7 +86,7 @@ class VideoEncoderTest {
     }
 
     @Test
-    fun `it203 requestkeyframe responde em ate 300ms`() {
+    fun it203_requestkeyframe_responde_em_ate_300ms() {
         setUp()
         val enc = encoder!!
         val requestPtsUs = AtomicLong(0)
@@ -153,7 +153,13 @@ class VideoEncoderTest {
         // `MediaCodecInfo.isDecoder` nao esta no stub 36 (existe em runtime):
         // decoder = codec que suporta o mime e nao e encoder.
         val info = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
-            .firstOrNull { !it.isEncoder && it.getCapabilitiesForType(mime)?.isFormatSupported(probe) == true }
+            .firstOrNull { c ->
+                if (c.isEncoder) return@firstOrNull false
+                // `getCapabilitiesForType` LANÇA (IllegalArgumentException) para
+                // codec sem o mime — envelopa (não devolve null).
+                val caps = try { c.getCapabilitiesForType(mime) } catch (e: IllegalArgumentException) { null }
+                caps != null && caps.isFormatSupported(probe)
+            }
             ?: throw IllegalStateException("nenhum decoder H.264 disponivel")
         val d = MediaCodec.createByCodecName(info.name)
         val fmt = MediaFormat.createVideoFormat(mime, 1920, 1080)

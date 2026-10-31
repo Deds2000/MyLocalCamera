@@ -11,8 +11,8 @@ import org.junit.Test
  */
 class EncoderSelectionTest {
 
-    private fun c(name: String, profiles: List<Int>, canEncode: Boolean = true) =
-        EncoderCandidate(name, canEncode, profiles)
+    private fun c(name: String, profiles: List<Int>, canEncode: Boolean = true, surface: Boolean = true) =
+        EncoderCandidate(name, canEncode, profiles, surface)
 
     // ------------------------- H264Profile -------------------------
 
@@ -94,6 +94,34 @@ class EncoderSelectionTest {
     @Test
     fun `candidato sem perfil utilizavel fica de fora`() {
         assertNull(pickEncoder(listOf(c("a", listOf(9)))))
+    }
+
+    @Test
+    fun `candidato sem input surface fica de fora`() {
+        val pick = pickEncoder(
+            listOf(
+                c("a", listOf(H264Profile.HIGH), surface = false),
+                c("b", listOf(H264Profile.MAIN)),
+            ),
+        )
+        assertEquals("b", pick?.name)
+    }
+
+    @Test
+    fun `rankEncoders ordena por perfil e preserva a ordem no empate`() {
+        val ranked = rankEncoders(
+            listOf(
+                c("baseline", listOf(H264Profile.BASELINE)),
+                c("high1", listOf(H264Profile.HIGH)),
+                c("high2", listOf(H264Profile.CONSTRAINED_HIGH)),
+                c("main", listOf(H264Profile.MAIN)),
+                c("noSurface", listOf(H264Profile.HIGH), surface = false),
+            ),
+        )
+        assertEquals(
+            listOf("high1", "high2", "main", "baseline"),
+            ranked.map { it.name },
+        )
     }
 
     @Test

@@ -81,39 +81,58 @@ class VideoEncoder(private val clock: () -> Long = System::nanoTime) {
 
     // ------------------------------ configure ------------------------------
 
-    /** Escolhe o encoder e aplica a configuração (ver [EncoderSetup.kt]). */
+    /**
+     * Escolhe o encoder e aplica a configuração (ver [EncoderSetup.kt]).
+     * Tenta os candidatos em ordem de [rankEncoders]: se um falha (ex.:
+     * `createInputSurface` lança num aparelho que mente capability), libera
+     * e tenta o próximo — nenhum nome fixo (cartão F2-T08).
+     */
     fun configure(cfg: EncoderConfig) {
         synchronized(lock) {
             if (codec != null) {
                 throw IllegalStateException("configure() já foi chamado (crie um novo VideoEncoder)")
             }
             val (candidates, capsMap) = scanEncoders(cfg)
-            val pick = pickEncoder(candidates) ?:
+            val ranked = rankEncoders(candidates)
+            if (ranked.isEmpty()) {
                 throw IllegalStateException("nenhum encoder H.264 para ${cfg.width}x${cfg.height}@${cfg.fps}")
-            val c = try {
-                MediaCodec.createByCodecName(pick.name)
-            } catch (e: IOException) {
-                throw IllegalStateException("falha ao criar encoder ${pick.name}", e)
             }
-            try {
-                val s = c.createInputSurface()
-                val (profile, lowLatency) = configureCodec(c, s, cfg, profileAttempts(pick.supportedProfiles))
-                this.profile = profile?.let { H264Profile.name(it) } ?: "unspecified"
-                encoderName = pick.name
-                surface = s
-                codec = c
-                Log.i(
-                    LOG_TAG,
-                    "encoder=${pick.name} profile=${this.profile} " +
-                        "levels=${levelsFor(capsMap[pick.name], profile)} " +
-                        "CBR=${cfg.bitrateKbps * 1000}bps " +
-                        "${cfg.width}x${cfg.height}@${cfg.fps} kf=${cfg.keyframeIntervalS}s " +
-                        "lowLatency=$lowLatency",
-                )
-            } catch (e: Throwable) {
-                c.release()
-                throw e
+            var lastError: Throwable? = null
+            for ((i, pick) in ranked.withIndex()) {
+                val c = try {
+                    MediaCodec.createByCodecName(pick.name)
+                } catch (e: IOException) {
+                    Log.w(LOG_TAG, "encoder ${pick.name} não criado: ${e.message} — tenta o próximo")
+                    continue
+                }
+                var s: Surface? = null
+                try {
+                    s = c.createInputSurface()
+                    val (profile, lowLatency) = configureCodec(c, s, cfg, profileAttempts(pick.supportedProfiles))
+                    this.profile = profile?.let { H264Profile.name(it) } ?: "unspecified"
+                    encoderName = pick.name
+                    surface = s
+                    codec = c
+                    Log.i(
+                        LOG_TAG,
+                        "encoder=${pick.name} profile=${this.profile} " +
+                            "levels=${levelsFor(capsMap[pick.name], profile)} " +
+                            "CBR=${cfg.bitrateKbps * 1000}bps " +
+                            "${cfg.width}x${cfg.height}@${cfg.fps} kf=${cfg.keyframeIntervalS}s " +
+                            "lowLatency=$lowLatency (tentativa ${i + 1}/${ranked.size})",
+                    )
+                    return
+                } catch (e: Throwable) {
+                    lastError = e
+                    Log.w(
+                        LOG_TAG,
+                        "encoder ${pick.name} falhou: ${e.javaClass.simpleName}: ${e.message} — tenta o próximo",
+                    )
+                    s?.let { runCatching { it.release() } }
+                    runCatching { c.release() }
+                }
             }
+            throw lastError ?: IllegalStateException("nenhum encoder H.264 utilizável para ${cfg.width}x${cfg.height}@${cfg.fps}")
         }
     }
 

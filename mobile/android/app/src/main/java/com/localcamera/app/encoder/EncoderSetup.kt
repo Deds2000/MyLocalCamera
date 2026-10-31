@@ -38,12 +38,20 @@ internal fun scanEncoders(
     val capsMap = HashMap<String, MediaCodecInfo.CodecCapabilities>()
     for (i in infos) {
         if (!i.isEncoder) continue
-        val caps = i.getCapabilitiesForType(MIME_AVC) ?: continue
+        // `getCapabilitiesForType` LANÇA (IllegalArgumentException) para codec
+        // sem o mime — não devolve null; envelopa e segue.
+        val caps = try { i.getCapabilitiesForType(MIME_AVC) } catch (e: IllegalArgumentException) { null } ?: continue
         capsMap[i.name] = caps
         candidates += EncoderCandidate(
             name = i.name,
             canEncode = caps.isFormatSupported(probeFormat(cfg)),
             supportedProfiles = (caps.profileLevels ?: emptyArray()).map { it.profile },
+            // Input surface obrigatória (câmera → inputSurface). Não existe
+            // constante FEATURE_INPUT_SURFACE na API (conf. AOSP main/8.1):
+            // o framework permite `createInputSurface()` só quando o formato
+            // de superfície está nos formatos de entrada do codec.
+            supportsInputSurface = (caps.colorFormats ?: IntArray(0))
+                .contains(MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface),
         )
     }
     return candidates to capsMap

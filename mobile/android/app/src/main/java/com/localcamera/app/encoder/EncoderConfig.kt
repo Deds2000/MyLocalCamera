@@ -70,36 +70,44 @@ object H264Profile {
 /**
  * Candidato a encoder, medido do aparelho (`MediaCodecList`):
  * [canEncode] = `CodecCapabilities.isFormatSupported` para a resolução/fps/
- * bitrate pedidos; [supportedProfiles] = ids de `profileLevels`.
+ * bitrate pedidos; [supportedProfiles] = ids de `profileLevels`;
+ * [supportsInputSurface] = `colorFormats` contém `COLOR_FormatSurface` —
+ * a câmera renderiza na superfície de entrada do encoder, que é
+ * **obrigatória**. Não existe constante `FEATURE_INPUT_SURFACE` na API
+ * (conf. AOSP main e 8.1); a decisão do framework é pelo formato de cor.
+ * Padrão `true`: os fakes de teste JVM não simulam o recurso.
  */
 data class EncoderCandidate(
     val name: String,
     val canEncode: Boolean,
     val supportedProfiles: List<Int>,
+    val supportsInputSurface: Boolean = true,
 )
 
 /**
- * Regra de escolha do encoder (cartão F2-T08 — **não fixar nome**):
- * 1. só entram candidatos capazes (`canEncode`);
- * 2. vence o que atende o **melhor perfil** da ordem preferida
- *    (High > Main > Baseline);
- * 3. empate de perfil → quem aparece antes no `MediaCodecList`.
- * Puro (testável em JVM com fakes); `null` = nenhum encoder H.264 utilizável.
+ * Candidatos em ordem de tentativa (cartão F2-T08 — **não fixar nome**):
+ * 1. só entram os capazes (`canEncode`), com perfil preferido
+ *    (High > Main > Baseline) e com **input surface** (a câmera renderiza
+ *    na superfície de entrada — sem ela `createInputSurface()` lança);
+ * 2. ordena pelo melhor perfil; empate → ordem estável do `MediaCodecList`.
+ * Puro (testável em JVM com fakes); vazio = nenhum encoder H.264 utilizável.
  */
+fun rankEncoders(
+    candidates: List<EncoderCandidate>,
+    preferred: List<Int> = H264Profile.preferred,
+): List<EncoderCandidate> {
+    val ranked = ArrayList<Pair<Int, EncoderCandidate>>()
+    for (c in candidates) {
+        if (!c.canEncode || !c.supportsInputSurface) continue
+        val profile = H264Profile.pickProfile(c.supportedProfiles, preferred) ?: continue
+        ranked.add(preferred.indexOf(profile) to c) // >= 0 por construção
+    }
+    ranked.sortBy { it.first } // estável: empate preserva a ordem da lista
+    return ranked.map { it.second }
+}
+
+/** Primeiro de [rankEncoders]; `null` = nenhum encoder H.264 utilizável. */
 fun pickEncoder(
     candidates: List<EncoderCandidate>,
     preferred: List<Int> = H264Profile.preferred,
-): EncoderCandidate? {
-    var best: EncoderCandidate? = null
-    var bestRank = Int.MAX_VALUE
-    for (c in candidates) {
-        if (!c.canEncode) continue
-        val profile = H264Profile.pickProfile(c.supportedProfiles, preferred) ?: continue
-        val rank = preferred.indexOf(profile) // >= 0 por construção de pickProfile
-        if (rank < bestRank) { // empate de perfil → o mais cedo na lista vence
-            best = c
-            bestRank = rank
-        }
-    }
-    return best
-}
+): EncoderCandidate? = rankEncoders(candidates, preferred).firstOrNull()

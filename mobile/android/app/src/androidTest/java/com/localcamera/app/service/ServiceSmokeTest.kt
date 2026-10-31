@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
+import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
@@ -30,8 +31,16 @@ class ServiceSmokeTest {
     val grantCamera = GrantPermissionRule.grant(Manifest.permission.CAMERA)
 
     // Android 13+: sem ela a notificação do FGS não aparece (ver comentário acima).
+    // API < 33: `POST_NOTIFICATIONS` não existe (não é runtime) — reusa CAMERA
+    // (já concedida pela regra ao lado; idempotente e inofensiva) p/ a regra
+    // não ficar nula (o JUnit 4 NPEs em `@Rule` nulo).
     @get:Rule
-    val grantNotifications = GrantPermissionRule.grant(Manifest.permission.POST_NOTIFICATIONS)
+    val grantNotifications: GrantPermissionRule =
+        if (Build.VERSION.SDK_INT >= 33) {
+            GrantPermissionRule.grant(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            GrantPermissionRule.grant(Manifest.permission.CAMERA)
+        }
 
     @Test
     fun start_creates_notification_and_stop_removes_it() {
