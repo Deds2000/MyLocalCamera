@@ -5,7 +5,6 @@ import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.util.Log
-import android.view.Surface
 
 /**
  * Escolha e configuração do codec para o [VideoEncoder] (cartão F2-T08):
@@ -74,31 +73,37 @@ internal fun profileAttempts(supported: List<Int>): List<Int?> =
 /** Tenta (perfil × lowLatency × CBR); devolve (perfil, lowLatency) vencedor. */
 internal fun configureCodec(
     c: MediaCodec,
-    surface: Surface,
     cfg: EncoderConfig,
     profiles: List<Int?>,
 ): Pair<Int?, Boolean> {
     for (p in profiles) {
-        if (tryConfigure(c, surface, cfg, p, lowLatency = true)) return p to true
-        if (tryConfigure(c, surface, cfg, p, lowLatency = false)) return p to false
+        if (tryConfigure(c, cfg, p, lowLatency = true)) return p to true
+        if (tryConfigure(c, cfg, p, lowLatency = false)) return p to false
     }
     // Último recurso: sem a chave "bitrate-mode" (encoder que a rejeite).
     val last = profiles.lastOrNull()
-    if (tryConfigure(c, surface, cfg, last, lowLatency = false, cbr = false)) return last to false
+    if (tryConfigure(c, cfg, last, lowLatency = false, cbr = false)) return last to false
     throw IllegalStateException("encoder ${c.name} rejeitou todas as configurações")
 }
 
 internal fun tryConfigure(
     c: MediaCodec,
-    surface: Surface,
     cfg: EncoderConfig,
     profile: Int?,
     lowLatency: Boolean,
     cbr: Boolean = true,
 ): Boolean {
     try {
-        // Surface de entrada é obrigatória no configure (contrato do MediaCodec).
-        c.configure(buildFormat(cfg, profile, lowLatency, cbr), surface, null, 0)
+        // `inputSurface=null` no configure: a superfície de entrada é criada com
+        // `createInputSurface()` **depois** (javadoc AOSP 13: só entre configure
+        // e start; receita validada no spike S3). O formato já traz
+        // KEY_COLOR_FORMAT=COLOR_FormatSurface, que habilita a superfície.
+        c.configure(
+            buildFormat(cfg, profile, lowLatency, cbr),
+            null,
+            null,
+            MediaCodec.CONFIGURE_FLAG_ENCODE,
+        )
         return true
     } catch (t: IllegalArgumentException) {
         Log.w(

@@ -19,9 +19,10 @@ import kotlinx.coroutines.flow.receiveAsFlow
  *
  * Contrato (a `StreamingService` do F2-T12 liga as peças):
  * 1. [configure] — escolhe o encoder (sem nome fixo — `MediaCodecList`,
- *    [scanEncoders]/[pickEncoder]/[configureCodec]), cria a [inputSurface]
- *    **antes** do `configure` (contrato do MediaCodec) e aplica a
- *    configuração com fallback;
+ *    [scanEncoders]/[pickEncoder]/[configureCodec]), aplica a configuração
+ *    com fallback e **depois** cria a [inputSurface] — o javadoc do AOSP
+ *    manda: `createInputSurface()` só é válido **depois** do `configure` e
+ *    **antes** do `start` (ordem validada no spike S3);
  * 2. a câmera se conecta em [inputSurface] (`CameraBackend.start`);
  * 3. [start] — drena a saída em thread própria; [output] entrega os quadros
  *    (1 access unit Annex-B cada) para a `SendQueue`;
@@ -83,9 +84,10 @@ class VideoEncoder(private val clock: () -> Long = System::nanoTime) {
 
     /**
      * Escolhe o encoder e aplica a configuração (ver [EncoderSetup.kt]).
-     * Tenta os candidatos em ordem de [rankEncoders]: se um falha (ex.:
-     * `createInputSurface` lança num aparelho que mente capability), libera
-     * e tenta o próximo — nenhum nome fixo (cartão F2-T08).
+     * Tenta os candidatos em ordem de [rankEncoders]: se um falha, libera e
+     * tenta o próximo — nenhum nome fixo (cartão F2-T08).
+     * Ordem (javadoc AOSP 13, confirmado no aparelho): `configure` →
+     * `createInputSurface` → (câmera anexa) → `start`.
      */
     fun configure(cfg: EncoderConfig) {
         synchronized(lock) {
@@ -105,10 +107,13 @@ class VideoEncoder(private val clock: () -> Long = System::nanoTime) {
                     Log.w(LOG_TAG, "encoder ${pick.name} não criado: ${e.message} — tenta o próximo")
                     continue
                 }
-                var s: Surface? = null
                 try {
-                    s = c.createInputSurface()
-                    val (profile, lowLatency) = configureCodec(c, s, cfg, profileAttempts(pick.supportedProfiles))
+                    // 1) configure (o formato já traz COLOR_FormatSurface) e
+                    // 2) a surface **depois** — `createInputSurface()` antes do
+                    // configure lança IllegalStateException no estado Unconfigured
+                    // (err=-38, confirmado no SM-G781B e no Moto G).
+                    val (profile, lowLatency) = configureCodec(c, cfg, profileAttempts(pick.supportedProfiles))
+                    val s = c.createInputSurface()
                     this.profile = profile?.let { H264Profile.name(it) } ?: "unspecified"
                     encoderName = pick.name
                     surface = s
@@ -128,7 +133,7 @@ class VideoEncoder(private val clock: () -> Long = System::nanoTime) {
                         LOG_TAG,
                         "encoder ${pick.name} falhou: ${e.javaClass.simpleName}: ${e.message} — tenta o próximo",
                     )
-                    s?.let { runCatching { it.release() } }
+                    // `c.release()` libera a superfície junto, se já criada.
                     runCatching { c.release() }
                 }
             }

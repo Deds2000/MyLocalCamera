@@ -148,8 +148,9 @@ class StreamSession(
         scope.launch(Dispatchers.IO) {
             c?.close(BYE_REASON_USER)
             q?.stop() // run() volta; o writerLoop sai por running=false
+            m?.stop() // câmera antes do encoder: para o produtor da inputSurface
+            // (VENC Qualcomm bloqueia no stop se a superfície ainda recebe frames)
             e?.stop()
-            m?.stop()
         }
     }
 

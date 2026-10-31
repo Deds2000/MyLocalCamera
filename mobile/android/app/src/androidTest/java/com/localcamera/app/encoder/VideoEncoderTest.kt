@@ -122,11 +122,14 @@ class VideoEncoderTest {
         enc.start()
     }
 
-    /** Encoder para (fecha [VideoEncoder.output] → o collector termina). */
+    /**
+     * Para o **produtor primeiro** (o decoder, que alimenta a inputSurface) e
+     * só depois o encoder: no SM-G781B, `MediaCodec.stop()` do VENC bloqueia
+     * para sempre no binder enquanto a superfície ainda recebe frames (wedge
+     * observado no IT-2.02: >13 min, threads `lc-*` vivas). `encoder?.stop()`
+     * fecha [VideoEncoder.output] → o collector termina.
+     */
     private fun tearDown() {
-        encoder?.stop()
-        collector?.join(JOIN_TIMEOUT_MS)
-        collector = null
         decoder?.let { d ->
             try {
                 d.stop()
@@ -140,6 +143,9 @@ class VideoEncoderTest {
             }
         }
         decoder = null
+        encoder?.stop()
+        collector?.join(JOIN_TIMEOUT_MS)
+        collector = null
         frames.clear()
     }
 
