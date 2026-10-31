@@ -97,8 +97,11 @@ class LocalCameraPlugin : Plugin() {
                     notifyConnection(EVENT_RECONNECTING)
                 // `error` tem código próprio (evento `error` abaixo); o estado
                 // "error" da conexão chega junto com o evento de erro.
-                is StreamEvent.Error ->
+                is StreamEvent.Error -> {
+                    // `connectionChanged{state:"error"}` (máquina §12) + `error{code}`.
+                    notifyConnection(EVENT_ERROR)
                     notifyListeners(EVENT_ERROR, JSObject().put(KEY_CODE, ev.code))
+                }
                 is StreamEvent.Stats ->
                     // Já agregado a 500 ms pela fonte (StreamSession.statsLoop);
                     // o teto final (UI) é re-forçado no AppProvider JS.
