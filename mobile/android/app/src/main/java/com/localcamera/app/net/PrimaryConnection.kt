@@ -78,6 +78,13 @@ class PrimaryConnection(
     private val pairingStore: PairingStore? = null,
     private val onEvent: (ConnectionEvent) -> Unit,
     private val log: (String) -> Unit = { msg -> Log.i(TAG, msg) },
+    /**
+     * F2-T12: se presente, os frames **internos** (`HELLO`/`PING`/`PONG`)
+     * passam por este sink (faixa CTRL da `SendQueue`) em vez de [sendFrame] —
+     * **escritor único** no socket (protocolo §11): a fila serializa tudo.
+     * `null` (testes/padrão) → [sendFrame].
+     */
+    private val ctrlSink: ((Frame) -> Boolean)? = null,
 ) {
 
     private val phase = SessionPhase(clock, pcId, pairingStore, onEvent, log)
@@ -192,7 +199,9 @@ class PrimaryConnection(
             val data = Channel<ByteArray>(Channel.UNLIMITED)
             val readJob = launch(Dispatchers.IO) { phase.pumpReads(socket, data) }
             try {
-                return phase.run(socket, { frame -> sendFrame(frame) }, hello, reader, data)
+                val send: (Frame) -> Boolean =
+                    { frame -> ctrlSink?.let { it(frame) } ?: sendFrame(frame) }
+                return phase.run(socket, send, hello, reader, data)
             } finally {
                 readJob.cancel()
             }

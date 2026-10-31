@@ -115,6 +115,21 @@ class SendQueue(private val clock: () -> Long = System::currentTimeMillis) {
     }
 
     /**
+     * Idade (ms) do quadro mais antigo da faixa vídeo — p/ `STATS` da UI
+     * (F2-T12). `0` se não há vídeo em fila. Somente leitura, thread-safe.
+     */
+    fun queueAgeMs(): Long {
+        val now = clock()
+        lock.lock()
+        try {
+            val head = videoQueue.firstOrNull() ?: return 0L
+            return (now - head.enqueuedAtMs).coerceAtLeast(0L)
+        } finally {
+            lock.unlock()
+        }
+    }
+
+    /**
      * Encerra o escritor: [run] volta em breve (mesmo ocioso) e os [enqueue]
      * seguintes viram no-op. Não drena o restante — o socket está sendo
      * fechado pelo chamador (F2-T12).

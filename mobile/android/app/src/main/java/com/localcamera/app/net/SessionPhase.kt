@@ -184,7 +184,10 @@ internal class SessionPhase(
                     MessageType.REQUEST_KEYFRAME ->
                         onEvent(ConnectionEvent.KeyframeRequested)
                     MessageType.BYE -> return byeOutcome(f)
-                    // SET/STATS/UNKNOWN: não são processados aqui (F2-T12/logs).
+                    // F2-T12: o StateReducer aplica e responde com STATE (§9).
+                    MessageType.SET ->
+                        onEvent(ConnectionEvent.Set(f.payload.toString(Charsets.UTF_8)))
+                    // STATS/UNKNOWN: não são processados aqui (F2-T12/logs).
                     else -> Unit
                 }
             }

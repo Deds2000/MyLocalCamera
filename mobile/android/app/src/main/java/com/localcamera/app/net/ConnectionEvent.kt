@@ -40,4 +40,10 @@ sealed class ConnectionEvent {
 
     /** `BYE{reason}` do PC: encerramento definitivo (sem reconectar). */
     data class Bye(val reason: String) : ConnectionEvent()
+
+    /**
+     * `SET` (PC→celular): payload JSON para o `StateReducer` aplicar
+     * (F2-T12) e responder com `STATE` (protocolo §9).
+     */
+    data class Set(val json: String) : ConnectionEvent()
 }

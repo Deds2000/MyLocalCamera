@@ -41,6 +41,13 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- F2-T12: foreground service do stream (câmera a partir do background
+             é restringida — o serviço só inicia com o app visível). Nunca exportado. -->
+        <service
+            android:name=".service.StreamingService"
+            android:exported="false"
+            android:foregroundServiceType="camera|microphone" />
     </application>
 
     <!-- Permissions -->
@@ -48,4 +55,16 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- F2-T07: câmera (o smoke do cartão a requer; F2-T12 acrescenta o resto). -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- F2-T12: declarada; o uso real do microfone vem na Fase 8. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- F2-T12: FGS genérico + tipos (Android 14+ exige FOREGROUND_SERVICE_<TYPE>
+         junto do android:foregroundServiceType no <service>). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- F2-T12: runtime desde o Android 13; sem ela o FGS roda mas a notificação não aparece. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- F2-T12: declarada (cartão); o FGS já mantém o processo vivo na Fase 2. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 </manifest>
