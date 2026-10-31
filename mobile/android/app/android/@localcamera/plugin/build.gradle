@@ -1,0 +1,38 @@
+// F2-T13 — Módulo Gradle do plugin local `LocalCamera` (`:localcamera-plugin`).
+//
+// "Casca" de registro: o `capacitor.settings.gradle` (gerado pelo `cap sync`)
+// inclui este diretório como project, e o `app/capacitor.build.gradle`
+// (também gerado) depende dele — por isso o módulo precisa declarar
+// `com.android.library` para produzir um variant válido.
+//
+// O source set fica **intencionalmente vazio**: o `LocalCameraPlugin.kt`
+// presente aqui é apenas o stub de registro (arquivo em disco para o scan
+// de classpath do `@capacitor/cli`; não entra no source set, senão
+// duplicaria a classe real compilada no app:
+// `app/src/main/java/com/localcamera/app/plugin/LocalCameraPlugin.kt`).
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace = "com.localcamera.app.plugin"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+    }
+    // Stub de registro fora do source set (ver comentário acima).
+    sourceSets {
+        main {
+            java {
+                srcDirs = []
+            }
+        }
+    }
+    lint {
+        abortOnError false
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+}

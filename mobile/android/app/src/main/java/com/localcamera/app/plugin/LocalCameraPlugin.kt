@@ -4,8 +4,8 @@ import android.util.Log
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
+import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
-import com.getcapacitor.annotation.PluginMethod
 import com.localcamera.app.camera.CapabilitiesProbe
 import com.localcamera.app.service.StreamBus
 import com.localcamera.app.service.StreamEvent
@@ -116,11 +116,9 @@ class LocalCameraPlugin : Plugin() {
                 is StreamEvent.StateChanged ->
                     // retainUntilConsumed: webview recarregada recebe o último
                     // estado ao re-registrar o listener.
-                    notifyListeners(
-                        EVENT_STATE_CHANGED,
-                        JSObject().put(KEY_STATE, ev.json),
-                        retainUntilConsumed = true,
-                    )
+                    // `true` = retainUntilConsumed (método Java: argumento
+                    // posicional — Kotlin não aceita named args p/ Java).
+                    notifyListeners(EVENT_STATE_CHANGED, JSObject().put(KEY_STATE, ev.json), true)
             }
         }
     }
@@ -151,13 +149,13 @@ class LocalCameraPlugin : Plugin() {
     @PluginMethod
     fun connect(call: PluginCall) {
         when (val r = buildConnectUri(call)) {
-            is ConnectUri -> {
+            is ConnectSpec.ConnectUri -> {
                 // URI contém o token (segredo): nunca logar.
                 log(if (r.pcId != null) "connect pc=${r.pcId}" else "connect hosts=${r.hostCount}")
                 StreamingService.startStreaming(getContext(), r.uri)
                 call.resolve()
             }
-            is ConnectError -> call.reject(r.code)
+            is ConnectSpec.ConnectError -> call.reject(r.code)
         }
     }
 
@@ -187,8 +185,7 @@ class LocalCameraPlugin : Plugin() {
 
         val hosts = call.getArray(KEY_HOSTS)?.let { arr ->
             try {
-                @Suppress("UNCHECKED_CAST")
-                arr.toList() as List<String>
+                arr.toList<String>()
             } catch (t: Exception) {
                 emptyList()
             }
