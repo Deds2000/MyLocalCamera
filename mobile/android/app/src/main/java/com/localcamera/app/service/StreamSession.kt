@@ -16,6 +16,7 @@ import com.localcamera.app.net.Lane
 import com.localcamera.app.net.PrimaryConnection
 import com.localcamera.app.net.SendQueue
 import com.localcamera.app.net.SystemClock
+import com.localcamera.app.net.WifiNetwork
 import com.localcamera.app.protocol.Frame
 import com.localcamera.app.protocol.MessageType
 import com.localcamera.app.protocol.StreamConfig
@@ -59,6 +60,7 @@ class StreamSession(
     @Volatile private var camera: CameraBackend? = null
     @Volatile private var queue: SendQueue? = null
     @Volatile private var connection: PrimaryConnection? = null
+    @Volatile private var wifi: WifiNetwork? = null
     @Volatile private var reducer: StateReducer? = null
     @Volatile private var connJob: Job? = null
     @Volatile private var writerJob: Job? = null
@@ -95,11 +97,18 @@ class StreamSession(
 
         queue = newQueue(enc)
 
+        // F2-T16: socket principal sai pela Wi-Fi de LAN (mesmo sem internet).
+        // Pré-aquece em I/O: [start] roda na main thread — nada de bloquear aqui.
+        val wifi = WifiNetwork(context)
+        this.wifi = wifi
+        scope.launch(Dispatchers.IO) { wifi.acquire() }
+
         val conn = PrimaryConnection(
             targets = target.hosts.map { InetSocketAddress.createUnresolved(it, target.port) },
             pcId = target.pc.orEmpty(),
-            // §11: SO_SNDBUF/NODELAY **antes** do connect (a factory roda antes dele).
-            socketFactory = { Socket().apply { SendQueue.applySocketOptions(this) } },
+            // §11 + F2-T16: SO_SNDBUF/NODELAY **antes** do connect; a factory (roda
+            // antes dele) cria o socket já vinculado à Wi-Fi LAN (null → rede padrão).
+            socketFactory = { wifi.createSocket().apply { SendQueue.applySocketOptions(this) } },
             clock = SystemClock,
             pairingStore = store,
             onEvent = { ev -> onConnectionEvent(ev) },
@@ -134,6 +143,7 @@ class StreamSession(
         val m = camera
         val q = queue
         connection = null; encoder = null; camera = null; queue = null
+        wifi?.release(); wifi = null // F2-T16: libera o requestNetwork
         connJob = null; writerJob = null; videoJob = null; statsJob = null
         scope.launch(Dispatchers.IO) {
             c?.close(BYE_REASON_USER)
