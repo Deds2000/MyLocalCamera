@@ -19,6 +19,7 @@
       "pending": "Waiting for approval…",
       "streaming": "Streaming",
       "reconnecting": "Reconnecting…",
+      "error": "Connection error",
       "live": "LIVE"
     },
     "camera": {

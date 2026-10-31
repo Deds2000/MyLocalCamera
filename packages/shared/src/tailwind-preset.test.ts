@@ -15,7 +15,7 @@ describe("UT-0.02 tailwind-preset", () => {
   it("tokens do design system", () => {
     expect(tokens.accent).toBe("#22D3EE");
     expect(tokens.bg).toBe("#070B14");
-    expect(tokens.danger).toBe("#F43F5E");
+    expect(tokens.danger).toBe("#FB7185");
   });
 
   it("preset: theme.extend.boxShadow tem glass, overlay e glow-accent", () => {

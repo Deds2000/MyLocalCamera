@@ -37,7 +37,7 @@ Tema **somente escuro**. Valores no preset `packages/shared/tailwind-preset.ts` 
 | Destaque azul (fim do gradiente) | `accent-blue` | `#3B82F6` | `217 91% 60%` |
 | Sucesso | `ok` | `#34D399` | `158 64% 52%` |
 | Aviso | `warn` | `#FBBF24` | `43 96% 56%` |
-| Perigo | `danger` | `#F43F5E` | `350 89% 60%` |
+| Perigo | `danger` | `#FB7185` | `351 95% 71%` |
 | Vidro (superfície) | `glass` | branco 5% | — |
 | Vidro forte | `glass-strong` | branco 9% | — |
 | Borda de vidro | `glass-border` | branco 10% | — |

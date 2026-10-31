@@ -11,7 +11,9 @@ export const tokens = {
   accentBlue: "#3B82F6",
   ok: "#34D399",
   warn: "#FBBF24",
-  danger: "#F43F5E",
+  // rose-400 (400-level, como ok/warn): #F43F5E falhava WCAG AA (4.39:1)
+  // sobre `bg-glass-strong`; #FB7185 passa (~6:1) — F2-T14 UT-2.14.
+  danger: "#FB7185",
 } as const;
 
 /**
