@@ -1,0 +1,11 @@
+{
+  "name": "@localcamera/plugin",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Registro local do plugin Capacitor LocalCamera. A classe real é compilada no app (app/src/main/java/com/localcamera/app/plugin/LocalCameraPlugin.kt); o @capacitor/cli escaneia o stub em ./android/@localcamera/plugin e grava o classpath em capacitor.plugins.json no `cap sync` (não editar à mão).",
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  }
+}
