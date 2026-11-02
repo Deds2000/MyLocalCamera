@@ -1,4 +1,4 @@
-# LocalCamera — Plano mestre (revisão 2)
+# LocalCamera — Plano mestre (revisão 3)
 
 > Este é o **índice e a visão geral** do projeto. Os detalhes estão em arquivos separados:
 > - `docs/protocol.md` — especificação do protocolo (fonte da verdade)
@@ -7,6 +7,7 @@
 > - `docs/ui/mobile.md` — interface do celular (telas, navegação, erros, Android)
 > - `docs/ui/copy.md` — todos os textos em pt-BR e en, com as chaves de i18n
 > - `docs/phases/fase-N-*.md` — **um arquivo por fase**, com tarefas, testes de aceitação e critério de saída
+> - `docs/planning/revisao-2026-11.md` — replanejamento baseado no trabalho realizado, fechamento da Fase 2 e pendências de decisão
 >
 > Regra de ouro: **não invente APIs.** Onde um documento diz "confirmar na documentação", consulte a documentação oficial (Microsoft Learn, developer.android.com, tauri.app, capacitorjs.com) antes de escrever código.
 
@@ -14,13 +15,13 @@
 
 O trabalho é entregue em **cartões de tarefa** pequenos e autossuficientes (`docs/tasks/fase-N/<ID>.md`), com um **`PROGRESS.md`** na raiz que o agente atualiza a cada tarefa. O `AGENTS.md` é curto de propósito. Fluxo: ler `PROGRESS.md` → abrir **só** o cartão da próxima tarefa → executar → verificar → commit → atualizar `PROGRESS.md`. Prompts prontos: `docs/tasks/PROMPTS.md`. Fatos recorrentes: `docs/CHEATSHEET.md`.
 
-Os cartões das **Fases 0 e 1** estão prontos. Os das Fases 2–9 dependem dos vereditos dos spikes (S1, S2, S3, S5 e S4) e são gerados **depois** de cada fase anterior fechar; os arquivos de fase (`docs/phases/`) continuam sendo a especificação e o plano de testes.
+As **Fases 0 e 1 estão aprovadas**. Os cartões da **Fase 2 já existem**, com implementação substancial e validação em aparelhos ainda pendente. Os cartões das Fases 3–9 serão gerados **depois** de cada fase anterior fechar; os arquivos de fase (`docs/phases/`) continuam sendo a especificação e o plano de testes. O estado operacional atualizado fica em `PROGRESS.md`, não neste resumo.
 
 ### 0.1 Como o agente deve usar os documentos de fase
 
-1. Leia `AGENTS.md`, depois este arquivo, depois `docs/protocol.md`.
-2. Trabalhe **uma fase por vez**: abra apenas o arquivo da fase atual (e o que ele mandar ler). Não carregue as outras.
-3. Cada fase tem tarefas com ID (`F3-T05`), testes de aceitação (`AT-3.04`) e um "Pronto quando". Marque o checklist no próprio arquivo ao concluir.
+1. Leia `PROGRESS.md` e o cartão elegível, conforme `AGENTS.md`. Este plano é referência, não leitura obrigatória a cada tarefa; não leia o protocolo inteiro por padrão.
+2. Trabalhe **uma tarefa por vez**: abra somente o cartão e os trechos que ele indicar. Não carregue as outras fases.
+3. Cada fase tem tarefas com ID (`F3-T05`), testes de aceitação (`AT-3.04`) e um "Pronto quando". Implementação, compilação, execução em aparelho e aprovação são estados distintos; marque a conclusão somente com o critério do cartão atendido.
 4. **Spikes** (`S1`, `S2`, `S3`, `S4`, `S5`) são experimentos curtos que terminam com um relatório em `docs/spikes/` e uma decisão registrada em `docs/adr/`. O código das fases seguintes **segue o veredito do spike**, não a suposição deste plano.
 
 ---
@@ -40,6 +41,16 @@ Meta de qualidade: **1080p a 30 fps** por padrão; latência de ponta a ponta ab
 ---
 
 ## 2. O que mudou nesta revisão
+
+### Revisão 3 — atualização de 2026-11-02
+
+- Preserva as Fases 0/1 aprovadas e os desvios aceitos; não reinicia trabalho concluído.
+- Incorpora os vereditos: CameraX única/Camera2 dual (S3), pipe nomeado (S2) e preview JPEG pelo Rust (S5, estratégia B).
+- Prioriza encerrar a Fase 2 com evidências de hardware, segurança, ciclo de vida e transmissão sustentada antes de abrir implementação da Fase 3.
+- Explicita lacunas de QR, dependências A+H e regressões que exigem componentes de fases futuras, sem dispensar testes silenciosamente.
+- Mantém os marcos e o escopo; a sequência operacional e as decisões pendentes estão em `docs/planning/revisao-2026-11.md`.
+
+### Revisão 2 — histórico
 
 | # | Melhoria | Onde foi tratada |
 |---|---|---|
@@ -63,7 +74,9 @@ Meta de qualidade: **1080p a 30 fps** por padrão; latência de ponta a ponta ab
 | Casca do desktop | **Tauri 2** (backend Rust + frontend React) |
 | Frontend desktop | React 19, TypeScript, Vite, Tailwind CSS 3.4 (tokens custom, dark glassmorphism), framer-motion, lucide-react, clsx, tailwind-merge, **shadcn/ui** |
 | Frontend mobile | React 19, TypeScript, Vite, Tailwind CSS 3.4, Capacitor 8.5 + `@capacitor/app`, lucide-react, clsx, tailwind-merge, **shadcn/ui**. **Sem framer-motion.** |
-| Captura mobile | **Plugin nativo Kotlin próprio** com MediaCodec (H.264). Backend de câmera (**CameraX ou Camera2**) definido pelo spike S3, atrás de uma interface |
+| Captura mobile | **Plugin nativo Kotlin próprio** com MediaCodec (H.264). Veredito S3: **CameraX para câmera única; Camera2 para dual**, atrás de `CameraBackend`. Dual só na Fase 7; 60 fps não validados |
+| Preview desktop | Veredito S5: **estratégia B**, JPEG reduzido gerado no Rust a partir do quadro composto. WebCodecs não é uma segunda implementação obrigatória |
+| Canal da câmera virtual | Veredito S2: **pipe nomeado**, com controle de acesso; decisão registrada no ADR 0003 |
 | Rede | **Dois sockets TCP** na mesma porta: principal (controle + vídeo) e áudio |
 | Conexão | Wi-Fi (QR code) e USB (`adb reverse`); reconexão por **mDNS** |
 | Pareamento | QR com token de pareamento → **aprovação no PC** → chave por dispositivo. Sem criptografia do tráfego (risco aceito, uso próprio) |
@@ -113,6 +126,8 @@ O **celular é dono do estado** da câmera (resolução, câmera ativa etc.); o 
 
 ## 5. Estrutura do repositório
 
+Árvore de referência para o destino do projeto, **não inventário de funcionalidades prontas**. A rede e a confiança já implementadas ficam em `crates/lc-server`; o desktop deverá integrá-las, não duplicá-las. No Android atual, `MainActivity.java`, `encoder/`, `store/` e `state/` correspondem aos caminhos conceituais abaixo (`video/`, `trust/`, `session/`). Consulte o cartão antes de criar ou mover arquivos.
+
 ```
 LocalCamera/
 ├── AGENTS.md
@@ -161,6 +176,7 @@ LocalCamera/
 │   ├── src/lib/cn.ts
 │   └── tailwind-preset.ts
 ├── crates/lc-protocol/             # parser/serializador Rust
+├── crates/lc-server/               # servidor, confiança, sessões e stats; independente do Tauri
 ├── tools/mock-sender/              # CLI Rust: finge ser o celular
 ├── virtualcam/                     # DLL C++ da câmera virtual
 ├── driver/audio/                   # driver de áudio (se o S4 decidir por driver próprio/fork)
@@ -214,6 +230,18 @@ LocalCamera/
 
 Tamanhos: **P** pequena, **M** média, **G** grande.
 
+### 7.1 Situação e próxima entrega
+
+| Etapa | Situação registrada | Condição para avançar |
+|---|---|---|
+| Fases 0 e 1 | Aprovadas; infraestrutura e servidor disponíveis | Preservar regressões e desvios documentados |
+| Fase 2 | Código e testes sem aparelho em grande parte prontos; encoder e validação física pendentes | Fechar cartões A+H, evidências dos 63 IDs, LT/PT e F2-GATE |
+| Fase 3 | Especificação existente; cartões ainda não gerados | F2-GATE aprovado; gerar cartões usando S5=B e `lc-server` existente |
+| Fase 4 / M1 | Integração da câmera virtual ainda futura | Preview real validado e câmera funcionando nos consumidores alvo |
+| Fases 5–9 | Planejadas, não entregues | Portões anteriores; S4 continua no início da Fase 8 |
+
+Não estimar a entrega restante pelo número de caixas marcadas: testes com hardware, ciclos de vida, Media Foundation e integração nos consumidores ainda concentram risco. Reestimar cada fase ao gerar seus cartões, separando esforço do agente, participação humana e tempo de execução dos ensaios.
+
 ---
 
 ## 8. Qualidade, testes e CI local
@@ -241,11 +269,13 @@ Tamanhos: **P** pequena, **M** média, **G** grande.
 | Permissões Frame Server ↔ app | Câmera virtual sem frames | **S2**; named pipe com DACL; testar sem elevar |
 | Câmera dupla limitada ou ausente | Recurso reduzido | **S3**; detectar e esconder; rebaixar resolução; listar aparelhos testados |
 | CameraX insuficiente (fps, simultâneas) | Retrabalho | Interface `CameraBackend`; S3 decide; troca localizada |
-| WebCodecs/WebView2 inadequado para o preview | Preview ruim ou CPU alta | **S5**; plano B: preview reduzido gerado pelo Rust |
+| Preview no WebView2 com CPU alta ou comportamento ruim em DPI/minimização | Preview ruim ou consumo elevado | S5 escolheu **B (JPEG/Rust)**; validar integração real na Fase 3, inclusive escalas não testadas no spike |
 | Driver de áudio (kernel) | Bloqueios, tela azul, test signing | S4 só na Fase 8; reaproveitar driver existente; VM de teste; fase interina WASAPI |
 | **Secure Boot desligado / modo de teste / HVCI** | Segurança reduzida; Memory Integrity pode bloquear o driver; **jogos com anti-cheat em modo kernel podem recusar rodar** | Documentar; avaliar driver de terceiros já assinado; separar entrada de boot de teste; checar os jogos que você usa |
 | mDNS bloqueado (isolamento de clientes no Wi-Fi, firewall) | Reconexão automática falha | Cadeia de fallback: mDNS → últimos IPs → QR/manual |
-| Encoders variam por fabricante | Artefatos em alguns aparelhos | Logar encoder; fallback de perfil; testar em ≥ 2 aparelhos |
+| Encoders variam por fabricante; MediaCodec pode travar na parada | Transmissão ou testes bloqueados | Registrar encoder/API e logs; validar Samsung após reinício e Moto G API 27; encerrar após três falhas no mesmo ponto. Hipótese de HAL contaminada ainda não confirmada |
+| QR ainda registrado como stub | Fluxo obrigatório de pareamento sem evidência | Conferir implementação real e resolver antes do F2-GATE; manual/deep link não contam como teste de scanner |
+| Teste visual adota servidor de outro app na mesma porta | Falso resultado positivo | Isolar servidor/porta e verificar identidade do app antes de aceitar screenshots; não reutilizar baselines sem procedência |
 | Rede sem criptografia | Tráfego legível na LAN | Risco aceito (uso próprio); aprovação + chave por dispositivo; TLS no backlog |
 | APK e desktop em versões incompatíveis | Falhas confusas | Negociação de versão no `HELLO`; mensagem clara de "atualize" |
 | Android encerrar o serviço em segundo plano | Transmissão cai | Foreground service; ajuda de bateria; reconexão automática |
