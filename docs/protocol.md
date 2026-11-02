@@ -118,6 +118,10 @@ Quando o **desktop** inicia a conexão via `adb` para um aparelho que o usuário
 
 **Códigos de `reason`:** `bad_token`, `not_approved`, `revoked`, `busy`, `version_mismatch`, `bad_audio_ticket`, `timeout`, `protocol_error`. As UIs traduzem por código (nunca exibem a frase vinda da rede).
 
+### 6.7 Limites do servidor atual
+
+Além do limite geral de quadros (§7), a implementação do PC limita o payload de `HELLO` a 64 KiB; um `HELLO` maior é recusado e a conexão é fechada sem resposta. Por padrão, o servidor admite até oito conexões não autenticadas simultâneas. Também bloqueia novas conexões de um IP por cinco minutos após cinco falhas de autenticação desse IP em uma janela de 60 segundos; autenticação bem-sucedida zera a contagem. Esses limites de conexões e de autenticação são configuráveis no servidor e descrevem sua política atual, não uma exigência para outras implementações.
+
 ## 7. Cabeçalho de quadro (18 bytes, little-endian)
 
 | Offset | Tipo | Campo | Descrição |
@@ -185,7 +189,7 @@ Só locais do celular (não trafegam): idioma e comportamento em segundo plano.
 - `SO_SNDBUF` pequeno (ordem de 128 KiB; confirmar empiricamente) para o atraso ficar visível na fila do app, não escondido no kernel.
 - Se o atraso de vídeo na fila passar de ~150 ms: descartar quadros não-chave antigos, forçar keyframe no próximo e reduzir bitrate.
 - O áudio **nunca** é descartado por causa do vídeo; se a fila de áudio passar de ~200 ms, descartar os blocos mais antigos (preferir um estalo curto a latência crescente).
-- O PC envia `STATS` a cada 1 s. O celular aplica ajuste simples de bitrate (reduz ~20% com fila alta, sobe devagar quando estável) via `MediaCodec.setParameters`.
+- O PC envia `STATS` a cada 1 s. Essa cadência de rede é distinta da atualização das estatísticas para a UI local do PC, limitada a 2 Hz (500 ms). O celular aplica ajuste simples de bitrate (reduz ~20% com fila alta, sobe devagar quando estável) via `MediaCodec.setParameters`.
 - `PING/PONG` a cada 2 s em cada socket. Sem `PONG` por 6 s → conexão perdida → reconectar (cadeia do §5).
 
 ## 12. Máquina de estados do celular
