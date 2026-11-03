@@ -35,19 +35,25 @@ import javax.crypto.spec.GCMParameterSpec
  *   (`setUnlockedDeviceRequired` também é só ≥ 30 e não é o que queremos:
  *   travaria por lockscreen bloquearia uso com o aparelho bloqueado.)
  * - Um único alias para todos os segredos: o isolamento entre segredos vem da
- *   GCM (tag por blob). Os ciphertexts ficam em `filesDir/secrets/<keyId>.enc`
- *   (escrita atômica: temp + rename) — arquivos privados do app, já fora do
- *   backup por `allowBackup="false"` (ST-2.01).
+ *   GCM (tag por blob). Os ciphertexts ficam em
+ *   `noBackupFilesDir/secrets/<keyId>.enc` (escrita atômica: temp + rename),
+ *   excluídos do backup mesmo quando um transporte ignora `allowBackup=false`.
+ *   Dados da versão anterior em `filesDir/secrets` são migrados atomicamente.
  *
  * Segredos nunca aparecem em log (só a mensagem curta de falha) nem em
  * `toString` (a classe não tem `toString` com dados).
  */
 class KeystoreSecureStore(context: Context) : SecureStore {
 
-    private val dir: File = File(context.filesDir, "secrets")
+    private val legacyDir: File = File(context.filesDir, "secrets")
+    private val dir: File = File(context.noBackupFilesDir, "secrets")
     private val random = SecureRandom()
     private val keyLock = Any()
     private var cachedKey: SecretKey? = null
+
+    init {
+        migrateLegacyBlobs()
+    }
 
     override fun put(keyId: String, secret: ByteArray) {
         val cipher = Cipher.getInstance(TRANSFORMATION)
@@ -121,6 +127,36 @@ class KeystoreSecureStore(context: Context) : SecureStore {
             cachedKey = key
             return key
         }
+    }
+
+    /** Move encrypted blobs out of backup-eligible storage before using them. */
+    private fun migrateLegacyBlobs() {
+        val legacyFiles = legacyDir.listFiles()?.filter { it.isFile } ?: return
+        if (legacyFiles.isEmpty()) {
+            legacyDir.delete()
+            return
+        }
+
+        for (source in legacyFiles) {
+            if (source.name.endsWith(".tmp")) {
+                if (!source.delete()) error("não foi possível remover arquivo temporário legado")
+                continue
+            }
+            if (!source.name.endsWith(".enc")) continue
+
+            val destination = File(dir, source.name)
+            if (!destination.exists()) {
+                val encryptedBlob = source.readBytes()
+                try {
+                    atomicWrite(destination, encryptedBlob)
+                } finally {
+                    encryptedBlob.fill(0)
+                }
+            }
+            if (!source.delete()) error("não foi possível remover blob criptografado legado")
+        }
+
+        if (legacyDir.listFiles()?.isEmpty() == true) legacyDir.delete()
     }
 
     /** keyId → nome de arquivo seguro (o keyId é só um rótulo, não é segredo). */
