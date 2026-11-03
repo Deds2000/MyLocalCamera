@@ -12,8 +12,9 @@
 // `prefers-reduced-motion`).
 
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { e2ePorts } from "../playwright.config";
 
-const CATALOG_URL = "http://localhost:5173/?catalog";
+const CATALOG_URL = `http://127.0.0.1:${e2ePorts.mobile}/?catalog`;
 
 test.use({ reducedMotion: "reduce" });
 

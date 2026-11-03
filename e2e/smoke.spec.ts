@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { e2ePorts } from "../playwright.config";
 
 test("home do desktop", async ({ page }, testInfo) => {
   test.skip(
     !testInfo.project.name.startsWith("desktop"),
     "só roda nos projetos desktop",
   );
-  await page.goto("http://localhost:1420/");
+  await page.goto(`http://127.0.0.1:${e2ePorts.desktop}/`);
   await expect(page).toHaveScreenshot("home.png", {
     maxDiffPixelRatio: 0.01,
   });
@@ -16,7 +17,7 @@ test("home do mobile", async ({ page }, testInfo) => {
     testInfo.project.name.startsWith("desktop"),
     "só roda no projeto mobile",
   );
-  await page.goto("http://localhost:5173/");
+  await page.goto(`http://127.0.0.1:${e2ePorts.mobile}/`);
   await expect(page).toHaveScreenshot("home.png", {
     maxDiffPixelRatio: 0.01,
   });

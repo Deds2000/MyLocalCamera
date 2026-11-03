@@ -1,5 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Portas padrão isoladas das aplicações locais comuns (Vite mobile usa 5173).
+// Para ambientes compartilhados, escolha duas portas TCP livres e defina
+// LC_E2E_DESKTOP_PORT / LC_E2E_MOBILE_PORT; configuração e specs leem as mesmas.
+export const e2ePorts = {
+  desktop: Number(process.env.LC_E2E_DESKTOP_PORT ?? 1421),
+  mobile: Number(process.env.LC_E2E_MOBILE_PORT ?? 5199),
+};
+
 // Regressão visual dos apps no navegador (sem Tauri/Capacitor).
 // O catálogo real (?catalog) chega nas Fases 2/3; por ora só a home.
 export default defineConfig({
@@ -36,15 +44,15 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "pnpm --filter desktop exec vite --port 1420",
-      url: "http://localhost:1420",
-      reuseExistingServer: true,
+      command: `pnpm --filter desktop exec vite --host 127.0.0.1 --strictPort --port ${e2ePorts.desktop}`,
+      url: `http://127.0.0.1:${e2ePorts.desktop}`,
+      reuseExistingServer: false,
       timeout: 120_000,
     },
     {
-      command: "pnpm --filter mobile exec vite --port 5173",
-      url: "http://localhost:5173",
-      reuseExistingServer: true,
+      command: `pnpm --filter mobile exec vite --host 127.0.0.1 --strictPort --port ${e2ePorts.mobile}`,
+      url: `http://127.0.0.1:${e2ePorts.mobile}`,
+      reuseExistingServer: false,
       timeout: 120_000,
     },
   ],
