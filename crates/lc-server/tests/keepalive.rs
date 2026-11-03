@@ -211,6 +211,33 @@ async fn stats_cadence_500ms() {
     handle.shutdown().await;
 }
 
+// F1-T19: mantém uma sessão ativa sem drenar eventos até os Stats
+// preencherem a fila; shutdown deve cancelar a emissão bloqueada.
+#[tokio::test]
+async fn shutdown_finishes_with_active_session_and_full_stats_queue() {
+    let (mut handle, port, _dir) = boot_cfg(
+        Duration::from_secs(30),
+        Duration::from_secs(90),
+        Duration::from_millis(1),
+    )
+    .await;
+    let (_client, _sid) = pair(&handle, port, "dev-stats-shutdown").await;
+
+    // Listening já foi consumido pelo boot. Aguarda a fila realmente
+    // atingir a capacidade (ConnectionOpened, SessionStarted e Stats),
+    // sem drenar nenhum evento.
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while handle.events().len() < 64 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("Stats devem preencher a fila limitada sem consumidor");
+    tokio::time::timeout(Duration::from_secs(2), handle.shutdown())
+        .await
+        .expect("shutdown não deve aguardar consumidor de Stats");
+}
+
 /// Cliente responde `PING` com `PONG` após 50 ms: `rtt_ms` entre 30 e
 /// 120.
 #[tokio::test]

@@ -299,3 +299,37 @@ async fn shutdown_closes_all() {
     .await;
     let _ = streams;
 }
+
+// F1-T19: com a fila cheia e sem consumidor, accept e as conexões não
+// podem impedir o shutdown. Eventos seguem enfileirados durante operação
+// normal; somente emissões interrompidas pelo shutdown podem ser omitidas.
+#[tokio::test]
+async fn shutdown_finishes_when_event_queue_is_full() {
+    let mut cfg = test_config();
+    cfg.hello_timeout = Duration::from_secs(30);
+    cfg.max_unauth_conns = 100;
+    let mut handle = start(cfg).await.expect("start");
+    take_listening(handle.events()).await;
+    let port = handle.local_port();
+    let mut streams = Vec::new();
+    for _ in 0..80 {
+        streams.push(
+            TcpStream::connect(("127.0.0.1", port))
+                .await
+                .expect("connect"),
+        );
+    }
+
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while handle.active_connections() < 64 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("accept deve encher a fila limitada sem consumidor");
+
+    tokio::time::timeout(Duration::from_secs(3), handle.shutdown())
+        .await
+        .expect("shutdown não deve depender de consumidor de eventos");
+    drop(streams);
+}

@@ -11,9 +11,9 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::oneshot;
 
-use crate::events::ServerEvent;
+use crate::events::{EventSink, ServerEvent};
 use crate::sessions::SessionCounters;
 
 /// Snapshot dos contadores da sessão (leitura instantânea sem lock).
@@ -98,7 +98,7 @@ pub(crate) async fn session_stats_task(
     session_id: String,
     counters: Arc<SessionCounters>,
     stats_interval: Duration,
-    events_tx: mpsc::Sender<ServerEvent>,
+    events_tx: EventSink,
     mut done_rx: oneshot::Receiver<()>,
 ) {
     let mut prev = counters.snapshot();
@@ -118,15 +118,15 @@ pub(crate) async fn session_stats_task(
         let rtt_ms = (rtt != 0).then_some(f64::from(rtt) as f32);
         let stats = compute_stats(&prev, &curr, dt, rtt_ms);
         prev = curr;
-        if events_tx
-            .send(ServerEvent::Stats {
+        tokio::select! {
+            biased;
+            _ = &mut done_rx => return,
+            result = events_tx.send(ServerEvent::Stats {
                 session_id: session_id.clone(),
                 stats,
-            })
-            .await
-            .is_err()
-        {
-            return; // fila fechou: nada a emitir
+            }) => if result.is_err() {
+                return; // shutdown ou fila fechada: nada a emitir
+            },
         }
     }
 }
@@ -134,6 +134,8 @@ pub(crate) async fn session_stats_task(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::events::EventSink;
+    use tokio::sync::mpsc;
 
     /// UT `compute_stats_basic`: 30 quadros e 1 MB em 1 s → 30 fps,
     /// 8000 kbps.
@@ -195,5 +197,30 @@ mod tests {
         assert_eq!(s.video_kbps, [0.0; 3], "reset → zero (sem underflow)");
         assert_eq!(s.audio_blocks_per_s, 0.0, "reset → zero (sem underflow)");
         assert_eq!(s.totals, curr, "totais = snapshot zerado");
+    }
+
+    #[tokio::test]
+    async fn session_end_cancels_stats_send_when_event_queue_is_full() {
+        let (tx, _rx) = mpsc::channel(1);
+        tx.try_send(ServerEvent::Listening { port: 1 })
+            .expect("preenche fila");
+        let (_shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+        let sink = EventSink::new(tx, shutdown_rx);
+        let (done_tx, done_rx) = oneshot::channel();
+        let task = tokio::spawn(session_stats_task(
+            "session-test".to_owned(),
+            Arc::new(SessionCounters::default()),
+            Duration::from_millis(1),
+            sink,
+            done_rx,
+        ));
+
+        // Deixa a task alcançar o send bloqueado sem drenar a fila.
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        done_tx.send(()).expect("sinaliza fim normal da sessão");
+        tokio::time::timeout(Duration::from_millis(100), task)
+            .await
+            .expect("done_rx deve cancelar o send bloqueado")
+            .expect("task stats não deve panicar");
     }
 }

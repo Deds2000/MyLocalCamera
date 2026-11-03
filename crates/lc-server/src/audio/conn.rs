@@ -41,9 +41,9 @@ use lc_protocol::json::{AudioHello, Reason, Welcome};
 use lc_protocol::{type_name, FrameReader, Message};
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
-use tokio::sync::{mpsc, oneshot, watch, OwnedSemaphorePermit};
+use tokio::sync::{oneshot, watch, OwnedSemaphorePermit};
 
-use crate::events::{CloseReason, ServerEvent};
+use crate::events::{CloseReason, EventSink, ServerEvent};
 use crate::handshake::{now_secs, write_msg, ServerCtx};
 use crate::keepalive::{mono_ms, Keepalive};
 
@@ -58,7 +58,7 @@ pub(crate) struct AudioConn {
     /// Contexto do servidor (tickets e sessão).
     pub(crate) ctx: std::sync::Arc<ServerCtx>,
     /// Fila de eventos (clone — o `conn.rs` guarda o original).
-    pub(crate) events_tx: mpsc::Sender<ServerEvent>,
+    pub(crate) events_tx: EventSink,
     /// Shutdown do servidor (clone).
     pub(crate) shutdown_rx: watch::Receiver<bool>,
     /// Máximo de um bloco `AUDIO` neste socket.

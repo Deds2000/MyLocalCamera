@@ -10,12 +10,12 @@ use lc_protocol::json::{AudioTicket, Bye, PcInfo, Reason, Welcome};
 use lc_protocol::{flags, type_name, Frame, FrameReader, Message};
 use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{mpsc, oneshot, watch, OwnedSemaphorePermit, Semaphore};
+use tokio::sync::{oneshot, watch, OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
 use tracing::Instrument;
 
 use crate::audio::conn::{run_audio, AudioConn};
-use crate::events::{CloseReason, ServerEvent};
+use crate::events::{CloseReason, EventSink, ServerEvent};
 use crate::handshake::{self, now_secs, write_msg, Accepted, Outcome, ServerCtx};
 use crate::keepalive::{mono_ms, Keepalive};
 use crate::redact::short;
@@ -42,7 +42,7 @@ pub(crate) struct KeepaliveTiming {
 #[derive(Clone)]
 pub(crate) struct ConnShared {
     ctx: Arc<ServerCtx>,
-    events_tx: mpsc::Sender<ServerEvent>,
+    events_tx: EventSink,
     shutdown_rx: watch::Receiver<bool>,
     hello_timeout: Duration,
     /// Máximo de um bloco `AUDIO` no socket de áudio (F1-T09b).
@@ -56,7 +56,7 @@ impl ConnShared {
     #[must_use]
     pub(crate) fn new(
         ctx: Arc<ServerCtx>,
-        events_tx: mpsc::Sender<ServerEvent>,
+        events_tx: EventSink,
         shutdown_rx: watch::Receiver<bool>,
         hello_timeout: Duration,
         audio_block_max: usize,
@@ -174,7 +174,7 @@ async fn run_conn(
 ) {
     let ConnShared {
         ctx,
-        mut events_tx,
+        events_tx,
         mut shutdown_rx,
         hello_timeout,
         audio_block_max,
@@ -187,7 +187,7 @@ async fn run_conn(
     } = timing;
     if let Err(e) = stream.set_nodelay(true) {
         tracing::warn!(conn_id, %peer, error = %e, "TCP_NODELAY falhou");
-        emit_closed(&mut events_tx, conn_id, CloseReason::ConnectionLost).await;
+        emit_closed(&events_tx, conn_id, CloseReason::ConnectionLost).await;
         return;
     }
 
@@ -205,7 +205,7 @@ async fn run_conn(
     .await;
     let msg = match first {
         FirstFrame::Closed(reason) => {
-            emit_closed(&mut events_tx, conn_id, reason).await;
+            emit_closed(&events_tx, conn_id, reason).await;
             return;
         }
         FirstFrame::Frame(frame) => {
@@ -220,7 +220,7 @@ async fn run_conn(
                 Ok(m) => m,
                 Err(e) => {
                     tracing::warn!(conn_id, %peer, error = %e, "primeiro frame inválido; fechando");
-                    emit_closed(&mut events_tx, conn_id, CloseReason::ProtocolError).await;
+                    emit_closed(&events_tx, conn_id, CloseReason::ProtocolError).await;
                     return;
                 }
             }
@@ -253,7 +253,7 @@ async fn run_conn(
             .await
         };
         step(ConnState::AwaitHello, ConnState::Closing);
-        emit_closed(&mut events_tx, conn_id, reason).await;
+        emit_closed(&events_tx, conn_id, reason).await;
         return;
     }
 
@@ -265,7 +265,8 @@ async fn run_conn(
 
     // ── 2) Handshake (versão, auth pair/device + aprovação, sessão única) ──
     let outcome =
-        handshake::perform(&ctx, &events_tx, &mut stream, &mut buf, conn_id, &msg, peer).await;
+        handshake::perform_with_sink(&ctx, &events_tx, &mut stream, &mut buf, conn_id, &msg, peer)
+            .await;
     match outcome {
         Outcome::Denied {
             reason,
@@ -278,12 +279,12 @@ async fn run_conn(
             )
             .await;
             step(state, ConnState::Closing);
-            emit_closed(&mut events_tx, conn_id, CloseReason::AuthDenied).await;
+            emit_closed(&events_tx, conn_id, CloseReason::AuthDenied).await;
         }
         Outcome::Close(reason) => {
             // fora de ordem: fechar calado, sem resposta
             step(state, ConnState::Closing);
-            emit_closed(&mut events_tx, conn_id, reason).await;
+            emit_closed(&events_tx, conn_id, reason).await;
         }
         Outcome::Accepted(a) => {
             let Accepted {
@@ -306,7 +307,7 @@ async fn run_conn(
                 ctx.sessions.release(&session_id);
                 purge_ticket(&ctx, &session_id);
                 step(state, ConnState::Closing);
-                emit_closed(&mut events_tx, conn_id, CloseReason::ConnectionLost).await;
+                emit_closed(&events_tx, conn_id, CloseReason::ConnectionLost).await;
                 return;
             }
             // liberado o permit de não autenticadas
@@ -379,7 +380,7 @@ async fn run_conn(
             ctx.sessions.release(&session_id);
             purge_ticket(&ctx, &session_id);
             step(state, ConnState::Closing);
-            emit_closed(&mut events_tx, conn_id, reason).await;
+            emit_closed(&events_tx, conn_id, reason).await;
         }
     }
 }
@@ -610,7 +611,7 @@ fn denied_welcome(
 }
 
 /// Emite `ConnectionClosed`; o socket fecha com o drop do stream.
-async fn emit_closed(events_tx: &mut mpsc::Sender<ServerEvent>, conn_id: u64, reason: CloseReason) {
+async fn emit_closed(events_tx: &EventSink, conn_id: u64, reason: CloseReason) {
     let _ = events_tx
         .send(ServerEvent::ConnectionClosed { conn_id, reason })
         .await;

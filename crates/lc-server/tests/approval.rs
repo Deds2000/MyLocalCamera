@@ -369,3 +369,39 @@ async fn pending_message_sent() {
 
     handle.shutdown().await;
 }
+
+// F1-T19: uma aprovação pendente deve ser cancelada no shutdown mesmo sem
+// consumidor; a fila cheia não pode prender nem a emissão nem o handshake.
+#[tokio::test]
+async fn shutdown_cancels_pending_approval_with_full_event_queue() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mut cfg = ServerConfig::for_tests(dir.path().to_path_buf(), false);
+    cfg.max_unauth_conns = 100;
+    let (mut handle, port) = spawn(cfg).await;
+    let mut pending = TestClient::connect(port).await.expect("connect");
+    pending
+        .send(&TestClient::hello_pair(&pair_token(&handle), "pending-dev"))
+        .await
+        .expect("send hello");
+    assert!(matches!(
+        pending.recv(TIMEOUT).await,
+        Some(Message::Pending(_))
+    ));
+
+    let mut peers = Vec::new();
+    for _ in 0..70 {
+        peers.push(TestClient::connect(port).await.expect("extra connect"));
+    }
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while handle.active_connections() < 63 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("fila de eventos deve encher sem consumidor");
+
+    tokio::time::timeout(Duration::from_secs(3), handle.shutdown())
+        .await
+        .expect("shutdown deve cancelar a aprovação pendente");
+    drop((pending, peers));
+}

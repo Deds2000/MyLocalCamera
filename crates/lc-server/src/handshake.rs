@@ -21,10 +21,12 @@ use lc_protocol::json::{Auth, Caps, Hello, Pending, ProtocolVersion, Reason};
 use lc_protocol::Message;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::audio::TicketStore;
-use crate::events::{ApprovalOutcome, ApprovalRequest, CloseReason, Decision, ServerEvent};
+use crate::events::{
+    ApprovalOutcome, ApprovalRequest, CloseReason, Decision, EventSink, ServerEvent,
+};
 use crate::sessions::{Claim, SessionRegistry};
 use crate::trust::{
     effective_auto_approve, secrets, ApprovalInfo, ApprovalManager, Busy, Limiters, TrustStore,
@@ -132,9 +134,27 @@ impl fmt::Debug for Outcome {
 /// `events_tx`/`stream`/`buf` são usados só no fluxo de aprovação
 /// pendente (`PENDING` + leitura para detectar o celular sair).
 /// Nunca `unwrap()`s; erros de persistência degradam para recusa.
+/// Executa o handshake usando o canal público de eventos.
+/// Mantém a assinatura anterior; o servidor usa `perform_with_sink` para
+/// tornar as emissões canceláveis pelo shutdown.
 pub async fn perform(
     ctx: &ServerCtx,
     events_tx: &mpsc::Sender<ServerEvent>,
+    stream: &mut TcpStream,
+    buf: &mut [u8],
+    conn_id: u64,
+    first: &Message,
+    peer: SocketAddr,
+) -> Outcome {
+    let (_shutdown_tx, shutdown_rx) = watch::channel(false);
+    let sink = EventSink::new(events_tx.clone(), shutdown_rx);
+    perform_with_sink(ctx, &sink, stream, buf, conn_id, first, peer).await
+}
+
+/// Variante interna que observa o shutdown compartilhado pelo servidor.
+pub(crate) async fn perform_with_sink(
+    ctx: &ServerCtx,
+    events_tx: &EventSink,
     stream: &mut TcpStream,
     buf: &mut [u8],
     conn_id: u64,
@@ -159,7 +179,7 @@ pub async fn perform(
 
 async fn perform_hello(
     ctx: &ServerCtx,
-    events_tx: &mpsc::Sender<ServerEvent>,
+    events_tx: &EventSink,
     stream: &mut TcpStream,
     buf: &mut [u8],
     conn_id: u64,
@@ -378,7 +398,7 @@ enum PairApproval {
 /// pedido pendente.
 async fn pending_approval(
     ctx: &ServerCtx,
-    events_tx: &mpsc::Sender<ServerEvent>,
+    events_tx: &EventSink,
     stream: &mut TcpStream,
     buf: &mut [u8],
     conn_id: u64,
@@ -447,6 +467,7 @@ async fn pending_approval(
                     break PairApproval::Gone;
                 }
             },
+            _ = events_tx.shutdown() => break PairApproval::Gone,
         }
     };
 
@@ -468,7 +489,7 @@ async fn pending_approval(
 /// decisão da UI já o removeu).
 async fn cancel_resolved(
     ctx: &ServerCtx,
-    events_tx: &mpsc::Sender<ServerEvent>,
+    events_tx: &EventSink,
     request_id: u64,
     outcome: ApprovalOutcome,
 ) {
@@ -507,12 +528,7 @@ fn device_auth(ctx: &ServerCtx, device_id: &str, key: &str, ip: &str, now: u64) 
 /// Registra uma falha de autenticação no limitador (F1-T15) e emite
 /// [`ServerEvent::AuthBlocked`] se o IP **acabou de entrar** em
 /// bloqueio. Sem segredos: nunca o token tentado.
-async fn note_auth_failure(
-    ctx: &ServerCtx,
-    events_tx: &mpsc::Sender<ServerEvent>,
-    ip: IpAddr,
-    now: u64,
-) {
+async fn note_auth_failure(ctx: &ServerCtx, events_tx: &EventSink, ip: IpAddr, now: u64) {
     let just_blocked = ctx
         .limiters
         .auth

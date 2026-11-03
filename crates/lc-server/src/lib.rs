@@ -27,7 +27,7 @@ use tokio::task::JoinHandle;
 
 use crate::audio::TicketStore;
 use crate::config::ServerConfig;
-use crate::events::{Decision, ServerEvent};
+use crate::events::{Decision, EventSink, ServerEvent};
 use crate::handshake::ServerCtx;
 use crate::sessions::SessionRegistry;
 use crate::trust::ratelimit::{AuthLimiter, ConnRateLimiter, Limiters};
@@ -52,7 +52,7 @@ pub struct ServerHandle {
     shutdown_tx: watch::Sender<bool>,
     accept: Option<JoinHandle<()>>,
     conns: Arc<Mutex<Vec<JoinHandle<()>>>>,
-    events_tx: mpsc::Sender<ServerEvent>,
+    events_tx: EventSink,
     events_rx: mpsc::Receiver<ServerEvent>,
     port: u16,
     ctx: Arc<ServerCtx>,
@@ -186,12 +186,13 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
     let unauth = Arc::new(Semaphore::new(cfg.max_unauth_conns));
     let next_id = Arc::new(AtomicU64::new(1));
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
+    let event_sink = EventSink::new(events_tx.clone(), shutdown_rx.clone());
     let conns: Arc<Mutex<Vec<JoinHandle<()>>>> = Arc::new(Mutex::new(Vec::new()));
     let hello_timeout: Duration = cfg.hello_timeout;
 
     let shared = conn::ConnShared::new(
         ctx.clone(),
-        events_tx.clone(),
+        event_sink.clone(),
         shutdown_rx,
         hello_timeout,
         cfg.audio_block_max,
@@ -213,7 +214,7 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
         shutdown_tx,
         accept: Some(accept),
         conns,
-        events_tx,
+        events_tx: event_sink,
         events_rx,
         port,
         ctx,

@@ -129,3 +129,37 @@ pub enum ServerEvent {
     /// (F1-T15). Sem segredos: nunca o token tentado.
     AuthBlocked { ip: String },
 }
+use tokio::sync::{mpsc, watch};
+
+/// Emissão cancelável pela sinalização de shutdown. Enquanto o servidor
+/// estiver ativo, `send` mantém a semântica de backpressure da fila.
+#[derive(Clone)]
+pub(crate) struct EventSink {
+    tx: mpsc::Sender<ServerEvent>,
+    shutdown: watch::Receiver<bool>,
+}
+
+impl EventSink {
+    pub(crate) fn new(tx: mpsc::Sender<ServerEvent>, shutdown: watch::Receiver<bool>) -> Self {
+        Self { tx, shutdown }
+    }
+
+    pub(crate) async fn send(&self, event: ServerEvent) -> Result<(), ()> {
+        let mut shutdown = self.shutdown.clone();
+        if *shutdown.borrow() {
+            return self.tx.try_send(event).map_err(|_| ());
+        }
+        tokio::select! {
+            biased;
+            _ = shutdown.changed() => self.tx.try_send(event).map_err(|_| ()),
+            result = self.tx.send(event.clone()) => result.map_err(|_| ()),
+        }
+    }
+
+    pub(crate) async fn shutdown(&self) {
+        let mut shutdown = self.shutdown.clone();
+        if !*shutdown.borrow() {
+            let _ = shutdown.changed().await;
+        }
+    }
+}
