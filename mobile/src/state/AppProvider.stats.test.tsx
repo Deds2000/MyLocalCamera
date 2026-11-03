@@ -41,6 +41,8 @@ function makeFakePlugin(): {
     connect: async (): Promise<void> => {},
     disconnect: async (): Promise<void> => {},
     getState: async (): Promise<{ state: string }> => ({ state: "" }),
+    getKnownPcs: async () => ({ pcs: [] }),
+    forgetPc: async (): Promise<void> => {},
     addListener: async (name: EventName, fn: (e: AnyEvent) => void) => {
       buckets[name].add(fn);
       return {

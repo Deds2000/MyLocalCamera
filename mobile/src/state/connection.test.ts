@@ -5,6 +5,8 @@ import {
   backAction,
   errorBodyKey,
   initialState,
+  knownPcTarget,
+  reducer,
   reasonToI18nKey,
   selectScreen,
   type AppState,
@@ -166,5 +168,36 @@ describe("backAction — botão voltar por tela (UT-2.12)", () => {
     expect(backAction(state({ kind: "error", reason: "busy", target: TARGET }))).toEqual({
       kind: "goHome",
     });
+  });
+});
+
+describe("PCs conhecidos — identidade persistente", () => {
+  const pc = {
+    pcId: "11111111-1111-4111-8111-111111111111",
+    name: "DESKTOP-X",
+    host: "192.168.0.10",
+    port: 48650,
+    lastSeenMs: 123,
+  };
+
+  it("reconecta usando pcId, não token vazio nem endereço como identidade", () => {
+    expect(knownPcTarget(pc)).toEqual({
+      name: pc.name,
+      host: pc.host,
+      port: pc.port,
+      rawUri: null,
+      token: null,
+      pcId: pc.pcId,
+    });
+  });
+
+  it("hidrata/substitui e esquece por pcId (nomes duplicados não colidem)", () => {
+    const second = { ...pc, pcId: "22222222-2222-4222-8222-222222222222" };
+    const hydrated = reducer(initialState, { type: "KPC_REPLACE", pcs: [pc, second] });
+    const added = reducer(hydrated, { type: "KPC_ADD", pc: { ...pc, lastSeenMs: 456 } });
+    expect(added.knownPcs).toEqual([second, { ...pc, lastSeenMs: 456 }]);
+
+    const forgotten = reducer(added, { type: "KPC_FORGET", pcId: pc.pcId });
+    expect(forgotten.knownPcs).toEqual([second]);
   });
 });

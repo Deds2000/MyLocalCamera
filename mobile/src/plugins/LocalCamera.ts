@@ -1,8 +1,9 @@
 // F2-T13 — Wrapper tipado do plugin Capacitor `LocalCamera`.
 //
 // Ponte JS ⇄ Kotlin (lado Kotlin: `app/plugin/LocalCameraPlugin.kt`,
-// contrato auditado). 4 métodos + 4 eventos, nomes fixos (não renomear):
-// - métodos: `getCapabilities`, `connect`, `disconnect`, `getState`;
+// contrato auditado). 6 métodos + 4 eventos, nomes fixos (não renomear):
+// - métodos: `getCapabilities`, `connect`, `disconnect`, `getState`,
+//   `getKnownPcs`, `forgetPc`;
 // - eventos: `connectionChanged`, `stateChanged`, `stats` (≤ 2 Hz) e
 //   `error` (**só códigos** — nunca texto da rede).
 //
@@ -53,6 +54,15 @@ export interface ErrorEvent {
   code: string;
 }
 
+/** Metadados não secretos de um PC autorizado a reconectar com `deviceKey`. */
+export interface StoredKnownPc {
+  pcId: string;
+  name: string;
+  hosts: string[];
+  port: number;
+  lastAccessed: number | null;
+}
+
 /* -------------------------------- opções -------------------------------- */
 
 /** Pareamento (QR/deep link) ou PC conhecido (`pcId` — a `deviceKey` vem
@@ -75,6 +85,10 @@ export interface LocalCameraApi {
   disconnect(): Promise<void>;
   /** `{state}` — último JSON `STATE` com `rev`. */
   getState(): Promise<{ state: string }>;
+  /** PCs com `deviceKey` persistida no Android Keystore. */
+  getKnownPcs(): Promise<{ pcs: StoredKnownPc[] }>;
+  /** Esquece o PC e remove sua `deviceKey` nativa. */
+  forgetPc(options: { pcId: string }): Promise<void>;
   addListener(
     eventName: "connectionChanged",
     listenerFunc: (event: ConnectionChangedEvent) => void,

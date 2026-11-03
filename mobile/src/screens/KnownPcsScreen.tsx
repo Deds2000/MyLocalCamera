@@ -13,17 +13,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useApp } from "@/state/AppProvider";
-import { manualTarget, type KnownPc } from "@/state/connection";
+import { knownPcTarget, type KnownPc } from "@/state/connection";
 import { formatSeen, useNowMs } from "./format";
 
 export function KnownPcsScreen() {
   const { t, i18n } = useTranslation();
-  const { state, dispatch } = useApp();
+  const { state, dispatch, knownPcsLoading } = useApp();
   const [forgetTarget, setForgetTarget] = useState<KnownPc | null>(null);
   const now = useNowMs();
 
   const confirmForget = () => {
-    if (forgetTarget) dispatch({ type: "KPC_FORGET", name: forgetTarget.name });
+    if (forgetTarget) dispatch({ type: "KPC_FORGET", pcId: forgetTarget.pcId });
     setForgetTarget(null);
   };
 
@@ -41,7 +41,13 @@ export function KnownPcsScreen() {
         <h1 className="text-lg font-semibold">{t("mobile.knownPcs.title")}</h1>
       </header>
 
-      {state.knownPcs.length === 0 ? (
+      {knownPcsLoading ? (
+        <div className="flex flex-1 items-center justify-center text-center">
+          <p className="text-sm text-text-muted" role="status" aria-live="polite">
+            {t("mobile.knownPcs.loading")}
+          </p>
+        </div>
+      ) : state.knownPcs.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
           <Monitor className="h-10 w-10 text-text-muted" aria-hidden="true" />
           <p className="text-sm text-text-muted">{t("mobile.knownPcs.empty")}</p>
@@ -58,7 +64,7 @@ export function KnownPcsScreen() {
             const seen = formatSeen(pc.lastSeenMs, now, i18n.resolvedLanguage);
             return (
               <li
-                key={pc.name}
+                key={pc.pcId}
                 className="flex flex-col gap-3 rounded-lg border border-glass-border bg-glass p-4"
               >
                 <div className="flex items-center gap-3">
@@ -79,9 +85,8 @@ export function KnownPcsScreen() {
                     onClick={() =>
                       dispatch({
                         type: "CONNECT",
-                        // F2-T09: cadeia mDNS → últimos IPs → QR; na Fase 2
-                        // vai direto para Conectando com o último endereço.
-                        target: manualTarget(pc.host, pc.port, ""),
+                        // O plugin resolve o pcId e usa a deviceKey salva.
+                        target: knownPcTarget(pc),
                         at: Date.now(),
                       })
                     }

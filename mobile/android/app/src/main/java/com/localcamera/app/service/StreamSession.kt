@@ -207,6 +207,7 @@ class StreamSession(
             is ConnectionEvent.Pending -> onEvent(StreamEvent.Pending(ev.timeoutS))
             is ConnectionEvent.Welcome -> {
                 established = true
+                KnownPcPersistence.remember(store, target, ev.pc.id, ev.pc.name, log)
                 log("WELCOME: pc=${ev.pc.name}")
                 onEvent(StreamEvent.Streaming(ev.pc.name))
                 sendState()

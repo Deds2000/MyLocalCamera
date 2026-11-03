@@ -5,10 +5,23 @@
 
 let pending: string | null = null;
 
+type DeepLinkListener = (url: string) => void;
+const listeners = new Set<DeepLinkListener>();
+
+/** Assina novas URIs (app já aberto). Devolve o cancelamento. */
+export function subscribeDeepLink(listener: DeepLinkListener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 /** Guarda a URI recebida e registra o log mascarado. */
 export function setPendingDeepLink(url: string): void {
   pending = url;
   logDeepLink(url);
+  // App já aberto: o `AppProvider` precisa reagir sem remontar.
+  for (const listener of listeners) listener(url);
 }
 
 /** URI pendente (ou `null` se nenhuma). A tela de destino deve chamá-lo após consumir. */
@@ -22,19 +35,15 @@ export function clearPendingDeepLink(): void {
 }
 
 /**
- * Loga só scheme, host, porta e os 4 primeiros chars do token —
- * nunca a URI completa nem o token inteiro.
+ * Loga só scheme, host e porta — nem mesmo um prefixo do token.
  */
 export function logDeepLink(url: string): void {
   try {
     const u = new URL(url);
-    const token = u.searchParams.get("token");
     const port = u.searchParams.get("port");
-    // Linha única: logcat não serializa objetos (apareceria [object Object]).
     console.info(
       `[deep-link] urlOpen scheme=${u.protocol.replace(":", "")} ` +
-        `host=${u.hostname} port=${port ?? "-"} ` +
-        `token=${token ? `${token.slice(0, 4)}…` : "-"}`,
+        `host=${u.hostname} port=${port ?? "-"}`,
     );
   } catch {
     // URI inválida: sem detalhes no log (poderia vazar parte do token).

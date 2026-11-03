@@ -16,6 +16,16 @@ void CapApp.addListener("appUrlOpen", (event) => {
   setPendingDeepLink(event.url);
 });
 
+// Cold start via deep link: o plugin Android só entrega `appUrlOpen` em
+// `onNewIntent` (app já aberto); a URI de lançamento precisa ser buscada.
+void CapApp.getLaunchUrl()
+  .then((launch) => {
+    if (launch?.url) setPendingDeepLink(launch.url);
+  })
+  .catch(() => {
+    // Plataforma sem o plugin (web) ou intent indisponível: sem link.
+  });
+
 async function bootstrap() {
   const i18n = await createI18n(detectLanguage(navigator.language));
   document.documentElement.classList.add("dark");

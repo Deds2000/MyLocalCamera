@@ -34,13 +34,19 @@ function renderApp(state: AppState, scanner?: QrScannerApi) {
   );
 }
 
-/** Scanner fake: captura o callback `onCode` para o teste disparar o QR. */
-function fakeScanner(): { api: QrScannerApi; onCode: () => ((raw: string) => void) | null } {
+/** Scanner fake: captura o vídeo e callback para os testes dispararem um QR. */
+function fakeScanner(): {
+  api: QrScannerApi;
+  onCode: () => ((raw: string) => void) | null;
+  video: () => HTMLVideoElement | null;
+} {
   let captured: ((raw: string) => void) | null = null;
+  let preview: HTMLVideoElement | null = null;
   return {
     api: {
       available: true,
-      start: (onCode) => {
+      start: (video, onCode) => {
+        preview = video;
         captured = onCode;
         return Promise.resolve({
           stop: async () => {},
@@ -49,6 +55,7 @@ function fakeScanner(): { api: QrScannerApi; onCode: () => ((raw: string) => voi
       },
     },
     onCode: () => captured,
+    video: () => preview,
   };
 }
 
@@ -60,6 +67,7 @@ describe("Home (UT-2.11)", () => {
       ...homeState,
       knownPcs: [
         {
+          pcId: "11111111-1111-4111-8111-111111111111",
           name: "DESKTOP-X",
           host: "192.168.0.10",
           port: 48650,
@@ -118,9 +126,10 @@ describe("Scan (UT-2.11)", () => {
   });
 
   it("QR inválido → faixa danger por 3 s e fica na tela", async () => {
-    const { api, onCode } = fakeScanner();
+    const { api, onCode, video } = fakeScanner();
     await renderApp(scanState, api);
     await waitFor(() => expect(onCode()).not.toBeNull());
+    expect(video()).toBe(screen.getByLabelText("Prévia da câmera traseira"));
 
     await act(async () => {
       onCode()!("https://exemplo.com/qr");
@@ -140,6 +149,36 @@ describe("Scan (UT-2.11)", () => {
       onCode()!(validQr);
     });
     expect(await screen.findByText("Conectando a DESKTOP-X…")).toBeInTheDocument();
+  });
+
+  it("mantém Inserir manualmente disponível quando a câmera falha", async () => {
+    const scanner: QrScannerApi = {
+      available: true,
+      start: async () => {
+        throw new Error("camera denied");
+      },
+    };
+
+    await renderApp(scanState, scanner);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível iniciar a câmera. Verifique a permissão ou insira os dados manualmente.",
+    );
+    expect(screen.getByRole("button", { name: "Inserir manualmente" })).toBeEnabled();
+  });
+
+  it("explica quando a captura não está disponível e preserva o pareamento manual", async () => {
+    const start = vi.fn();
+    const scanner: QrScannerApi = { available: false, start };
+
+    await renderApp(scanState, scanner);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "A leitura pela câmera não está disponível. Insira os dados manualmente.",
+    );
+    expect(start).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Inserir manualmente" }));
+    expect(await screen.findByLabelText("Endereço do PC")).toBeInTheDocument();
   });
 });
 

@@ -104,8 +104,10 @@ internal class SessionPhase(
         }
         val sessionId = w.sessionId ?: return Outcome.Retry
         val pc = w.pc ?: return Outcome.Retry
-        onEvent(ConnectionEvent.Welcome(sessionId, pc))
+        // A sessão (e os listeners do StreamBus) pode consultar o PairingStore
+        // ao tratar WELCOME; grave a chave antes de publicar o evento.
         saveDeviceKey(f.payload, pc.id)
+        onEvent(ConnectionEvent.Welcome(sessionId, pc))
         return session(send, reader, data, carry)
     }
 

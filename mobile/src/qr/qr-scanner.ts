@@ -1,13 +1,8 @@
-// F2-T03 — Isola o leitor de QR atrás de uma interface estável.
-//
-// Decisão (Fase 2): nenhum plugin de scanner foi instalado — nenhuma
-// combinação verificada cobre Capacitor 8.5 + React 19 sem risco de API
-// inventada, e a parte nativa (CameraX + ML Kit) pertence ao escopo Kotlin
-// (F2-T07/F2-T13). A contingência do §9 da fase vale na forma mais leve:
-// o scanner nativo futuro será injetado via prop `qrScanner` do
-// `AppProvider`; até lá `getQrScanner()` devolve um stub
-// (`available: false`) e o fallback funcional é a tela Manual
-// (campo "Colar link" + campos manuais).
+// F2-T03 — Scanner QR contínuo no vídeo da própria WebView.
+// Capacitor BridgeWebChromeClient encaminha VIDEO_CAPTURE à permissão Android;
+// nenhum navegador externo é iniciado. O fallback continua sendo a tela Manual.
+
+import type { IScannerControls } from "@zxing/browser";
 
 export interface QrScannerHandle {
   stop(): Promise<void>;
@@ -16,20 +11,47 @@ export interface QrScannerHandle {
 }
 
 export interface QrScannerApi {
-  /** `false` enquanto o scanner nativo não existe (F2-T07/F2-T13). */
+  /** `false` quando o runtime não oferece captura de vídeo. */
   readonly available: boolean;
   /** Inicia a leitura; `onCode` recebe o texto bruto do QR. */
-  start(onCode: (raw: string) => void): Promise<QrScannerHandle>;
+  start(video: HTMLVideoElement, onCode: (raw: string) => void): Promise<QrScannerHandle>;
 }
 
-/** Implementação atual (stub). Substituir pela implementação nativa. */
+/** Usa a câmera traseira e a prévia de vídeo montada pela ScanScreen. */
 export function getQrScanner(): QrScannerApi {
+  const available =
+    typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getUserMedia === "function";
+
   return {
-    available: false,
-    start: async () => ({
-      stop: async () => {},
-      setTorch: async () => false,
-    }),
+    available,
+    start: async (video, onCode) => {
+      if (!available) throw new Error("camera_unavailable");
+
+      const { BrowserQRCodeReader } = await import("@zxing/browser");
+      const reader = new BrowserQRCodeReader();
+      let controls: IScannerControls | null = null;
+      let stopped = false;
+
+      controls = await reader.decodeFromVideoDevice(undefined, video, (result) => {
+        if (!stopped && result) onCode(result.getText());
+      });
+
+      return {
+        stop: async () => {
+          stopped = true;
+          controls?.stop();
+        },
+        setTorch: async (on) => {
+          if (stopped || !controls?.switchTorch) return false;
+          try {
+            await controls.switchTorch(on);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      };
+    },
   };
 }
 

@@ -6,7 +6,7 @@ import { ArrowRight, Cable, Monitor, QrCode, Settings, WifiOff } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/StatusChip";
 import { useApp } from "@/state/AppProvider";
-import { manualTarget, type KnownPc } from "@/state/connection";
+import { knownPcTarget, type KnownPc } from "@/state/connection";
 import { formatSeen, useNowMs } from "./format";
 
 /** `navigator.onLine` com atualização por eventos (proxy de rede; o status
@@ -51,12 +51,11 @@ function ReconnectCard({ pc }: { pc: KnownPc }) {
       <Button
         size="sm"
         aria-label={t("mobile.home.reconnect", { name: pc.name })}
-        // F2-T09 implementa a cadeia mDNS → últimos IPs → QR; na Fase 2 vai
-        // direto para Conectando com o último endereço conhecido.
+        // O plugin resolve o pcId para hosts e autentica pela deviceKey.
         onClick={() =>
           dispatch({
             type: "CONNECT",
-            target: manualTarget(pc.host, pc.port, ""),
+            target: knownPcTarget(pc),
             at: Date.now(),
           })
         }
@@ -111,7 +110,7 @@ export function HomeScreen() {
             <p className="text-sm">{t("mobile.permissions.denied")}</p>
           </div>
         )}
-        {lastPc && <ReconnectCard key={lastPc.name} pc={lastPc} />}
+        {lastPc && <ReconnectCard key={lastPc.pcId} pc={lastPc} />}
         <div className="flex items-start gap-3 rounded-lg border border-glass-border bg-glass p-4">
           <Cable className="mt-0.5 h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />
           <p className="text-sm text-text-muted">{t("mobile.home.usbTip")}</p>

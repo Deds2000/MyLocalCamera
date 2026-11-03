@@ -14,21 +14,26 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useReducer,
   useRef,
+  useState,
   type Dispatch,
   type ReactNode,
 } from "react";
 import type { PluginListenerHandle } from "@capacitor/core";
-import { clearPendingDeepLink, getPendingDeepLink } from "@/deep-link";
+import { parsePairingUri } from "@localcamera/shared/protocol";
+import { clearPendingDeepLink, getPendingDeepLink, subscribeDeepLink } from "@/deep-link";
 import {
   getLocalCamera,
+  type ConnectOptions,
   type ConnectionChangedEvent,
   type ErrorEvent,
   type LocalCameraApi,
+  type StoredKnownPc,
   type StatsEvent,
   type StateChangedEvent,
 } from "@/plugins/LocalCamera";
@@ -40,6 +45,7 @@ import {
   type AppAction,
   type AppState,
   type Connection,
+  type KnownPc,
   type Target,
 } from "./connection";
 
@@ -47,6 +53,7 @@ export interface AppContextValue {
   state: AppState;
   dispatch: Dispatch<AppAction>;
   qrScanner: QrScannerApi;
+  knownPcsLoading: boolean;
 }
 
 export interface AppProviderProps {
@@ -74,6 +81,38 @@ function currentTarget(conn: Connection): Target | null {
   return conn.kind === "idle" ? null : conn.target;
 }
 
+/**
+ * Converte o alvo da UI nas opções do plugin nativo (F2-T13): URI do
+ * QR/deep link (token só em memória) ou campos digitados na tela Manual.
+ * PC conhecido usa somente seu `pcId`; host/token não entram no estado de
+ * autenticação em JS.
+ */
+function connectOptions(target: Target): ConnectOptions | null {
+  if (target.pcId) return { pcId: target.pcId };
+  if (target.rawUri) {
+    const parsed = parsePairingUri(target.rawUri);
+    return parsed.ok
+      ? { hosts: parsed.value.hosts, port: parsed.value.port, token: parsed.value.token }
+      : null;
+  }
+  if (target.host && target.port && target.token) {
+    return { hosts: [target.host], port: target.port, token: target.token };
+  }
+  return null;
+}
+
+function toAppKnownPc(pc: StoredKnownPc): KnownPc | null {
+  const host = pc.hosts[0];
+  if (!host || !Number.isInteger(pc.port) || pc.port < 1 || pc.port > 65535) return null;
+  return {
+    pcId: pc.pcId,
+    name: pc.name,
+    host,
+    port: pc.port,
+    lastSeenMs: pc.lastAccessed,
+  };
+}
+
 export function AppProvider({
   initialState: initial,
   qrScanner,
@@ -83,6 +122,7 @@ export function AppProvider({
   const [state, dispatch] = useReducer(reducer, initial ?? initialState);
   const scanner = useMemo(() => qrScanner ?? getQrScanner(), [qrScanner]);
   const camera = useMemo(() => localCamera ?? getLocalCamera(), [localCamera]);
+  const [knownPcsLoading, setKnownPcsLoading] = useState(false);
 
   // Os handlers nativos leem o estado mais recente via ref (a assinatura
   // acontece uma única vez, quando o plugin está disponível).
@@ -91,15 +131,106 @@ export function AppProvider({
     stateRef.current = state;
   }, [state]);
 
-  // Deep link `localcamera://connect` (F2-T01): se chegar uma URI pendente
-  // (checagem simples scheme/host), usa o alvo e vai a "Conectando".
-  useEffect(() => {
-    const raw = getPendingDeepLink();
-    if (!raw) return;
-    if (isPairingUri(raw)) {
-      dispatch({ type: "CONNECT", target: targetFromRawUri(raw), at: Date.now() });
+  const knownPcsRequest = useRef(0);
+  const refreshKnownPcs = useCallback(async () => {
+    if (!camera) return;
+    const request = ++knownPcsRequest.current;
+    try {
+      const { pcs } = await camera.getKnownPcs();
+      if (request !== knownPcsRequest.current) return;
+      dispatch({
+        type: "KPC_REPLACE",
+        pcs: (Array.isArray(pcs) ? pcs : []).map(toAppKnownPc).filter((pc): pc is KnownPc => pc !== null),
+      });
+    } catch {
+      // Falha de leitura não apaga PCs já exibidos nem injeta texto nativo na UI.
     }
-    clearPendingDeepLink();
+  }, [camera]);
+
+  useEffect(() => {
+    if (!camera) return;
+    let active = true;
+    setKnownPcsLoading(true);
+    void refreshKnownPcs().finally(() => {
+      if (active) setKnownPcsLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [camera, refreshKnownPcs]);
+
+  const dispatchAppAction = useCallback<Dispatch<AppAction>>(
+    (action) => {
+      if (action.type !== "KPC_FORGET" || !camera) {
+        dispatch(action);
+        return;
+      }
+      // Só remove da UI após a exclusão no PairingStore/Keystore.
+      knownPcsRequest.current++;
+      void camera.forgetPc({ pcId: action.pcId }).then(
+        () => dispatch(action),
+        () => void refreshKnownPcs(),
+      );
+    },
+    [camera, refreshKnownPcs],
+  );
+
+  // F2-T13 (correção 2026-11-03): a tela/deep link só despacha CONNECT no
+  // reducer local; sem este efeito o serviço nativo nunca era iniciado.
+  // A chave evita repetir o connect quando o evento nativo `connecting`
+  // re-despacha o mesmo alvo; um erro/retorno ao idle libera nova tentativa.
+  const lastConnectKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!camera) return;
+    const conn = state.connection;
+    if (conn.kind === "idle" || conn.kind === "error") {
+      lastConnectKey.current = null;
+      return;
+    }
+    if (conn.kind !== "connecting") return;
+    const key =
+      (conn.target.pcId ? `pc:${conn.target.pcId}` : null) ??
+      conn.target.rawUri ??
+      `${conn.target.host ?? ""}|${conn.target.port ?? ""}|${conn.target.token ?? ""}`;
+    if (lastConnectKey.current === key) return;
+    const opts = connectOptions(conn.target);
+    if (!opts) {
+      lastConnectKey.current = key;
+      dispatch({ type: "ERROR", reason: "invalid_args" });
+      return;
+    }
+    lastConnectKey.current = key;
+    void camera.connect(opts).catch(() => {
+      lastConnectKey.current = null;
+      dispatch({ type: "ERROR", reason: "invalid_args" });
+    });
+  }, [camera, dispatch, state.connection]);
+
+  // Saída da transmissão (GO_HOME/Parar) encerra o serviço nativo; sem isso
+  // a câmera continuaria aberta mesmo com a UI em idle.
+  const nativeActive = useRef(false);
+  useEffect(() => {
+    if (!camera) return;
+    const kind = state.connection.kind;
+    const active =
+      kind === "connecting" || kind === "pending" || kind === "streaming" || kind === "reconnecting";
+    if (nativeActive.current && !active) void camera.disconnect().catch(() => {});
+    nativeActive.current = active;
+  }, [camera, state.connection.kind]);
+
+  // Deep link `localcamera://connect` (F2-T01): consome a URI pendente
+  // (cold start) e assina novas URIs (app já aberto) — antes só a leitura
+  // inicial existia, então um link recebido com o app aberto era ignorado.
+  useEffect(() => {
+    const handle = (raw: string): void => {
+      if (!isPairingUri(raw)) return;
+      clearPendingDeepLink();
+      dispatch({ type: "CONNECT", target: targetFromRawUri(raw), at: Date.now() });
+    };
+    const off = subscribeDeepLink(handle);
+    const initial = getPendingDeepLink();
+    if (initial) handle(initial);
+    return off;
   }, [dispatch]);
 
   // F2-T13 — eventos do plugin nativo → ações do reducer local. Sem plugin
@@ -126,6 +257,7 @@ export function AppProvider({
           break;
         case "streaming":
           dispatch({ type: "STREAMING" });
+          void refreshKnownPcs();
           break;
         case "reconnecting":
           dispatch({ type: "RECONNECTING" });
@@ -190,9 +322,12 @@ export function AppProvider({
       disposed = true;
       void Promise.allSettled(handles.map((h) => h.remove()));
     };
-  }, [camera]);
+  }, [camera, refreshKnownPcs]);
 
-  const value = useMemo(() => ({ state, dispatch, qrScanner: scanner }), [state, scanner]);
+  const value = useMemo(
+    () => ({ state, dispatch: dispatchAppAction, qrScanner: scanner, knownPcsLoading }),
+    [state, dispatchAppAction, scanner, knownPcsLoading],
+  );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

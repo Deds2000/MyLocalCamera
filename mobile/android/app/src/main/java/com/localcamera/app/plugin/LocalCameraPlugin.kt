@@ -32,6 +32,8 @@ import java.net.URLEncoder
  *   `deviceKey`; F2-T05);
  * - `disconnect()` → para a sessão (BYE no lado do serviço);
  * - `getState()` → `{state}`: último JSON `STATE` com `rev` (F2-T11).
+ * - `getKnownPcs()`/`forgetPc({pcId})` → lista/esquecimento de PCs com chave
+ *   persistida; `deviceKey` continua exclusivamente no Android Keystore.
  *
  * ## Eventos (Kotlin → JS)
  * - `connectionChanged {state, timeoutS?, pcName?}` — `idle|connecting|pending|
@@ -172,6 +174,14 @@ class LocalCameraPlugin : Plugin() {
         call.resolve(JSObject().put(KEY_STATE, StreamBus.lastStateJson))
     }
 
+    /** `{pcs}` sem segredos; só inclui PCs cuja `deviceKey` existe no Keystore. */
+    @PluginMethod
+    fun getKnownPcs(call: PluginCall) = KnownPcPluginBridge.getKnownPcs(getContext(), call, ::log)
+
+    /** Esquece o PC e apaga a chave correspondente no Keystore. */
+    @PluginMethod
+    fun forgetPc(call: PluginCall) = KnownPcPluginBridge.forgetPc(getContext(), call, ::log)
+
     // ------------------------------ montagem da URI ------------------------------
 
     private sealed interface ConnectSpec {
@@ -275,7 +285,6 @@ class LocalCameraPlugin : Plugin() {
         const val MAX_HOSTS = 4
         const val MAX_PORT = 65535
         val TOKEN_RE = Regex("^[0-9a-f]{32}$")
-
         /** 32 hex nulos: satisfaz o parser; a auth real é a `deviceKey`. */
         const val PLACEHOLDER_TOKEN = "00000000000000000000000000000000"
     }

@@ -29,9 +29,12 @@ export interface Target {
   rawUri: string | null;
   /** Código de pareamento digitado na tela Manual (`null` em QR/deep link). */
   token: string | null;
+  /** ID do PC salvo; quando presente, o plugin autentica com a `deviceKey`. */
+  pcId?: string;
 }
 
 export interface KnownPc {
+  pcId: string;
   name: string;
   host: string;
   port: number;
@@ -127,7 +130,8 @@ export type AppAction =
   | { type: "CAPS"; concurrent: boolean }
   | { type: "SETTINGS"; patch: Partial<Settings> }
   | { type: "KPC_ADD"; pc: KnownPc }
-  | { type: "KPC_FORGET"; name: string };
+  | { type: "KPC_REPLACE"; pcs: KnownPc[] }
+  | { type: "KPC_FORGET"; pcId: string };
 
 export const initialState: AppState = {
   connection: { kind: "idle" },
@@ -233,11 +237,13 @@ export function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, settings: { ...state.settings, ...action.patch } };
     case "KPC_ADD": {
       // O último adicionado fica por último ("último usado" na Home).
-      const rest = state.knownPcs.filter((p) => p.name !== action.pc.name);
+      const rest = state.knownPcs.filter((p) => p.pcId !== action.pc.pcId);
       return { ...state, knownPcs: [...rest, action.pc] };
     }
+    case "KPC_REPLACE":
+      return { ...state, knownPcs: action.pcs };
     case "KPC_FORGET":
-      return { ...state, knownPcs: state.knownPcs.filter((p) => p.name !== action.name) };
+      return { ...state, knownPcs: state.knownPcs.filter((p) => p.pcId !== action.pcId) };
   }
 }
 
@@ -369,4 +375,16 @@ export function targetFromRawUri(raw: string): Target {
 /** Alvo digitado na tela Manual. */
 export function manualTarget(host: string, port: number, token: string): Target {
   return { name: host, host, port, rawUri: null, token };
+}
+
+/** Alvo de um PC salvo: a autenticação usa o `pcId`/deviceKey nativo. */
+export function knownPcTarget(pc: KnownPc): Target {
+  return {
+    name: pc.name,
+    host: pc.host,
+    port: pc.port,
+    rawUri: null,
+    token: null,
+    pcId: pc.pcId,
+  };
 }
