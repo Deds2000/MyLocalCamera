@@ -109,13 +109,13 @@ impl ServerHandle {
         &mut self.events_rx
     }
 
-    /// Número de conexões TCP ainda em andamento (handshake, sessão ou
-    /// áudio). Remove da lista as tasks já terminadas (F1-T11b).
+    /// Número de conexões TCP ainda em andamento (handshake, sessão ou áudio).
+    /// Tasks concluídas são removidas pelo recolhedor periódico, que também
+    /// observa eventuais panics.
     #[must_use]
     pub fn active_connections(&self) -> usize {
-        let mut guard = self.conns.lock().unwrap_or_else(|p| p.into_inner());
-        guard.retain(|handle| !handle.is_finished());
-        guard.len()
+        let guard = self.conns.lock().unwrap_or_else(|p| p.into_inner());
+        guard.iter().filter(|handle| !handle.is_finished()).count()
     }
 
     /// Sinaliza o shutdown, para de aceitar e espera todas as conexões
@@ -241,5 +241,63 @@ async fn bind_listener(
             Ok(listener)
         }
         Err(e) => Err(ServerError::Bind(e)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use tokio::io::AsyncWriteExt;
+    use tokio::net::TcpStream;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn finished_connection_tasks_are_reaped_without_observation_calls() {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let mut cfg = ServerConfig::for_tests(temp_dir.path().to_owned(), false);
+        cfg.hello_timeout = Duration::from_secs(10);
+        let mut server = start(cfg).await.expect("start");
+        let port = server.local_port();
+        {
+            let events = server.events();
+            assert!(matches!(
+                events.recv().await,
+                Some(ServerEvent::Listening { .. })
+            ));
+
+            for _ in 0..24 {
+                let mut stream = TcpStream::connect(("127.0.0.1", port))
+                    .await
+                    .expect("connect");
+                assert!(matches!(
+                    events.recv().await,
+                    Some(ServerEvent::ConnectionOpened { .. })
+                ));
+                stream.shutdown().await.expect("close client write side");
+                loop {
+                    if matches!(
+                        events.recv().await,
+                        Some(ServerEvent::ConnectionClosed { .. })
+                    ) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                let tracked = server.conns.lock().unwrap_or_else(|p| p.into_inner()).len();
+                if tracked == 0 {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("tarefas concluídas devem ser recolhidas automaticamente");
+        server.shutdown().await;
     }
 }

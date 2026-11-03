@@ -25,6 +25,9 @@ use crate::version::SERVER_PROTOCOL;
 
 /// Tamanho do buffer de leitura por conexão.
 const READ_BUF_SIZE: usize = 64 * 1024;
+/// Frequência para recolher tarefas de conexão concluídas mesmo sem novas
+/// conexões ou chamadas a `active_connections()`.
+const CONNECTION_REAP_INTERVAL: Duration = Duration::from_millis(100);
 
 /// Timings de keepalive e estatísticas (F1-T10), agrupados para manter a
 /// assinatura de [`ConnShared::new`] enxuta.
@@ -91,9 +94,12 @@ pub(super) async fn accept_loop(
         mut shutdown_rx,
         ..
     } = shared.clone();
+    let mut reap = tokio::time::interval(CONNECTION_REAP_INTERVAL);
+    reap.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     loop {
         tokio::select! {
             _ = shutdown_rx.changed() => break,
+            _ = reap.tick() => reap_finished(&conns).await,
             accepted = listener.accept() => {
                 let (stream, peer) = match accepted {
                     Ok(v) => v,
@@ -153,6 +159,29 @@ pub(super) async fn accept_loop(
                 );
                 conns.lock().unwrap_or_else(|p| p.into_inner()).push(handle);
             }
+        }
+    }
+}
+
+/// Remove e aguarda tarefas terminadas fora do lock. Awaitar o handle é o
+/// que permite observar/logar panics em vez de descartá-los silenciosamente.
+async fn reap_finished(conns: &Arc<Mutex<Vec<JoinHandle<()>>>>) {
+    let finished = {
+        let mut guard = conns.lock().unwrap_or_else(|p| p.into_inner());
+        let mut finished = Vec::new();
+        let mut i = 0;
+        while i < guard.len() {
+            if guard[i].is_finished() {
+                finished.push(guard.swap_remove(i));
+            } else {
+                i += 1;
+            }
+        }
+        finished
+    };
+    for handle in finished {
+        if let Err(error) = handle.await {
+            tracing::error!(error = %error, "task de conexão panicou");
         }
     }
 }
