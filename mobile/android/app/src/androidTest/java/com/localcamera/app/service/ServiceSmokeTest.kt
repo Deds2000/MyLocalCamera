@@ -5,6 +5,7 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
@@ -71,6 +72,33 @@ class ServiceSmokeTest {
     }
 
     /**
+     * Revisão visual manual IT-2.07: deixa a notificação com o alvo fake
+     * (TEST-NET; sem servidor real/QR) visível por 30 s para conferir idioma
+     * e ação Parar. Se a ação for tocada, o teardown final continua idempotente.
+     */
+    @Test
+    fun manual_review_notification_stays_visible() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        AppForeground.onActivityResumed()
+        try {
+            StreamingService.stopStreaming(context)
+            Thread.sleep(SETTLE_MS)
+            StreamingService.startStreaming(context, FAKE_URI)
+            val created = poll(nm, UP_TO_MS) { it != null }
+            assertNotNull("notificação não criada para revisão manual", created)
+            assertEquals("ação 'Parar' ausente", 1, created!!.actions.size)
+            Log.i("ServiceSmokeTest", "janela de revisão IT-2.07 aberta por ${MANUAL_REVIEW_WINDOW_MS}ms (destino fake)")
+            Thread.sleep(MANUAL_REVIEW_WINDOW_MS)
+            StreamingService.stopStreaming(context)
+            assertNull("notificação persistiu após teardown", poll(nm, UP_TO_MS) { it == null })
+        } finally {
+            StreamingService.stopStreaming(context)
+            AppForeground.onActivityPaused()
+        }
+    }
+
+    /**
      * Notificação da sessão entre as ativas, por `id` (a 2-arg
      * `getNotification(channelId,id)` saiu do android.jar 36).
      */
@@ -99,5 +127,6 @@ class ServiceSmokeTest {
         const val POLL_MS = 250L
         const val SETTLE_MS = 500L
         const val UP_TO_MS = 30_000L
+        const val MANUAL_REVIEW_WINDOW_MS = 30_000L
     }
 }

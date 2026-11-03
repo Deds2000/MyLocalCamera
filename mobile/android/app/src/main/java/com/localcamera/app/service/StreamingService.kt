@@ -32,9 +32,11 @@ import kotlinx.coroutines.cancel
  * F2-T07/08/09/10/11.
  *
  * ## Requisitos de foreground service — targetSdk 36 (pesquisa do passo 1)
- * Fontes (developer.android.com, consultado 30/10/2026): página de tipos de
- * FGS (`develop/background-work/services/fgs`, seção "service-types") e
- * `about/versions/14/changes/fgs-types-required`:
+ * Fontes oficiais consultadas em 03/11/2026:
+ * `develop/background-work/services/foreground-services`,
+ * `develop/background-work/services/fgs/troubleshooting#startForeground-too-slow`,
+ * `about/versions/14/changes/fgs-types-required` e
+ * `develop/ui/views/notifications/notification-permission`:
  * 1. **Android 14+ (target 34+):** o manifest precisa declarar
  *    `android:foregroundServiceType` no `<service>` **e** a permissão
  *    `FOREGROUND_SERVICE_<TYPE>` correspondente (`camera`, `microphone`);
@@ -49,7 +51,8 @@ import kotlinx.coroutines.cancel
  *    `camera` não pode ser criado do background — daí a guarda [AppForeground]
  *    (armadilha §6 do cartão): start sem app visível → `error{app_not_visible}`.
  * 4. **Android 13+ (API 33):** `POST_NOTIFICATIONS` é permissão de **runtime**;
- *    sem ela o FGS funciona, mas a notificação não aparece. O pedido de
+ *    ela não é pré-requisito para iniciar o FGS. Se negada, a notificação FGS
+ *    não aparece na gaveta, mas continua visível no Task Manager. O pedido de
  *    permissão é da UI/plugin (F2-T13) — o serviço só declara no manifest.
  * 5. **Android 15+:** timeout de 6 h vale só para o tipo `dataSync` (não se
  *    aplica a `camera`); a câmera FGS continua exigindo app visível/exceção.
