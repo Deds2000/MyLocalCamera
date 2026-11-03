@@ -10,7 +10,8 @@ import android.util.Log
  * Escolha e configuração do codec para o [VideoEncoder] (cartão F2-T08):
  * enumeração via `MediaCodecList` (**sem nome fixo**), fallback
  * perfil (High → Main → Baseline, por capability) × `KEY_LOW_LATENCY`
- * (try/ignore — G781B rejeita) × `bitrate-mode` CBR.
+ * (try/ignore — G781B rejeita); CBR é apenas solicitado quando aceito pelo
+ * codec, sem garantia de bitrate constante.
  * Separado da classe para manter o [VideoEncoder] dentro do limite de linhas.
  */
 

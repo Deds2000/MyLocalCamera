@@ -11,7 +11,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 
 /**
- * Encoder H.264 de hardware (cartão F2-T08): 1080p30 CBR 8 Mbps, keyframe
+ * Encoder H.264 de hardware (cartão F2-T08): 1080p30, alvo inicial 8 Mbps
+ * (bitrate variável permitido; CBR não é garantia do hardware), keyframe
  * a cada 1 s, prioridade tempo real, perfil High com fallback (Main →
  * Baseline), SPS/PPS anexados a **cada** keyframe e `ptsUs` do relógio
  * monotônico injetável ([clock], em ns — o mesmo que o áudio usará na

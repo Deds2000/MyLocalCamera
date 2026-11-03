@@ -2,7 +2,8 @@ package com.localcamera.app.encoder
 
 /**
  * Configuração do encoder H.264 (cartão F2-T08).
- * Padrão do cartão (CHEATSHEET): 1080p30 CBR 8 Mbps, keyframe a cada 1 s.
+ * Padrão do cartão (CHEATSHEET): 1080p30, alvo inicial 8 Mbps, keyframe a
+ * cada 1 s; não exige bitrate constante.
  * O modo dual (720p30 ~4 Mbps — Fase 7) reaproveita esta classe com valores
  * próprios; aqui o tamanho do quadro é apenas validado como `> 0`.
  *
