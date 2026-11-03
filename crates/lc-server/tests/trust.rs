@@ -17,6 +17,71 @@ fn open(dir: &Path) -> TrustStore {
 mod trust {
     use super::*;
 
+    fn block_atomic_write(dir: &Path) {
+        fs::create_dir(dir.join("trust.json.tmp")).unwrap();
+    }
+
+    fn persisted(dir: &Path) -> String {
+        fs::read_to_string(dir.join("trust.json")).unwrap()
+    }
+
+    #[test]
+    fn initial_identity_is_persisted_without_mutations() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let (pc_id, token) = {
+            let store = open(tmp.path());
+            (store.pc_id().to_string(), store.pair_token().to_string())
+        };
+        let reopened = open(tmp.path());
+        assert_eq!(reopened.pc_id(), pc_id);
+        assert_eq!(reopened.pair_token(), token);
+    }
+
+    #[test]
+    fn opening_new_store_propagates_persist_failure() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        block_atomic_write(tmp.path());
+        assert!(TrustStore::open(tmp.path()).is_err());
+        assert!(!tmp.path().join("trust.json").exists());
+    }
+
+    #[test]
+    fn failed_mutations_keep_memory_and_disk_unchanged() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let mut store = open(tmp.path());
+        let key = store
+            .add_device("dev-1", "Fone", "192.168.0.10", NOW)
+            .unwrap();
+        let old_token = store.pair_token().to_string();
+        let old_file = persisted(tmp.path());
+        block_atomic_write(tmp.path());
+
+        assert!(store.regenerate_token().is_err());
+        assert_eq!(store.pair_token(), old_token);
+        assert_eq!(persisted(tmp.path()), old_file);
+
+        assert!(store
+            .add_device("dev-2", "Outro", "192.168.0.11", NOW + 1)
+            .is_err());
+        assert_eq!(store.list().len(), 1);
+        assert_eq!(store.verify_device("dev-1", &key), VerifyDevice::Ok);
+        assert_eq!(
+            store.verify_device("dev-2", "irrelevante"),
+            VerifyDevice::Unknown
+        );
+        assert_eq!(persisted(tmp.path()), old_file);
+
+        assert!(store.touch("dev-1", "192.168.0.12", NOW + 2).is_err());
+        let device = &store.list()[0];
+        assert_eq!(device.last_seen, NOW);
+        assert_eq!(device.last_ip, "192.168.0.10");
+        assert_eq!(persisted(tmp.path()), old_file);
+
+        assert!(store.revoke("dev-1").is_err());
+        assert_eq!(store.verify_device("dev-1", &key), VerifyDevice::Ok);
+        assert_eq!(persisted(tmp.path()), old_file);
+    }
+
     /// UT-1.13 — o `trust.json` guarda o hash, nunca a chave em claro.
     #[test]
     fn only_hash_is_persisted() {

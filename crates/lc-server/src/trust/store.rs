@@ -76,7 +76,7 @@ impl fmt::Debug for TrustedDevice {
 }
 
 /// Dados persistidos no `trust.json` (privado; nunca imprime segredos).
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct Data {
     #[serde(rename = "schemaVersion")]
     schema_version: u32,
@@ -116,16 +116,19 @@ impl TrustStore {
     pub fn open(dir: &Path) -> Result<Self, TrustError> {
         fs::create_dir_all(dir)?;
         let path = dir.join(FILE_NAME);
-        let data = match fs::read_to_string(&path) {
+        let (data, needs_save) = match fs::read_to_string(&path) {
             Ok(text) if !text.trim().is_empty() => match serde_json::from_str::<Data>(&text) {
-                Ok(d) if d.schema_version == SCHEMA_VERSION => d,
-                _ => Self::backup_corrupt(&path)?,
+                Ok(d) if d.schema_version == SCHEMA_VERSION => (d, false),
+                _ => (Self::backup_corrupt(&path)?, true),
             },
             // arquivo existe, mas está vazio → corrompido
-            Ok(_) => Self::backup_corrupt(&path)?,
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Data::fresh(),
+            Ok(_) => (Self::backup_corrupt(&path)?, true),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => (Data::fresh(), true),
             Err(e) => return Err(e.into()),
         };
+        if needs_save {
+            Self::save_data(&path, &data)?;
+        }
         Ok(Self { path, data })
     }
 
@@ -152,10 +155,9 @@ impl TrustStore {
         Ok(Data::fresh())
     }
 
-    /// Serializa e grava o arquivo de forma atômica.
-    fn save(&self) -> Result<(), TrustError> {
-        let bytes = serde_json::to_string_pretty(&self.data)?;
-        write_atomic(&self.path, bytes.as_bytes())?;
+    fn save_data(path: &Path, data: &Data) -> Result<(), TrustError> {
+        let bytes = serde_json::to_string_pretty(data)?;
+        write_atomic(path, bytes.as_bytes())?;
         Ok(())
     }
 
@@ -173,8 +175,10 @@ impl TrustStore {
 
     /// Regenera o token de pareamento; o token antigo passa a ser recusado.
     pub fn regenerate_token(&mut self) -> Result<String, TrustError> {
-        self.data.pair_token = secrets::random_hex(16);
-        self.save()?;
+        let mut candidate = self.data.clone();
+        candidate.pair_token = secrets::random_hex(16);
+        Self::save_data(&self.path, &candidate)?;
+        self.data = candidate;
         Ok(self.data.pair_token.clone())
     }
 
@@ -206,16 +210,17 @@ impl TrustStore {
             last_seen: now,
             last_ip: ip.to_string(),
         };
-        match self
-            .data
+        let mut candidate = self.data.clone();
+        match candidate
             .devices
             .iter()
             .position(|d| d.device_id == device_id)
         {
-            Some(i) => self.data.devices[i] = entry,
-            None => self.data.devices.push(entry),
+            Some(i) => candidate.devices[i] = entry,
+            None => candidate.devices.push(entry),
         }
-        self.save()?;
+        Self::save_data(&self.path, &candidate)?;
+        self.data = candidate;
         Ok(key)
     }
 
@@ -236,24 +241,28 @@ impl TrustStore {
 
     /// Atualiza `last_seen`/`last_ip` de um dispositivo cadastrado.
     pub fn touch(&mut self, device_id: &str, ip: &str, now: u64) -> Result<(), TrustError> {
-        let dev = self
-            .data
+        let mut candidate = self.data.clone();
+        let dev = candidate
             .devices
             .iter_mut()
             .find(|d| d.device_id == device_id)
             .ok_or_else(|| TrustError::UnknownDevice(device_id.to_string()))?;
         dev.last_seen = now;
         dev.last_ip = ip.to_string();
-        self.save()
+        Self::save_data(&self.path, &candidate)?;
+        self.data = candidate;
+        Ok(())
     }
 
     /// Revoga um dispositivo. Devolve `true` se ele estava cadastrado.
     pub fn revoke(&mut self, device_id: &str) -> Result<bool, TrustError> {
-        let before = self.data.devices.len();
-        self.data.devices.retain(|d| d.device_id != device_id);
-        let removed = self.data.devices.len() != before;
+        let mut candidate = self.data.clone();
+        let before = candidate.devices.len();
+        candidate.devices.retain(|d| d.device_id != device_id);
+        let removed = candidate.devices.len() != before;
         if removed {
-            self.save()?;
+            Self::save_data(&self.path, &candidate)?;
+            self.data = candidate;
         }
         Ok(removed)
     }
