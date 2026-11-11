@@ -1,4 +1,4 @@
-#requires -version 5.1
+﻿#requires -version 5.1
 <#
 soak-f2.ps1 — F2-T15: coletor de evidência dos testes de longa duração
 (LT-2.01: 30 min transmitindo; LT-2.02 reaproveita o mesmo formato).
@@ -42,12 +42,37 @@ $lastOffset = 0
 $lastFps = ""
 $lastKbps = ""
 
+# ADB pode perder o transporte USB durante a coleta. Nesse caso, ainda assim
+# grava a amostra (com campos do aparelho vazios) e tenta novamente no próximo
+# intervalo, em vez de encerrar o soak por um erro transitório do adb.exe.
+function Invoke-AdbCapture {
+    param([string[]]$Arguments)
+    try {
+        $output = & adb @adbArgs @Arguments 2>$null
+        if ($LASTEXITCODE -ne 0) { return @() }
+        return $output
+    } catch {
+        return @()
+    }
+}
+
 function Read-ServerStats {
     param([int]$Offset)
     if (-not (Test-Path $ServerLog)) { return }
     $size = (Get-Item $ServerLog).Length
+    if ($size -lt $Offset) { $Offset = 0 } # log rotated/truncated
     if ($size -le $Offset) { return }
-    $chunk = [System.IO.File]::ReadAllText($ServerLog, $Offset)
+    $stream = [System.IO.File]::Open(
+        $ServerLog,
+        [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read,
+        [System.IO.FileShare]::ReadWrite
+    )
+    try {
+        $stream.Position = $Offset
+        $reader = [System.IO.StreamReader]::new($stream, [System.Text.Encoding]::UTF8, $true, 1024, $true)
+        try { $chunk = $reader.ReadToEnd() } finally { $reader.Dispose() }
+    } finally { $stream.Dispose() }
     $script:lastOffset = $size
     $m = [regex]::Matches($chunk, "stats session=\S+ fps=([\d.]+) kbps=([\d.]+)")
     if ($m.Count -gt 0) {
@@ -59,24 +84,24 @@ function Read-ServerStats {
 
 # Memória PSS (KB → MB) de `TOTAL` do dumpsys meminfo.
 function Read-MemMb {
-    $mi = & adb @adbArgs shell dumpsys meminfo $Package 2>$null
-    $line = $mi | Where-Object { $_ -match "^\s*TOTAL\s" } | Select-Object -First 1
+    $mi = Invoke-AdbCapture -Arguments @("shell", "dumpsys", "meminfo", $Package)
+    $line = $mi | Where-Object { $_ -match "(?i)^\s*TOTAL\s+\d+" } | Select-Object -First 1
     if (-not $line) { return "" }
-    $m = [regex]::Match($line, "^\s*TOTAL\s+(\d+)")
+    $m = [regex]::Match($line, "(?i)^\s*TOTAL\s+(\d+)")
     if (-not $m.Success) { return "" }
     return [math]::Round([int]$m.Groups[1].Value / 1024, 1).ToString($inv)
 }
 
 # Temperatura em °C: thermalservice (°C direto ou milicelsius) → /sys.
 function Read-TempC {
-    $th = & adb @adbArgs shell dumpsys thermalservice 2>$null
+    $th = Invoke-AdbCapture -Arguments @("shell", "dumpsys", "thermalservice")
     $line = $th | Where-Object { $_ -match "(?i)temperature" } | Select-Object -First 1
     if ($line) {
         $num = [regex]::Matches($line, "-?\d+") | ForEach-Object { [int]$_.Value } |
             Where-Object { $_ -ge 1000 -and $_ -le 99999 } | Select-Object -First 1
         if ($null -ne $num) { return [math]::Round($num / 1000, 1).ToString($inv) }
     }
-    $tz = & adb @adbArgs shell cat /sys/class/thermal/thermal_zone0/temp 2>$null
+    $tz = Invoke-AdbCapture -Arguments @("shell", "cat", "/sys/class/thermal/thermal_zone0/temp")
     if ($tz -match "^\s*(-?\d+)\s*$") {
         $v = [int]$Matches[1]
         if ($v -ge 1000 -and $v -le 99999) { return [math]::Round($v / 1000, 1).ToString($inv) }
@@ -86,6 +111,7 @@ function Read-TempC {
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $first = [DateTimeOffset]::Now.ToUnixTimeSeconds()
+$nextSampleAt = 0
 Write-Host ("soak-f2: {0}s → {1} (início utc {2})" -f $DurationSec, $Out, $first)
 
 while ($sw.ElapsedMilliseconds -lt ($DurationSec * 1000)) {
@@ -100,7 +126,15 @@ while ($sw.ElapsedMilliseconds -lt ($DurationSec * 1000)) {
     if ($t % 30 -eq 0 -and $t -gt 0) {
         Write-Host ("  t={0}s fps={1} kbps={2} mem={3}MB temp={4}C" -f $t, $fps, $kbps, $mem, $temp)
     }
-    Start-Sleep -Milliseconds $IntervalMs
+    # Cadência fixa: desconta o tempo gasto nas chamadas ADB para aproximar
+    # a frequência real do IntervalMs, em vez de somar 1 s de sleep por ciclo.
+    $nextSampleAt += $IntervalMs
+    $sleepMs = $nextSampleAt - $sw.ElapsedMilliseconds
+    if ($sleepMs -gt 0) {
+        Start-Sleep -Milliseconds $sleepMs
+    } else {
+        $nextSampleAt = $sw.ElapsedMilliseconds
+    }
 }
 
 $lines = (Get-Content $Out).Count

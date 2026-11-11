@@ -1,0 +1,5 @@
+F2-T14 / AT-2.14 — Samsung SM-G781B, 2026-11-11
+Fonte: logcat filtrado durante sessão real com o harness LAN seguro.
+Observado: STREAM_CONFIG 1920x1080@30 rot=90 face=back.
+Limite: este reteste não incluiu nova rotação física; não registra o hint antes/depois do giro já observado anteriormente. AT-2.14 permanece parcial.
+Nenhuma URI, token ou deviceKey foi incluída.
