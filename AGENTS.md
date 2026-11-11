@@ -8,9 +8,17 @@ Projeto: celular Android vira webcam e microfone para Windows 11 (Wi-Fi ou USB).
 2. Abra **somente o cartão dela**: `docs/tasks/fase-N/<ID>.md`. Ele traz tudo o que você precisa. Só abra outro arquivo se o cartão mandar.
 3. Se o campo **Executor** for `humano`, **PARE** e mostre ao usuário o passo a passo do cartão. Não finja que testou.
 4. Execute os passos na ordem. Depois de cada bloco, rode o comando de **verificação** do cartão.
-5. Falhou 3 vezes no mesmo ponto? **Pare**, escreva em `PROGRESS.md` (seção *Bloqueios*) o erro e o que tentou, e pergunte ao usuário.
+5. Falhou 2 vezes no mesmo ponto? **Pare**, escreva em `PROGRESS.md` (seção *Bloqueios*) o erro e o que tentou, e pergunte ao usuário; não repita o mesmo comando sem mudar a causa.
 6. Cumpriu o **Critério de pronto**? Faça o commit (mensagem sugerida no cartão), marque `[x]` em `PROGRESS.md` e atualize a linha **Próxima tarefa**.
 7. Após 2–3 tarefas, ou se a conversa passar de ~100k tokens: **encerre** e peça ao usuário para abrir uma sessão nova com o prompt de `docs/tasks/PROMPTS.md`.
+
+## Velocidade e controle de execução
+- Antes de testar, confira se já existe evidência aprovada que cobre exatamente o critério e a versão em teste. **Reutilize-a**; não repita soak, coleta ou teste só para mudar intervalo/formato de saída. Repetição longa exige critério novo não coberto ou autorização explícita.
+- Execute uma vez cada verificação prescrita pelo cartão. Depois de uma mudança localizada, prefira o teste direcionado; não repita a suíte inteira se nada nela mudou. Não reexecute tarefas já verdes para “completar” um relatório.
+- Para comandos longos, informe a duração esperada e deixe o progresso visível. Não combine execução em background com `Select-Object -Last` (isso retém a saída até o fim). Se usar background, grave saída incremental e continue apenas com trabalho independente; não deixe o usuário esperando sem atualização.
+- Se não houver progresso observável por 10 minutos, inspecione a saída e o processo uma única vez. Se estiver travado, encerre somente o processo iniciado por esta tarefa, registre como **interrompido/incompleto** (nunca verde) e avance com o que não depende dele. Não fique consultando repetidamente o mesmo processo.
+- Soaks e testes com duração inerente acima de 15 minutos só podem ser iniciados quando o cartão exigir e não existir evidência aprovada equivalente; informe a duração antes. Não interrompa nem repita um teste obrigatório silenciosamente.
+- Mantenha a resposta focada em resultado, bloqueio e próxima ação concreta; não narre leituras/comandos rotineiros.
 
 ## Regras de ouro
 - **Não invente APIs, flags nem versões.** Se não tiver certeza: leia o código da dependência (`node_modules/<pkg>/*.d.ts`, `%USERPROFILE%\.cargo\registry\src\*\<crate>-*\src`), use `cargo doc`/`--help`, ou a documentação oficial (web), e confirme antes de usar.
