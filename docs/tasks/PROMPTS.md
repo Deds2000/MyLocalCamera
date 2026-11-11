@@ -36,10 +36,12 @@ verde, e pare. Não inicie outra tarefa.
 ```
 
 ## 6. Quando a próxima tarefa estiver marcada "(gerar)"
-Não é para o agente. Diga ao autor do plano: "Gere os cartões da Fase N", informando os vereditos dos spikes em `docs/spikes/`.
+Não improvise, exceto quando houver autorização explícita registrada. A IA está autorizada a gerar os cartões da Fase 3 a partir do plano somente depois da aprovação do F2-GATE; para outras fases, peça decisão de escopo. Todo cartão novo deve obedecer ao mandato IA+ADB.
 
 ## 7. Quando a tarefa for de Executor `humano`
 ```
-A próxima tarefa é de Executor "humano". Mostre-me o roteiro do cartão em passos curtos,
-diga exatamente que resultado devo colar de volta, e aguarde. Não marque como pronta.
+A próxima tarefa tem Executor "humano" ou "agente+humano" (rótulo legado). Não peça que eu
+execute qualquer teste manual. Procure um fluxo fiel e seguro operado pela IA via ADB/harness.
+Se não houver, registre o critério como bloqueado/PARCIAL/PENDENTE com a limitação concreta;
+peça somente decisão técnica ou aceitação explícita de desvio, nunca evidência manual.
 ```

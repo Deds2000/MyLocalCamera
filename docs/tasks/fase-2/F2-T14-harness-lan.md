@@ -30,8 +30,10 @@
    visível em `ipconfig` (o harness imprime o IP detectado — conferir).
 2. APK debug **corrente** no aparelho (com `SessionModePicker` — o build
    validado pela sessão principal; não rebuildar em paralelo com outros agentes).
-3. Primeiro uso: o firewall do Windows pode perguntar pelo executável →
-   liberar **somente** na rede privada (registrar no relatório, como pede o cartão).
+3. Primeiro uso: o firewall do Windows pode bloquear o executável. A IA não deve pedir ao usuário
+   para confirmar um diálogo nem abrir regra ampla: só aplicar uma regra mínima para o executável/
+   porta e perfil privado se o cartão autorizar e a permissão disponível permitir. Se exigir UAC ou
+   intervenção manual, parar e registrar bloqueio técnico; não desativar o firewall nem usar perfil público.
 4. Compilar (apenas quando não houver outro agente compilando):
    `cargo build -p lc-server --example it_lan_harness`.
 
@@ -126,6 +128,6 @@ execução; URI/token não são gravados nesse diretório).
   para o serviço. `-e keepPairing true` preserva PC/chave para IT-2.06.
 
 ## Pendências operacionais
-1. Portas fixas do IT-2.06 (48651/48652 propostas) — confirmar livres.
+1. Portas fixas do IT-2.06 (48651/48652 propostas) — a IA confirma disponibilidade antes de iniciar.
 2. Escolher APK debug corrente (com seletor de modo); evitar rebuild em paralelo.
-3. Liberação do firewall Windows no primeiro uso (passo humano).
+3. Firewall Windows: seguir a regra de segurança acima; se exigir interação/UAC, registrar bloqueio sem delegar ao usuário.

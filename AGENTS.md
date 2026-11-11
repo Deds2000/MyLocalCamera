@@ -6,11 +6,11 @@ Projeto: celular Android vira webcam e microfone para Windows 11 (Wi-Fi ou USB).
 ## Fluxo obrigatório (siga SEMPRE, uma tarefa por vez)
 1. Abra `PROGRESS.md`. Pegue a **primeira tarefa `[ ]`** cuja dependência já está `[x]`.
 2. Abra **somente o cartão dela**: `docs/tasks/fase-N/<ID>.md`. Ele traz tudo o que você precisa. Só abra outro arquivo se o cartão mandar.
-3. Se o campo **Executor** for `humano`, **PARE** e mostre ao usuário o passo a passo do cartão. Não finja que testou.
+3. Os rótulos `humano` e `agente+humano` são históricos e **não** autorizam handoff manual: a IA deve executar os testes por ADB e pelos harnesses permitidos. Se não houver um caminho automatizado fiel e seguro, registre o critério como bloqueado/PARCIAL/PENDENTE e peça apenas uma decisão técnica ou de escopo — nunca peça ao usuário para operar o aparelho/PC ou coletar evidência.
 4. Execute os passos na ordem. Depois de cada bloco, rode o comando de **verificação** do cartão.
 5. Falhou 2 vezes no mesmo ponto? **Pare**, escreva em `PROGRESS.md` (seção *Bloqueios*) o erro e o que tentou, e pergunte ao usuário; não repita o mesmo comando sem mudar a causa.
 6. Cumpriu o **Critério de pronto**? Faça o commit (mensagem sugerida no cartão), marque `[x]` em `PROGRESS.md` e atualize a linha **Próxima tarefa**.
-7. Após 2–3 tarefas, ou se a conversa passar de ~100k tokens: **encerre** e peça ao usuário para abrir uma sessão nova com o prompt de `docs/tasks/PROMPTS.md`.
+7. **Não encerre por uma contagem fixa de tarefas.** Continue até concluir a fase/objetivo solicitado, respeitando dependências, critérios de pronto e commits seletivos. Abra sessão nova quando o contexto se aproximar de ~100k tokens, perder confiabilidade, ou quando um bloqueio exigir decisão humana. Se o usuário autorizar workers, delegue análises independentes a workers Luna; não permita edições concorrentes na mesma tarefa/arquivos, não pule a sequência do `PROGRESS.md` e revise, integre e verifique todo resultado antes de marcá-lo pronto.
 
 ## Velocidade e controle de execução
 - Antes de testar, confira se já existe evidência aprovada que cobre exatamente o critério e a versão em teste. **Reutilize-a**; não repita soak, coleta ou teste só para mudar intervalo/formato de saída. Repetição longa exige critério novo não coberto ou autorização explícita.
@@ -19,6 +19,13 @@ Projeto: celular Android vira webcam e microfone para Windows 11 (Wi-Fi ou USB).
 - Se não houver progresso observável por 10 minutos, inspecione a saída e o processo uma única vez. Se estiver travado, encerre somente o processo iniciado por esta tarefa, registre como **interrompido/incompleto** (nunca verde) e avance com o que não depende dele. Não fique consultando repetidamente o mesmo processo.
 - Soaks e testes com duração inerente acima de 15 minutos só podem ser iniciados quando o cartão exigir e não existir evidência aprovada equivalente; informe a duração antes. Não interrompa nem repita um teste obrigatório silenciosamente.
 - Mantenha a resposta focada em resultado, bloqueio e próxima ação concreta; não narre leituras/comandos rotineiros.
+
+## Mandato de testes: IA + ADB (obrigatório)
+- Todo teste de aparelho/UI deve ser operado pela IA via ADB (`shell input`, instrumentação, `uiautomator`, `screencap`, `logcat`, `dumpsys`) e harness local. Não delegar passos, confirmações, screenshots, ações físicas ou inspeção visual ao usuário.
+- Use apenas mecanismos documentados e disponíveis no dispositivo. Uma configuração/injeção via ADB só substitui a ação original se cobrir o mesmo critério; simulação não equivalente deve ser identificada e não pode virar aprovação.
+- Quando o critério exigir desktop, sensor/ação física, outra rede, chamada ou julgamento visual, procure primeiro uma automação segura controlável pela IA. Se não existir, mantenha o item sem aprovação, registre precisamente o bloqueio e solicite uma decisão técnica/aceitação de desvio — nunca um teste manual.
+- Inspecione screenshots capturadas por ADB quando isso resolver o critério, mas não arquive imagens com conteúdo de outros apps/dados pessoais; interrompa a interação se houver risco de atuar sobre conteúdo alheio e apague a captura temporária.
+- Os campos Executor `humano`/`agente+humano` em cartões antigos não se sobrepõem a este mandato. Não altere evidência histórica; replaneje apenas a tarefa ativa.
 
 ## Regras de ouro
 - **Não invente APIs, flags nem versões.** Se não tiver certeza: leia o código da dependência (`node_modules/<pkg>/*.d.ts`, `%USERPROFILE%\.cargo\registry\src\*\<crate>-*\src`), use `cargo doc`/`--help`, ou a documentação oficial (web), e confirme antes de usar.

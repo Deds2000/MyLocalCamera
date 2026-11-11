@@ -12,6 +12,8 @@
 
 **Veredito final do GATE (2026-11-11):** `scripts/ci.ps1` concluiu `CI: OK` (install, lint, typecheck, 60 testes JS, `cargo fmt`/clippy/test e Android unit+lint); após uma alteração localizada Android, `scripts/ci.ps1 -Only android` passou novamente. `vectors:check` e unitários passaram. Não houve mudança de protocolo nas alterações F2, então a regressão Rust do servidor do CI satisfaz a reexecução aplicável; o cenário integrado mock→desktop→probe e o fluxo QR/aprovação manual continuam sem evidência completa. A matriz tem 63 IDs únicos: 8 PARCIAIS e 10 PENDENTES; as 20 capturas do catálogo e `docs/devices.md` estão presentes. **Fase 2 NÃO APROVADA**; não gerar F3 até completar ou obter aceitação explícita dos desvios restantes.
 
+**Reabertura (2026-11-11):** o usuário determinou que todos os testes sejam feitos pela IA via ADB, sem execução manual por ele. O veredito acima permanece histórico e NÃO APROVADO; reavaliar somente depois da nova execução T14 sob esse mandato.
+
 ## Objetivo
 Confirmar que a Fase 2 está pronta: celular real pareia (QR → aprovação), reconecta com a chave e transmite H.264 1080p30 por Wi-Fi; os 63 IDs de teste do §7 cobertos; CI completo verde (incluindo a regressão do servidor — RS-S/AT-1.xx); relatório preenchido.
 
@@ -49,6 +51,7 @@ Saída esperada: `True True` e ≥ 1 captura.
 - [x] CI completo + vetores + unitários executados; resultados reais registrados, inclusive warnings e a distinção entre CI completo e reteste Android após alteração localizada.
 - [x] 63/63 IDs classificados e limitações registradas; veredito NÃO APROVADA pelos 8 PARCIAIS, 10 PENDENTES e RS-S incompleta.
 - [x] `PROGRESS.md` atualizado com o veredito; F3-T01 não foi aberta porque a fase não foi aprovada.
+- [ ] Reavaliar o veredito após a T14 reaberta sob o mandato IA+ADB, sem solicitar testes manuais ao usuário.
 
 ## Commit
 `chore: fecha a fase 2 (transmissão mínima no Android, matriz e relatório)`
