@@ -6,6 +6,8 @@
 
 **Execução do gate (2026-11-11):** `pnpm run vectors:check` passou (8 frames, 24 JSON) e `:app:testDebugUnitTest` passou (BUILD SUCCESSFUL, 8 s). `scripts/ci.ps1` foi iniciado, mas a pipeline usou `Select-Object -Last 40`, sem saída observável durante a execução; após >1 h, encerrei somente o processo dessa execução. O processo terminou com exit 255 por cancelamento; isso **não** é resultado de teste, portanto CI completo permanece não verificado. Não repetir silenciosamente; se necessário, rodar com logs em tempo real e limite de duração.
 
+**Retomada após autorização de continuidade (2026-11-11):** `scripts/ci.ps1` com saída incremental passou install (1,8 s), lint JS (15,6 s, um warning), typecheck (10,4 s), testes JS (60 testes), cargo fmt/clippy/test (todos verdes) e unitários Android. Lint Android encontrou 11 erros; após correções direcionadas, as verificações reduziram para 2 e depois 1. O único erro restante é `UnsafeOptInUsageError` no uso de `buildPreview` em `CameraXBackend.kt:171`: a anotação `@ExperimentalCamera2Interop` no helper propaga a exigência ao chamador. Duas tentativas de correção já ocorreram; parar conforme `AGENTS.md`, registrar como bloqueio e não marcar CI verde até solução.
+
 ## Objetivo
 Confirmar que a Fase 2 está pronta: celular real pareia (QR → aprovação), reconecta com a chave e transmite H.264 1080p30 por Wi-Fi; os 63 IDs de teste do §7 cobertos; CI completo verde (incluindo a regressão do servidor — RS-S/AT-1.xx); relatório preenchido.
 
