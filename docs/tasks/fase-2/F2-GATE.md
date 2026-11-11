@@ -4,6 +4,8 @@
 
 **Replanejamento ADB-only (2026-11-11, autorizado pelo usuário):** F2-T14 fecha como execução/documentação ADB-only; os casos não observáveis continuam PARCIAL/PENDENTE e não podem ser declarados aprovados. LT-2.01 usa a evidência aprovada existente (120 × 15 s); o usuário dispensou `soak-f2.csv` adicional de 1 s. O GATE deve emitir **APROVADA** somente se os critérios originais estiverem comprovados; caso contrário, registrar **NÃO APROVADA**, os bloqueios precisos e não criar cartões da Fase 3.
 
+**Execução do gate (2026-11-11):** `pnpm run vectors:check` passou (8 frames, 24 JSON) e `:app:testDebugUnitTest` passou (BUILD SUCCESSFUL, 8 s). `scripts/ci.ps1` foi iniciado, mas a pipeline usou `Select-Object -Last 40`, sem saída observável durante a execução; após >1 h, encerrei somente o processo dessa execução. O processo terminou com exit 255 por cancelamento; isso **não** é resultado de teste, portanto CI completo permanece não verificado. Não repetir silenciosamente; se necessário, rodar com logs em tempo real e limite de duração.
+
 ## Objetivo
 Confirmar que a Fase 2 está pronta: celular real pareia (QR → aprovação), reconecta com a chave e transmite H.264 1080p30 por Wi-Fi; os 63 IDs de teste do §7 cobertos; CI completo verde (incluindo a regressão do servidor — RS-S/AT-1.xx); relatório preenchido.
 
