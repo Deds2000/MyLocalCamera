@@ -57,6 +57,22 @@
       "tabB": "Aba B",
       "dialogTitle": "Diálogo de exemplo",
       "close": "Fechar"
+    },
+    "titlebar": {
+      "logoLocal": "Local",
+      "logoCamera": "Camera"
+    },
+    "window": {
+      "minimize": "Minimizar",
+      "maximize": "Maximizar",
+      "restore": "Restaurar",
+      "close": "Fechar"
+    },
+    "settings": {
+      "language": "Idioma",
+      "languageSystem": "Sistema",
+      "languagePortuguese": "Português",
+      "languageEnglish": "English"
     }
   },
   "catalog": {

@@ -57,6 +57,22 @@
       "tabB": "Tab B",
       "dialogTitle": "Example dialog",
       "close": "Close"
+    },
+    "titlebar": {
+      "logoLocal": "Local",
+      "logoCamera": "Camera"
+    },
+    "window": {
+      "minimize": "Minimize",
+      "maximize": "Maximize",
+      "restore": "Restore",
+      "close": "Close"
+    },
+    "settings": {
+      "language": "Language",
+      "languageSystem": "System",
+      "languagePortuguese": "Português",
+      "languageEnglish": "English"
     }
   },
   "catalog": {

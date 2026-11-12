@@ -107,6 +107,17 @@ Regras: nenhuma frase vem da rede (só **códigos**); textos em pt-BR podem ser 
 | `desktop.toolbar.unmute` | Ativar microfone | Unmute microphone |
 | `desktop.toolbar.applying` | Aplicando… | Applying… |
 
+## desktop — titlebar
+
+| Chave | pt-BR | en |
+|---|---|---|
+| `desktop.titlebar.logoLocal` | Local | Local |
+| `desktop.titlebar.logoCamera` | Camera | Camera |
+| `desktop.window.minimize` | Minimizar | Minimize |
+| `desktop.window.maximize` | Maximizar | Maximize |
+| `desktop.window.restore` | Restaurar | Restore |
+| `desktop.window.close` | Fechar | Close |
+
 ## desktop — câmera, áudio e ajustes
 
 | Chave | pt-BR | en |
@@ -143,6 +154,8 @@ Regras: nenhuma frase vem da rede (só **códigos**); textos em pt-BR podem ser 
 | `desktop.audio.output` | Saída (modo interino) | Output (interim mode) |
 | `desktop.settings.language` | Idioma | Language |
 | `desktop.settings.languageSystem` | Sistema | System |
+| `desktop.settings.languagePortuguese` | Português | Português |
+| `desktop.settings.languageEnglish` | English | English |
 | `desktop.settings.startWithWindows` | Iniciar com o Windows | Start with Windows |
 | `desktop.settings.trayOnClose` | Minimizar para a bandeja ao fechar | Minimize to tray on close |
 | `desktop.settings.port` | Porta | Port |
