@@ -14,6 +14,8 @@
 
 **Reabertura (2026-11-11):** o usuário determinou que todos os testes sejam feitos pela IA via ADB, sem execução manual por ele. O veredito acima permanece histórico e NÃO APROVADO; reavaliar somente depois da nova execução T14 sob esse mandato.
 
+**Reavaliação pós-T14 (2026-11-11):** com a T14 fechada (`4628aff`), as verificações do passo 1 foram reexecutadas com saída visível e passaram: `scripts/ci.ps1` terminou `CI: OK` (install, lint, typecheck, 64 testes JS, cargo fmt/clippy/test e Android unit+lint; 1 warning Fast Refresh remanescente), `pnpm run vectors:check` passou (8 frames, 24 JSON) e `:app:testDebugUnitTest` terminou `BUILD SUCCESSFUL`. A matriz consolidada tem 63 IDs únicos: 8 PARCIAIS e 10 PENDENTES; checklist §8 presente (`docs/tests/fase-2.md`, `docs/devices.md`, 20 capturas do catálogo). A RS-S continua incompleta: o cenário integrado mock→desktop→probe com vídeo e a aprovação manual de QR no PC não têm evidência; sem mudança de protocolo em F2, o CI cobre a regressão aplicável do servidor. **Veredito reavaliado: Fase 2 continua NÃO APROVADA** pelos mesmos 8 parciais (AT-2.02, AT-2.04, AT-2.05, AT-2.12, AT-2.13, AT-2.14, FT-2.01, FT-2.12) e 10 pendentes (AT-2.07–2.11, FT-2.02/2.04/2.09/2.14, PT-2.06) e RS-S incompleta; nenhum item parcial/pendente foi promovido sem evidência. F3-T01 continua não aberto.
+
 ## Objetivo
 Confirmar que a Fase 2 está pronta: celular real pareia (QR → aprovação), reconecta com a chave e transmite H.264 1080p30 por Wi-Fi; os 63 IDs de teste do §7 cobertos; CI completo verde (incluindo a regressão do servidor — RS-S/AT-1.xx); relatório preenchido.
 
@@ -51,7 +53,7 @@ Saída esperada: `True True` e ≥ 1 captura.
 - [x] CI completo + vetores + unitários executados; resultados reais registrados, inclusive warnings e a distinção entre CI completo e reteste Android após alteração localizada.
 - [x] 63/63 IDs classificados e limitações registradas; veredito NÃO APROVADA pelos 8 PARCIAIS, 10 PENDENTES e RS-S incompleta.
 - [x] `PROGRESS.md` atualizado com o veredito; F3-T01 não foi aberta porque a fase não foi aprovada.
-- [ ] Reavaliar o veredito após a T14 reaberta sob o mandato IA+ADB, sem solicitar testes manuais ao usuário.
+- [x] Reavaliar o veredito após a T14 reaberta sob o mandato IA+ADB, sem solicitar testes manuais ao usuário (2026-11-11: CI/vetores/unitários verdes; **NÃO APROVADA** mantida — 8 PARCIAIS, 10 PENDENTES, RS-S incompleta; F3-T01 continua não aberto).
 
 ## Commit
 `chore: fecha a fase 2 (transmissão mínima no Android, matriz e relatório)`
