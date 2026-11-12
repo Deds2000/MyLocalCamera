@@ -13,7 +13,7 @@
 | Campo | Valor |
 |---|---|
 | Data | 2026-11-03 a 2026-11-12 |
-| Commit / tag | `4628aff` (base do reavaliado pós-T14; reavaliação do F2-GATE em 2026-11-11) |
+| Commit / tag | `18d9c98` (base desta reavaliação formal do F2-GATE em 2026-11-12; antes `4628aff`, base do reavaliado pós-T14) |
 | Versão do desktop · APK · protocolo | Não registrado · debug `1.0` · `1.0` |
 | PC (CPU · GPU · RAM · Windows build) | Não registrado nesta execução |
 | Celulares | Samsung SM-G781B, Android 13; Moto G (5), Android não registrado nesta execução |
