@@ -73,6 +73,14 @@
       "languageSystem": "Sistema",
       "languagePortuguese": "Português",
       "languageEnglish": "English"
+    },
+    "approval": {
+      "title": "Permitir que \"{{name}}\" se conecte?",
+      "body": "Modelo {{model}} · IP {{ip}}. Só aprove se for o seu aparelho.",
+      "always": "Permitir sempre",
+      "once": "Só desta vez",
+      "reject": "Recusar",
+      "timer": "Expira em {{seconds}} s"
     }
   },
   "catalog": {

@@ -73,6 +73,14 @@
       "languageSystem": "System",
       "languagePortuguese": "Português",
       "languageEnglish": "English"
+    },
+    "approval": {
+      "title": "Allow \"{{name}}\" to connect?",
+      "body": "Model {{model}} · IP {{ip}}. Only approve if it's your device.",
+      "always": "Always allow",
+      "once": "Just this time",
+      "reject": "Decline",
+      "timer": "Expires in {{seconds}} s"
     }
   },
   "catalog": {
