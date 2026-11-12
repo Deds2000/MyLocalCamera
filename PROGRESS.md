@@ -3,7 +3,7 @@
 > O agente atualiza este arquivo ao fim de **cada** tarefa. Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada.
 > Executor: **A** = agente · **H/A+H** são rótulos históricos; nenhum autoriza handoff manual. Testes seguem o mandato IA+ADB em `AGENTS.md`.
 
-**Próxima tarefa:** **F2-GATE (2026-11-12): lint `RestrictedApi` CORRIGIDO** — `CameraXBackend.kt` usa a API pública `CameraInfo.cameraState.observe` com guarda contra o CLOSED inicial (sem `@SuppressLint`); `:app:lintDebug` verde, `CameraBackendSmokeTest` OK no Samsung (frames=288, sem `camera_closed`), CI Android direcionado (`scripts/ci.ps1 -Only android`) **verde**; gate segue **NÃO APROVADA** (7 PARCIAIS / 9 PENDENTES, RS-S incompleta) e **F3 bloqueada** (`docs/tasks/fase-3` ausente; não abrir F3-T01). **Próximo passo (decisão de escopo):** resolver os 16 IDs parciais/pendentes por automação ADB fiel ou desvio documentado. **Fase atual:** 2 · **Última atualização:** 2026-11-12
+**Próxima tarefa:** **F3-T01** (Fase 3 — desktop: janela, titlebar e layout). **Autorização (usuário, 2026-11-12):** iniciar a Fase 3 **mesmo com o portão da Fase 2 NÃO APROVADA** (7 PARCIAIS / 9 PENDENTES / RS-S incompleta — documentado em `docs/tasks/fase-2/F2-GATE.md`; veredito **inalterado**, gate não reaberto; os itens parciais/pendentes seguem em aberto). **Fase atual:** 3 · **Última atualização:** 2026-11-12
 
 ## Bloqueios
 - **AT-2.13 / AT-2.12 (background=false) — defeito de câmera: CORRIGIDO (2026-11-12):** toda conexão do build da árvore falhava no Samsung com `camera_closed` 40–150 ms após `sessão iniciada` (harness nunca recebia sessão). **Causa raiz:** `CameraXBackend.openCamera` usava `cam.cameraInfo.cameraState.observe(owner)` num `ServiceLifecycleOwner` já RESUMED, recebendo o `CLOSED` **inicial** postado pelo `CameraStateAdapter` (camera-camera2 1.6.2) no construtor — a câmera ainda não tinha sido aberta; `onCameraState` tratou esse `CLOSED` como interrupção fatal → `safeUnbind`. **Correção:** voltou a `cam.cameraInfo.addCameraStateListener(executor){…}` (sem valor inicial) em `CameraXBackend.openCamera`. Confirmações: `CameraBackendSmokeTest` 288 quadros/10 s sem erro; AT-2.13 fluxo manual (8.024 quadros/300 s/30 fps, credencial real do broker); AT-2.12 ramo `background=false` (stream 30 fps + diálogo “Parar a transmissão?” + `backButton`). Itens: **AT-2.13 e AT-2.12 → OK**; AT-2.11 → PARCIAL (fontes 130%/200% + locale en via ADB com screenshots; TalkBack desvio — leitor não instalado; parte visual exige revisão humana). **Observação:** a correção e as alterações de câmera/encoder/sessão estão na árvore de trabalho (não commitadas).
@@ -227,8 +227,30 @@ Ordem de execução (respeite as dependências). Kotlin em `mobile/android/app/s
 | [x] | F2-GATE | Reavaliação pós-T14 concluída (2026-11-11): CI/vetores/unitários verdes; veredito **NÃO APROVADA** mantido (8 PARCIAIS, 10 PENDENTES, RS-S incompleta); F3-T01 não aberto | A | tarefas em escopo, F2-T14 | `docs/tasks/fase-2/F2-GATE.md` |
 
 ## Fase 3 — Desktop: UI, decodificação e preview  → `docs/phases/fase-3-desktop-ui-e-preview.md`
-**Cartões: (gerar pela IA somente após F2-GATE aprovada)** — autorização explícita do usuário; usar o plano e as decisões existentes, sem antecipar a fase. Tarefas previstas:
-`F3-T01` janela e titlebar · `F3-T02` componentes e animações · `F3-T03` i18n · `F3-T13` comandos/eventos Tauri · `F3-T14a` store · `F3-T04` estado vazio e aba Conexão · `F3-T05` `ApprovalDialog` · `F3-T06` confiáveis · `F3-T07` decodificador · `F3-T08` composição + `composition.md` · `F3-T09` preview · `F3-T10` regras de desempenho · `F3-T11` chips e barra de ferramentas · `F3-T14a2` painel lateral · `F3-T12` `HealthBar` · `F3-T14c` catálogo · `F3-T17` instrumentação de latência · `F3-T14` testes · `F3-GATE`
+Cartões gerados pelo agente (2026-11-12), sob **autorização explícita do usuário** para iniciar a Fase 3 com o gate da Fase 2 **NÃO APROVADA** (7 parciais / 9 pendentes / RS-S incompleta — veredito inalterado). Preview = estratégia **B** (S5: JPEG do Rust). Ordem de execução (respeite as dependências):
+
+| St | ID | Título | Exec | Dep. | Cartão |
+|---|---|---|---|---|---|
+| [ ] | F3-T01 | Janela, titlebar e layout (breakpoints, instância única, tamanho/posição) | A | — | `docs/tasks/fase-3/F3-T01.md` |
+| [ ] | F3-T02 | Componentes base e animações (shared + desktop + shadcn faltantes) | A | T01 | `docs/tasks/fase-3/F3-T02.md` |
+| [ ] | F3-T03 | i18n `common.*` (copy.md) | A | — | `docs/tasks/fase-3/F3-T03.md` |
+| [ ] | F3-T14b | i18n `desktop.*` + `no-literal-string` verde (UT-3.25 parte automatizada) | A | T03 | `docs/tasks/fase-3/F3-T14b.md` |
+| [ ] | F3-T13 | Comandos/eventos Tauri — ponte com o `lc-server` (ST-3.01…05) | A | T01 | `docs/tasks/fase-3/F3-T13.md` |
+| [ ] | F3-T14a | Store zustand (8 slices, seletores estreitos — UT-3.11) | A | T13 | `docs/tasks/fase-3/F3-T14a.md` |
+| [ ] | F3-T04 | Estado vazio e aba Conexão (QR — UT-3.12/3.13/3.23, AT-3.01) | A | T02, T14b, T14a | `docs/tasks/fase-3/F3-T04.md` |
+| [ ] | F3-T05 | `ApprovalDialog` (30 s, foco em Recusar — UT-3.21, FT-3.07/3.10, AT-3.02/3.13/3.17) | A | T02, T14b, T14a | `docs/tasks/fase-3/F3-T05.md` |
+| [ ] | F3-T06 | Dispositivos confiáveis (listar/revogar — UT-3.22, AT-3.03) | A | T04 | `docs/tasks/fase-3/F3-T06.md` |
+| [ ] | F3-T07 | `decode/` H.264 MFT + fallback software (UT-3.05…08, IT-3.04, FT-3.01/3.02/3.05) | A | T13 | `docs/tasks/fase-3/F3-T07.md` |
+| [ ] | F3-T08 | `compose/` 1920×1080 NV12 + `docs/composition.md` (UT-3.01…04) | A | T07 | `docs/tasks/fase-3/F3-T08.md` |
+| [ ] | F3-T09 | Preview estratégia B — JPEG do Rust + canvas imperativo (UT-3.09, IT-3.01, FT-3.03/3.06, AT-3.04/3.15) | A | T08, T14a | `docs/tasks/fase-3/F3-T09.md` |
+| [ ] | F3-T10 | Regras de desempenho (2 Hz, pausa ao minimizar — UT-3.10, AT-3.06/3.08, PT-3.05, LT-3.02) | A | T09 | `docs/tasks/fase-3/F3-T10.md` |
+| [ ] | F3-T11 | Estados do preview, chips e barra de ferramentas (UT-3.20/3.24, FT-3.04, AT-3.07/3.14) | A | T10 | `docs/tasks/fase-3/F3-T11.md` |
+| [ ] | F3-T14a2 | Painel lateral — 4 abas com `SettingRow` (AT-3.11) | A | T04, T11, T14b | `docs/tasks/fase-3/F3-T14a2.md` |
+| [ ] | F3-T12 | `HealthBar` — servidor funcional (FT-3.08) | A | T13, T14a, T02 | `docs/tasks/fase-3/F3-T12.md` |
+| [ ] | F3-T14c | Catálogo `?catalog` + capturas + axe (UT-3.26/3.27, AT-3.12 parte automatizável) | A | T14a2, T12, T05, T11 | `docs/tasks/fase-3/F3-T14c.md` |
+| [ ] | F3-T17 | Instrumentação de latência + `docs/perf/fase-3.md` + soaks (PT-3.01/3.02/3.03/3.04/3.06/3.07, AT-3.04/3.05/3.10, LT-3.01) | A | T10, T14a2 | `docs/tasks/fase-3/F3-T17.md` |
+
+Tarefas previstas restantes: `F3-T14` (agregador de testes) e `F3-GATE` (cartões ainda não gerados).
 
 ## Fase 4 — Câmera virtual  → `docs/phases/fase-4-camera-virtual.md`
 **Cartões: (gerar)** — depende dos vereditos S1 e S2. Tarefas previstas:
