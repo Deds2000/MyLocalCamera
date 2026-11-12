@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   backAction,
   errorBodyKey,
+  errorReasonFromEventCode,
   initialState,
   knownPcTarget,
   reducer,
@@ -84,6 +85,17 @@ describe("reasonToI18nKey — mapeamento por código (UT-2.09)", () => {
 
   it.each(Object.entries(expected))("%s → %s", (reason, want) => {
     expect(reasonToI18nKey(reason)).toBe(want);
+  });
+
+  it.each([
+    ["denied_not_approved", "not_approved", "notApproved"],
+    ["denied_revoked", "revoked", "revoked"],
+    ["bye_version_mismatch", "version_mismatch", "version"],
+    ["app_not_visible", "app_not_visible", "generic"],
+  ])("normalizes native event code %s → %s → %s", (code, reason, want) => {
+    const normalized = errorReasonFromEventCode(code);
+    expect(normalized).toBe(reason);
+    expect(reasonToI18nKey(normalized)).toBe(want);
   });
 
   it("razão desconhecida (qualquer texto da rede) → generic, sem o texto vazar", () => {

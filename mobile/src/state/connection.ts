@@ -280,6 +280,13 @@ export function selectScreen(state: AppState): ScreenId {
 
 /* --------------------- erros: razão → i18n -------------------------- */
 
+/** Remove o prefixo de origem adicionado pelo serviço nativo antes de mapear o código da UI. */
+export function errorReasonFromEventCode(code: string): string {
+  if (code.startsWith("denied_")) return code.slice("denied_".length);
+  if (code.startsWith("bye_")) return code.slice("bye_".length);
+  return code;
+}
+
 export type ErrorCase = "badToken" | "notApproved" | "revoked" | "busy" | "version" | "generic";
 
 /** Mapeia o código `reason` (WELCOME recusado / BYE) para o caso de erro da

@@ -41,6 +41,7 @@ import { getQrScanner, isPairingUri, type QrScannerApi } from "@/qr/qr-scanner";
 import {
   initialState,
   reducer,
+  errorReasonFromEventCode,
   targetFromRawUri,
   type AppAction,
   type AppState,
@@ -286,7 +287,7 @@ export function AppProvider({
 
     const onError = (e: ErrorEvent): void => {
       // Só código (nunca texto da rede); a UI mapeia para i18n por código.
-      dispatch({ type: "ERROR", reason: e.code });
+      dispatch({ type: "ERROR", reason: errorReasonFromEventCode(e.code) });
     };
 
     const onStateChanged = (e: StateChangedEvent): void => {
