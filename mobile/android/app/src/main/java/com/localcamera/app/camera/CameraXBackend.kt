@@ -59,6 +59,9 @@ class CameraXBackend(
     private var sensorOrientationDeg: Int? = null
     private var running = false
     private var startedEmitted = false
+    // Guarda contra o CLOSED inicial do LiveData `cameraState` (ver openCamera):
+    // só é interrupção se a câmera já tiver passado por OPENING/OPEN.
+    private var sawOpenState = false
     private var generation = 0
     private val rotationObserver = DeviceRotationObserver(context) {
         config?.facing?.let { emitHint(it) }
@@ -182,14 +185,15 @@ class CameraXBackend(
         camera = cam
         preview = pv
         sensorOrientationDeg = cam.cameraInfo.sensorRotationDegrees
-        // Listener (não `cameraState.observe`): o LiveData carrega o valor
-        // inicial CLOSED (publicado no construtor do CameraStateAdapter antes
-        // da câmera abrir) e o `observe` em lifecycle já RESUMED o entrega
-        // imediatamente — o CLOSED "falso" era tratado como interrupção do
-        // sistema e matava a sessão 40–150 ms após o start (defeito
-        // 2026-11-12, repro no CameraBackendSmokeTest). O listener só recebe
-        // mudanças reais (OPENING→OPEN→CLOSED).
-        cam.cameraInfo.addCameraStateListener(executor) { st -> onCameraState(gen, st) }
+        // `cameraState.observe` (API pública — `addCameraStateListener` é
+        // @RestrictTo(LIBRARY_GROUP) e falha no lint). O LiveData carrega o
+        // valor inicial CLOSED (publicado antes da câmera abrir) e o `observe`
+        // em lifecycle já RESUMED o entrega imediatamente; o CLOSED "falso"
+        // matava a sessão 40–150 ms após o start (defeito 2026-11-12, repro
+        // no CameraBackendSmokeTest). A guarda [sawOpenState] ignora CLOSED
+        // antes de OPENING/OPEN; erros continuam propagando.
+        sawOpenState = false
+        cam.cameraInfo.cameraState.observe(lifecycleOwner) { st -> onCameraState(gen, st) }
         rotationObserver.register()
         emitHint(cfg.facing)
         Log.i(TAG, "aberta facing=${cfg.facing.code} sensor=${sensorOrientationDeg}° gen=$gen")
@@ -253,19 +257,24 @@ class CameraXBackend(
             return
         }
         when (state.type) {
-            CameraState.Type.OPEN ->
+            CameraState.Type.OPENING -> sawOpenState = true
+            CameraState.Type.OPEN -> {
+                sawOpenState = true
                 if (!startedEmitted) {
                     startedEmitted = true
                     emit(CameraEvent.Started)
                 }
+            }
             CameraState.Type.CLOSED ->
-                if (running) {
+                if (running && sawOpenState) {
                     // Fechada pelo sistema sem nosso stop() (chamada, outro app).
+                    // O CLOSED inicial do LiveData (antes de OPENING/OPEN) é
+                    // ignorado — ver openCamera.
                     Log.w(TAG, "câmera fechada pelo sistema (interrupção)")
                     resetInternal()
                     emit(CameraEvent.Error(CameraEventCode.CAMERA_CLOSED))
                 }
-            else -> Unit // PENDING_OPEN, OPENING, CLOSING
+            else -> Unit // PENDING_OPEN, CLOSING
         }
     }
 
