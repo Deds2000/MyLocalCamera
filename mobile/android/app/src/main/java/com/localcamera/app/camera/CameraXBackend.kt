@@ -7,6 +7,7 @@ import android.util.Range
 import android.util.Size
 import android.view.Surface
 import androidx.camera.camera2.interop.Camera2Interop
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.CameraState
@@ -148,14 +149,9 @@ class CameraXBackend(
         openCamera(p, current.copy(facing = facing), surface, synchronized(lock) { generation++ })
     }
 
-    /** Libera o singleton [ProcessCameraProvider] (onDestroy do serviço — F2-T12). */
+    /** Libera os recursos da câmera vinculados ao lifecycle (onDestroy do serviço — F2-T12). */
     fun release() {
         stop()
-        try {
-            ProcessCameraProvider.shutdown()
-        } catch (t: Throwable) {
-            Log.w(TAG, "release: ${t.message}")
-        }
     }
 
     // ------------------------------ câmera ------------------------------
@@ -186,6 +182,13 @@ class CameraXBackend(
         camera = cam
         preview = pv
         sensorOrientationDeg = cam.cameraInfo.sensorRotationDegrees
+        // Listener (não `cameraState.observe`): o LiveData carrega o valor
+        // inicial CLOSED (publicado no construtor do CameraStateAdapter antes
+        // da câmera abrir) e o `observe` em lifecycle já RESUMED o entrega
+        // imediatamente — o CLOSED "falso" era tratado como interrupção do
+        // sistema e matava a sessão 40–150 ms após o start (defeito
+        // 2026-11-12, repro no CameraBackendSmokeTest). O listener só recebe
+        // mudanças reais (OPENING→OPEN→CLOSED).
         cam.cameraInfo.addCameraStateListener(executor) { st -> onCameraState(gen, st) }
         rotationObserver.register()
         emitHint(cfg.facing)
@@ -197,6 +200,7 @@ class CameraXBackend(
      * fallback automático + alvo [CameraConfig.width]×[CameraConfig.height]
      * (regra closest higher-then-lower). Nunca `setTargetResolution`.
      */
+    @androidx.annotation.OptIn(markerClass = [ExperimentalCamera2Interop::class])
     private fun buildPreview(cfg: CameraConfig): Preview {
         val selector = ResolutionSelector.Builder()
             .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
@@ -218,8 +222,18 @@ class CameraXBackend(
 
     private fun provideEncoderSurface(request: SurfaceRequest, surface: Surface) {
         val res = request.resolution
-        val fps = request.expectedFrameRate
-        Log.i(TAG, "superfície pedida ${res.width}x${res.height} fps=${fps.lower}-${fps.upper}")
+        val cfg = synchronized(lock) { config }
+        if (cfg != null && (res.width != cfg.width || res.height != cfg.height)) {
+            // A superfície do encoder tem de casar com o modo anunciado: o HAL
+            // do Moto rejeitou 1080p quando o encoder esperava 720p (auditoria
+            // 2026-11-03). Falha fechada — não anuncia modo que não será usado.
+            Log.w(TAG, "negociação recusada: pedido ${res.width}x${res.height} != modo ${cfg.width}x${cfg.height}")
+            request.willNotProvideSurface()
+            emit(CameraEvent.Error(CameraEventCode.START_FAILED))
+            return
+        }
+        val targetFps = synchronized(lock) { config?.fps?.toString() } ?: "desconhecido"
+        Log.i(TAG, "superfície pedida ${res.width}x${res.height} fps-alvo=$targetFps")
         request.provideSurface(surface, executor) { result ->
             Log.i(TAG, "superfície do encoder em uso code=${result.resultCode}")
         }

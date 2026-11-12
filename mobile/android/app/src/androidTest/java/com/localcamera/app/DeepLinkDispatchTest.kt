@@ -228,10 +228,13 @@ class DeepLinkDispatchTest {
                         streamingScreenVisible == "true",
                     )
                     Log.i(TAG, "AT212_STREAM_SCREEN_READY")
+                    // The shadcn <Dialog> textContent concatenates the title with the
+                    // Cancel/Stop buttons (no line break), so match by "contains title",
+                    // not exact first line.
                     val stopDialogVisible = awaitJavascript(activity, waitForStopBackMs) {
                         "Array.from(document.querySelectorAll('[role=dialog]')).some(dialog => " +
-                            "['Parar a transmissão?', 'Stop streaming?'].includes(" +
-                            "dialog.textContent?.trim().split('\\n')[0] || ''))"
+                            "{ const tc = (dialog.textContent || '').replace(/\\s+/g, ' '); " +
+                            "return ['Parar a transmissão?', 'Stop streaming?'].some(s => tc.includes(s)); })"
                     }
                     val backButtonDelivered = evaluateJavascript(
                         activity,
@@ -259,7 +262,10 @@ class DeepLinkDispatchTest {
                 )
             }
             assertTrue("ACTION_VIEW was not observed by the JS appUrlOpen listener", appUrlOpenDelivered == "true")
-            if (isRealPairing && !expectNotApproved && !observeErrorBack) {
+            // `deviceKey` is only awaited in the default pairing branch; the
+            // observe* branches do not await it, so the persistence assertion
+            // applies only there (it is separately covered by the normal pairing run).
+            if (isRealPairing && !expectNotApproved && !observeErrorBack && !observeStopDialog) {
                 assertTrue("pairing WELCOME did not persist the test device key ($diagnostic)", deviceKey != null)
             }
             assertTrue("pairing URI, token, device key, or their encoded form appeared in logcat", !logScan.secretObserved)

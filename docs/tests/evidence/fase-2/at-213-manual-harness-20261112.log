@@ -1,0 +1,12 @@
+estado: C:\Users\PC\AppData\Local\Temp\localcamera-it-22212-1794472964
+bind: 192.168.15.3:55322
+pc: dcb177bc-fb12-47e8-a620-e39cf4952aab
+broker: http://192.168.15.3:55323/pairing (sem token; use o teste instrumentado)
+aprovar: sempre
+pareamento: 733523bb-1fc5-493a-9fb0-6a9dca90dd69 (SM-G781B)
+aprovacao: aprovado (sempre)
+sessao iniciada: SM-G781B de 192.168.15.4:51662
+stats session=2e97… fps=30.0 kbps=52 audio/s=0.0 rtt=Some(28.0) frames=293 blocks=0
+stats session=2e97… fps=30.0 kbps=51 audio/s=0.0 rtt=Some(35.0) frames=590 blocks=0
+stats session=2e97… fps=30.0 kbps=51 audio/s=0.0 rtt=Some(43.0) frames=888 blocks=0
+stats final: stats session=2e97… fps=30.0 kbps=51 audio/s=0.0 rtt=Some(43.0) frames=888 blocks=0
