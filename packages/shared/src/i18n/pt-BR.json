@@ -50,13 +50,74 @@
     }
   },
   "desktop": {
-    "smoke": {
-      "title": "LocalCamera",
-      "open": "Abrir",
-      "tabA": "Aba A",
-      "tabB": "Aba B",
-      "dialogTitle": "Diálogo de exemplo",
-      "close": "Fechar"
+    "tabs": {
+      "connection": "Conexão",
+      "camera": "Câmera",
+      "audio": "Áudio",
+      "settings": "Ajustes"
+    },
+    "empty": {
+      "title": "Conecte seu celular",
+      "subtitle": "Escaneie o QR code com o app LocalCamera ou plugue o cabo USB.",
+      "network": "Rede: {{ip}} · Porta {{port}}",
+      "usbHint": "Ative a depuração USB no celular e plugue o cabo."
+    },
+    "connection": {
+      "pairTitle": "Parear novo aparelho",
+      "regenerate": "Regenerar QR code",
+      "regenerateConfirm": "Regenerar invalida o QR atual. Aparelhos já pareados continuam funcionando.",
+      "code": "Código de pareamento",
+      "interface": "Interface de rede",
+      "disconnect": "Desconectar",
+      "usbTitle": "Aparelhos USB",
+      "usbNone": "Nenhum aparelho detectado.",
+      "usbAuto": "Conectar automaticamente ao plugar",
+      "connect": "Conectar"
+    },
+    "adb": {
+      "ready": "Pronto",
+      "unauthorized": "Autorize no celular",
+      "unauthorizedHelp": "Toque em \"Permitir\" na caixa de diálogo exibida no celular.",
+      "offline": "Offline",
+      "missing": "ADB não encontrado",
+      "download": "Baixar platform-tools",
+      "downloadConsent": "Vamos baixar o platform-tools oficial do Google para {{path}}. Continuar?"
+    },
+    "trusted": {
+      "title": "Dispositivos confiáveis",
+      "empty": "Nenhum aparelho pareado.",
+      "lastSeen": "Visto {{when}}",
+      "removeConfirm": "Remover \"{{name}}\"? Ele precisará ser pareado e aprovado de novo."
+    },
+    "approval": {
+      "title": "Permitir que \"{{name}}\" se conecte?",
+      "body": "Modelo {{model}} · IP {{ip}}. Só aprove se for o seu aparelho.",
+      "always": "Permitir sempre",
+      "once": "Só desta vez",
+      "reject": "Recusar",
+      "timer": "Expira em {{seconds}} s",
+      "notification": "Um aparelho quer se conectar"
+    },
+    "preview": {
+      "connecting": "Conectando…",
+      "pendingTitle": "Aguardando sua aprovação",
+      "pendingAction": "Mostrar aviso",
+      "reconnecting": "Reconectando… ({{stage}})",
+      "stopWaiting": "Parar de esperar",
+      "dropped": "{{count}} perdidos",
+      "dualBack": "Traseira",
+      "dualFront": "Frontal"
+    },
+    "toolbar": {
+      "mirror": "Espelhar",
+      "rotate": "Girar 90°",
+      "switchCamera": "Alternar câmera",
+      "swapPip": "Trocar principal e miniatura",
+      "fullscreen": "Tela cheia do preview",
+      "exitFullscreen": "Sair da tela cheia",
+      "mute": "Silenciar microfone",
+      "unmute": "Ativar microfone",
+      "applying": "Aplicando…"
     },
     "titlebar": {
       "logoLocal": "Local",
@@ -68,19 +129,118 @@
       "restore": "Restaurar",
       "close": "Fechar"
     },
+    "smoke": {
+      "title": "LocalCamera",
+      "open": "Abrir",
+      "tabA": "Aba A",
+      "tabB": "Aba B",
+      "dialogTitle": "Diálogo de exemplo",
+      "close": "Fechar"
+    },
+    "camera": {
+      "source": "Câmera",
+      "dualUnavailable": "Seu aparelho não permite usar as duas câmeras ao mesmo tempo.",
+      "dualOutput": "Saída no modo dual",
+      "dualSeparate": "Duas webcams",
+      "dualPip": "Uma webcam (PiP)",
+      "dualModeWarning": "Apps que estão usando a câmera precisarão reabri-la.",
+      "pipPosition": "Posição da miniatura",
+      "pipSize": "Tamanho da miniatura",
+      "swap": "Trocar principal e miniatura",
+      "quality": "Qualidade",
+      "resolution": "Resolução",
+      "fps": "Taxa de quadros",
+      "bitrateAuto": "Bitrate automático",
+      "bitrate": "Bitrate",
+      "lowered": "Reduzido para {{value}} neste modo.",
+      "image": "Imagem",
+      "mirror": "Espelhar",
+      "rotation": "Rotação",
+      "fit": "Ajuste da saída",
+      "fitContain": "Conter",
+      "fitCover": "Preencher",
+      "appliedOnPhone": "Aplicado no celular",
+      "appliedOnPc": "Aplicado no PC"
+    },
+    "audio": {
+      "enabled": "Microfone do celular",
+      "level": "Nível",
+      "gain": "Ganho",
+      "gainWarn": "Pode distorcer.",
+      "delay": "Atraso do áudio",
+      "delayHint": "Aumente se o som chegar antes da imagem.",
+      "output": "Saída (modo interino)"
+    },
     "settings": {
       "language": "Idioma",
       "languageSystem": "Sistema",
       "languagePortuguese": "Português",
-      "languageEnglish": "English"
+      "languageEnglish": "English",
+      "startWithWindows": "Iniciar com o Windows",
+      "trayOnClose": "Minimizar para a bandeja ao fechar",
+      "port": "Porta",
+      "portRestart": "Reinicie o servidor para aplicar a nova porta.",
+      "firewall": "Regra de firewall",
+      "adbPath": "Caminho do ADB",
+      "browse": "Procurar…",
+      "vcam": "Câmera virtual",
+      "repair": "Reparar",
+      "logLevel": "Nível de log",
+      "openLogs": "Abrir pasta de logs",
+      "exportDiagnostics": "Exportar diagnóstico",
+      "about": "Sobre"
     },
-    "approval": {
-      "title": "Permitir que \"{{name}}\" se conecte?",
-      "body": "Modelo {{model}} · IP {{ip}}. Só aprove se for o seu aparelho.",
-      "always": "Permitir sempre",
-      "once": "Só desta vez",
-      "reject": "Recusar",
-      "timer": "Expira em {{seconds}} s"
+    "health": {
+      "server": {
+        "ok": "Servidor :{{port}}",
+        "altPort": ":{{port}} (porta alterada)",
+        "down": "Servidor parado"
+      },
+      "discovery": {
+        "ok": "Visível na rede",
+        "off": "Descoberta indisponível"
+      },
+      "vcam": {
+        "notRegistered": "Câmera não registrada",
+        "ready": "Câmera pronta",
+        "inUse": "Câmera em uso ({{count}})",
+        "error": "Erro na câmera: {{code}}"
+      },
+      "mic": {
+        "notInstalled": "Microfone não instalado",
+        "testMode": "Ative o modo de teste",
+        "blocked": "Bloqueado pelo Windows",
+        "ready": "Microfone pronto"
+      },
+      "adb": {
+        "ok": "ADB v{{version}}",
+        "missing": "ADB ausente"
+      },
+      "soon": "Em breve"
+    },
+    "wizard": {
+      "title": "Vamos deixar tudo pronto",
+      "step": {
+        "network": "Rede",
+        "camera": "Câmera virtual",
+        "mic": "Microfone virtual (opcional)",
+        "adb": "ADB (opcional)"
+      },
+      "skip": "Pular por enquanto",
+      "done": "Tudo pronto. Escaneie o QR code com o app do celular."
+    },
+    "vcam": {
+      "notRegistered": "A câmera virtual ainda não foi registrada."
+    },
+    "errors": {
+      "portInUse": "A porta {{port}} está em uso. Usando {{alt}}.",
+      "firewall": "O firewall pode estar bloqueando as conexões.",
+      "decode": "Imagem retomada após um erro."
+    },
+    "toast": {
+      "deviceConnected": "{{name}} conectado",
+      "deviceDisconnected": "{{name}} desconectado",
+      "settingRejected": "O celular não aceitou essa configuração."
     }
   },
   "catalog": {
