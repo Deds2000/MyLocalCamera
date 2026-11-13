@@ -86,7 +86,7 @@ Um celular real **pareia** com o desktop (QR → aprovação), **reconecta com a
 | ID | Cenário | Resultado esperado | Auto |
 |---|---|---|---|
 | IT-2.01 | `androidTest`: encoder 1080p30 por 10 s em memória | Saída Annex-B; **cada keyframe com SPS+PPS**; intervalo de keyframe ≈ 1 s (± 100 ms) | 🔧 |
-| IT-2.02 | `androidTest`: bitrate medido em 10 s | 8 Mbps ± 15% | 🔧 |
+| IT-2.02 | `androidTest`: taxa/quadros observados em 10 s | Registrar bitrate efetivo e validar saída; taxa variável é permitida, sem gate CBR/8 Mbps fixos (decisão do usuário, 2026-11-03) | 🔧 |
 | IT-2.03 | `androidTest`: `requestKeyframe()` | Keyframe em ≤ 300 ms | 🔧 |
 | IT-2.04 | `androidTest`: `CapabilitiesProbe` | Lista de modos coerente com o aparelho; `concurrent` igual ao do S3 | 🔧 |
 | IT-2.05 | Celular → servidor do desktop com `--auto-approve` | Pareia e transmite; o servidor loga ≈ 30 fps | 🔧 |
@@ -124,8 +124,8 @@ Um celular real **pareia** com o desktop (QR → aprovação), **reconecta com a
 | FT-2.07 | Matar o app (arrastar da lista) com o serviço ativo | Serviço encerra; notificação some; PC mostra desconexão | ✋ |
 | FT-2.08 | Economia de bateria ligada | Comportamento registrado; sem *crash* | ✋ |
 | FT-2.09 | Pouca memória (abrir apps pesados) | Sem *crash*; reconexão ao voltar | ✋ |
-| FT-2.10 | VPN ativa no celular | Mensagem clara se o PC for inalcançável; funciona com VPN *split* | ✋ |
-| FT-2.11 | Dados móveis ligados e Wi-Fi sem internet | Conecta ao PC pela rede local | ✋ |
+| FT-2.10 | VPN ativa no celular | Mensagem clara se o PC for inalcançável; funciona com VPN *split* — **adiado para pós-lançamento por decisão do usuário (2026-11-03), fora do gate Fase 2** | — |
+| FT-2.11 | Dados móveis ligados e Wi-Fi sem internet | Conecta ao PC pela rede local — **adiado para pós-lançamento por decisão do usuário (2026-11-03), fora do gate Fase 2** | — |
 | FT-2.12 | Servidor recusa com cada `reason` (via mock-servidor/desktop) | A tela correta para cada código | ✅ |
 | FT-2.13 | `STREAM_CONFIG` + keyframe perdidos (simulado) | PC pede keyframe; celular responde em ≤ 300 ms | ✅ |
 | FT-2.14 | Escanear 20 QR codes inválidos seguidos | Sem *crash* nem vazamento; faixa de erro some após 3 s | ✋ |
@@ -159,7 +159,7 @@ Um celular real **pareia** com o desktop (QR → aprovação), **reconecta com a
 Reexecutar **RS-S** e **AT-1.xx** (servidor) após qualquer mudança no protocolo.
 
 ## 8. Checklist de saída
-- [ ] Todos os testes obrigatórios aprovados; `docs/devices.md` com ≥ 1 aparelho (idealmente 2).
+- [ ] Todos os testes obrigatórios aprovados (FT-2.10/VPN e FT-2.11 adiados por decisão do usuário e fora do gate); `docs/devices.md` com ≥ 1 aparelho (idealmente 2).
 - [ ] Capturas do catálogo em `docs/ui/screens/mobile/`.
 - [ ] `docs/tests/fase-2.md` preenchido.
 
