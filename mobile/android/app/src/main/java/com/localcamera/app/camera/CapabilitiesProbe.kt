@@ -44,6 +44,47 @@ object CapabilitiesProbe {
     /** Campo extra de diagnóstico: nomes dos encoders H.264 encontrados. */
     const val FIELD_H264_ENCODERS = "h264Encoders"
 
+    /**
+     * Modos de vídeo 16:9 com 30 fps da câmera que o CameraX abre para [facing]
+     * (decisão do usuário 2026-11-02; [SessionModePicker]). Mesma fonte de
+     * verdade do [probe]: `SCALER_STREAM_CONFIGURATION_MAP` × faixas de AE — o
+     * modo só entra se a faixa de AE cobrir [TARGET_FPS] (mesma regra do `fps`
+     * do JSON `caps`).
+     *
+     * **Uma câmera só**: o `DEFAULT_*_CAMERA` do CameraX seleciona a primeira
+     * câmera compatível na ordem do repositório (verificado em
+     * `CameraSelector.select`, CameraX 1.6.2), que é a ordem de
+     * `CameraManager.cameraIdList`. Agregar todas as câmeras do mesmo facing
+     * podia escolher um tamanho que a câmera aberta não suporta (auditoria
+     * 2026-11-03). Se a sonda falhar, devolve vazio: o chamador **não** deve
+     * inventar um modo (falha fechada).
+     */
+    fun sessionModes(context: Context, facing: Facing): List<SessionMode> {
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        val wanted = if (facing == Facing.BACK) {
+            CameraCharacteristics.LENS_FACING_BACK
+        } else {
+            CameraCharacteristics.LENS_FACING_FRONT
+        }
+        val id = cameraManager.cameraIdList.firstOrNull { candidate ->
+            try {
+                cameraManager.getCameraCharacteristics(candidate)
+                    .get(CameraCharacteristics.LENS_FACING) == wanted
+            } catch (t: Throwable) {
+                false // sonda falhou nesta câmera: tenta a próxima
+            }
+        } ?: return emptyList()
+        return try {
+            val ch = cameraManager.getCameraCharacteristics(id)
+            if (supportedFps(ch).isEmpty()) return emptyList()
+            videoSizes(ch)
+                .filter { SessionModePicker.is16x9(it.width, it.height) }
+                .map { SessionMode(it.width, it.height, TARGET_FPS) }
+        } catch (t: Throwable) {
+            emptyList() // sem modo verificável: falha fechada no chamador
+        }
+    }
+
     /** Sonda o aparelho e devolve o JSON `caps` (string). */
     fun probe(context: Context): String {
         val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
@@ -82,49 +123,15 @@ object CapabilitiesProbe {
             .put("modes", modes)
     }
 
-    /**
-     * Resoluções de saída de vídeo (formato SurfaceTexture = entrada de
-     * encoder), medidas do aparelho.
-     *
-     * API 34+ usa a chave `SCALER_STREAM_CONFIGURATION_MAP` (renomeada oficial;
-     * as chaves antigas foram removidas do android.jar a partir da 34). Em
-     * runtimes mais antigos o campo novo nem existe (`NoSuchFieldError`), por
-     * isso a guarda por versão; o [legacyVideoSizes] cobre Android < 34.
-     */
-    private fun videoSizes(ch: CameraCharacteristics): List<Size> {
-        if (Build.VERSION.SDK_INT >= 34) {
-            try {
-                val map = ch.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-                val sizes = map?.getOutputSizes(SurfaceTexture::class.java)
-                if (!sizes.isNullOrEmpty()) return sizes.toList().distinct()
-            } catch (t: Throwable) {
-                // chave sintética indisponível neste runtime → fallback abaixo
-            }
-        }
-        return legacyVideoSizes(ch)
-    }
-
-    /**
-     * Fallback para Android < 34: a chave
-     * `SCALER_AVAILABLE_STREAM_CONFIGURATIONS` foi removida do `android.jar`
-     * (compileSdk 34+) mas ainda existe no runtime desses aparelhos —
-     * consulta por reflexão (o método público correspondente não compila).
-     */
-    @Suppress("UNCHECKED_CAST")
-    private fun legacyVideoSizes(ch: CameraCharacteristics): List<Size> {
-        return try {
-            val key = Class
-                .forName("android.hardware.camera2.CameraCharacteristics")
-                .getField("SCALER_AVAILABLE_STREAM_CONFIGURATIONS")
-                .get(null)
-            val map = ch.get(key as CameraCharacteristics.Key<Any>) ?: return emptyList()
-            val sizes = map.javaClass
-                .getMethod("getOutputSizes", Class::class.java)
-                .invoke(map, SurfaceTexture::class.java) as? Array<out Any>
-            sizes?.mapNotNull { it as? Size }?.distinct() ?: emptyList()
-        } catch (t: Throwable) {
-            emptyList()
-        }
+    /** Resoluções SurfaceTexture; a chave pública está disponível desde API 21. */
+    private fun videoSizes(ch: CameraCharacteristics): List<Size> = try {
+        ch.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+            ?.getOutputSizes(SurfaceTexture::class.java)
+            ?.toList()
+            ?.distinct()
+            ?: emptyList()
+    } catch (t: Throwable) {
+        emptyList()
     }
 
     /**
@@ -164,8 +171,15 @@ object CapabilitiesProbe {
      */
     private fun h264EncoderNames(): List<String> = try {
         MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
-            .filter { it.isEncoder && it.getCapabilitiesForType(MIME_VIDEO_AVC) != null }
-            .map { it.name }
+            .mapNotNull { info ->
+                if (!info.isEncoder) return@mapNotNull null
+                val capabilities = try {
+                    info.getCapabilitiesForType(MIME_VIDEO_AVC)
+                } catch (e: IllegalArgumentException) {
+                    null // codec sem H.264: examina o próximo
+                }
+                if (capabilities != null) info.name else null
+            }
             .sorted()
     } catch (t: Throwable) {
         emptyList()

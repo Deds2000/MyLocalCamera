@@ -85,4 +85,12 @@ class H264Test {
         assertTrue(H264.hasParamSets(out))
         assertEquals(EncodedFrame.FLAG_KEYFRAME or EncodedFrame.FLAG_PARAM_SETS, H264.flagsFor(out))
     }
+
+    @Test
+    fun `prependParamSets normaliza start code de 4 bytes no primeiro SPS`() {
+        val config = bytes(0, 0, 0, 1, 0x67, 0x28, 0x01, 0x02) + pps
+        val out = H264.prependParamSets(config, idr)
+        assertArrayEquals(sps + pps + idr, out)
+        assertEquals(EncodedFrame.FLAG_KEYFRAME or EncodedFrame.FLAG_PARAM_SETS, H264.flagsFor(out))
+    }
 }

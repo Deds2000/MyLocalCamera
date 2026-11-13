@@ -52,11 +52,31 @@ data class AppState(
  * não se aplicam, assim como chaves desconhecidas: são ignoradas com log.
  */
 class StateReducer(
+    /**
+     * Vídeo inicial anunciado (default do cartão: 1080p30). A sessão (F2-T12)
+     * passa o modo efetivamente selecionado pela sonda, para o `STREAM_CONFIG`
+     * anunciar o que roda no encoder (decisão 2026-11-02).
+     */
+    initialVideo: VideoState = VideoState(width = 1920, height = 1080, fps = 30, bitrateKbps = 8000),
+    /**
+     * Sessão de streaming: largura/altura/fps ficam travados no modo aplicado
+     * (não há reconfiguração a quente — decisão do usuário 2026-11-03). O
+     * `STATE` nunca anuncia um modo diferente do que câmera/encoder usam.
+     * Default `false` preserva o comportamento do reducer puro nos testes.
+     */
+    private val videoModeLocked: Boolean = false,
     private val log: (String) -> Unit = { msg -> Log.d(TAG, msg) },
 ) {
     /** Estado atual; cada mudança devolve uma cópia (nunca muta no lugar). */
-    var state: AppState = AppState.initial()
+    var state: AppState = AppState.initial().copy(video = initialVideo)
         private set
+
+    /**
+     * Valida uma troca de `camera.active` (StreamSession: o modo atual precisa
+     * existir na câmera de destino). `false` mantém a câmera/modo atuais e o
+     * `SET` não é aplicado.
+     */
+    var canChangeCamera: ((String) -> Boolean)? = null
 
     /**
      * Mudança aplicada de `presentation.rotation` → nova rotação (0/90/180/270)
@@ -93,6 +113,7 @@ class StateReducer(
                 Outcome.Applied -> { next = st; changed = true }
                 Outcome.NoChange -> Unit
                 Outcome.Invalid -> log("SET ignorado: valor inválido para '${item.key}'")
+                Outcome.Rejected -> log("SET ignorado: '${item.key}' não pode mudar durante a sessão")
                 Outcome.Unknown -> log("SET ignorado (fora da Fase 2): '${item.key}'")
             }
         }
@@ -130,23 +151,26 @@ class StateReducer(
 
     // ------------------------------ aplicação ------------------------------
 
-    private enum class Outcome { Applied, NoChange, Invalid, Unknown }
+    private enum class Outcome { Applied, NoChange, Invalid, Rejected, Unknown }
 
     private fun applyOne(cur: AppState, key: String, value: SetValue): Pair<AppState, Outcome> =
         when (key) {
             "camera.active" -> when (value) {
                 is SetValue.Str ->
                     if (value.value == "back" || value.value == "front") {
-                        if (value.value == cur.camera.active) cur to Outcome.NoChange
-                        else cur.copy(camera = cur.camera.copy(active = value.value)) to Outcome.Applied
+                        when {
+                            value.value == cur.camera.active -> cur to Outcome.NoChange
+                            canChangeCamera?.invoke(value.value) == false -> cur to Outcome.Rejected
+                            else -> cur.copy(camera = cur.camera.copy(active = value.value)) to Outcome.Applied
+                        }
                     } else {
                         cur to Outcome.Invalid
                     }
                 else -> cur to Outcome.Invalid
             }
-            "video.width" -> videoNum(cur, value) { v, n -> v.copy(width = n) }
-            "video.height" -> videoNum(cur, value) { v, n -> v.copy(height = n) }
-            "video.fps" -> videoNum(cur, value) { v, n -> v.copy(fps = n) }
+            "video.width" -> videoMode(cur, value) { v, n -> v.copy(width = n) }
+            "video.height" -> videoMode(cur, value) { v, n -> v.copy(height = n) }
+            "video.fps" -> videoMode(cur, value) { v, n -> v.copy(fps = n) }
             "video.bitrateKbps" -> videoNum(cur, value) { v, n -> v.copy(bitrateKbps = n) }
             "presentation.mirror.back" -> mirror(cur, value, back = true)
             "presentation.mirror.front" -> mirror(cur, value, back = false)
@@ -155,6 +179,13 @@ class StateReducer(
             // Fora da Fase 2: camera.mode (dual, Fase 7) e audio.* (Fase 8).
             else -> cur to Outcome.Unknown
         }
+
+    private fun videoMode(
+        cur: AppState,
+        value: SetValue,
+        update: (VideoState, Int) -> VideoState,
+    ): Pair<AppState, Outcome> =
+        if (videoModeLocked) cur to Outcome.Rejected else videoNum(cur, value, update)
 
     private fun videoNum(
         cur: AppState,

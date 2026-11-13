@@ -4,6 +4,7 @@ import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import android.media.MediaFormat
+import android.os.Build
 import android.util.Log
 
 /**
@@ -25,6 +26,12 @@ internal const val LOG_TAG = "VideoEncoder"
 // da fonte AOSP (frameworks/av) e receita validada no spike S3 (aparelho):
 internal const val KEY_BITRATE_MODE = "bitrate-mode"
 internal const val PRIORITY_REAL_TIME = 0 // = CodecCapabilities.PRIORITY_REAL_TIME
+
+/** MediaFormat.KEY_LOW_LATENCY foi adicionado na API 30. */
+internal fun supportsLowLatency(apiLevel: Int): Boolean = apiLevel >= Build.VERSION_CODES.R
+
+/** MediaFormat.KEY_PREPEND_HEADER_TO_SYNC_FRAMES foi adicionado na API 29. */
+internal fun supportsPrependHeaderToSyncFrames(apiLevel: Int): Boolean = apiLevel >= Build.VERSION_CODES.Q
 
 /**
  * Enumera os encoders H.264 do aparelho: devolve [candidates] (para
@@ -77,9 +84,11 @@ internal fun configureCodec(
     cfg: EncoderConfig,
     profiles: List<Int?>,
 ): Pair<Int?, Boolean> {
+    val lowLatencyOptions = if (supportsLowLatency(Build.VERSION.SDK_INT)) listOf(true, false) else listOf(false)
     for (p in profiles) {
-        if (tryConfigure(c, cfg, p, lowLatency = true)) return p to true
-        if (tryConfigure(c, cfg, p, lowLatency = false)) return p to false
+        for (lowLatency in lowLatencyOptions) {
+            if (tryConfigure(c, cfg, p, lowLatency)) return p to lowLatency
+        }
     }
     // Último recurso: sem a chave "bitrate-mode" (encoder que a rejeite).
     val last = profiles.lastOrNull()
@@ -105,12 +114,20 @@ internal fun tryConfigure(
             null,
             MediaCodec.CONFIGURE_FLAG_ENCODE,
         )
+        Log.i(LOG_TAG, "configure aceito: cbrSolicitado=$cbr bitrateSolicitado=${cfg.bitrateKbps * 1000}bps")
         return true
     } catch (t: IllegalArgumentException) {
         Log.w(
             LOG_TAG,
             "configure rejeitado (profile=${profile?.let(H264Profile::name) ?: "any"}, " +
                 "lowLatency=$lowLatency, cbr=$cbr): ${t.message}",
+        )
+        return false
+    } catch (e: MediaCodec.CodecException) {
+        Log.w(
+            LOG_TAG,
+            "configure falhou no codec (profile=${profile?.let(H264Profile::name) ?: "any"}, " +
+                "lowLatency=$lowLatency, cbr=$cbr): ${e.message}",
         )
         return false
     }
@@ -134,9 +151,11 @@ internal fun buildFormat(
     fmt.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
     fmt.setInteger(MediaFormat.KEY_PRIORITY, PRIORITY_REAL_TIME) // tempo real (cartão)
     // `MediaFormat` só tem setInteger: os flags booleanos usam 1 (convenção AOSP).
-    fmt.setInteger(MediaFormat.KEY_PREPEND_HEADER_TO_SYNC_FRAMES, 1)
+    if (supportsPrependHeaderToSyncFrames(Build.VERSION.SDK_INT)) {
+        fmt.setInteger(MediaFormat.KEY_PREPEND_HEADER_TO_SYNC_FRAMES, 1)
+    }
     if (profile != null) fmt.setInteger(MediaFormat.KEY_PROFILE, profile)
-    if (lowLatency) fmt.setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
+    if (lowLatency && supportsLowLatency(Build.VERSION.SDK_INT)) fmt.setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
     return fmt
 }
 

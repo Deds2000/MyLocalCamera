@@ -1,7 +1,6 @@
 package com.localcamera.app.encoder
 
 import android.media.MediaCodec
-import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.util.Log
@@ -20,17 +19,16 @@ import java.util.concurrent.atomic.AtomicLong
  * a fixture `pattern1080.h264` (1080p30, 20 s) → decoder H.264 →
  * [VideoEncoder.inputSurface] → encoder H.264 → [VideoEncoder.output].
  *
- * O decoder é alimentado em **taxa de bytes constante** (a fixture de 20 s
- * em 20 s = 30 fps em tempo real), para que o encoder veja entrada em tempo
- * real e o intervalo de keyframe (KEY_I_FRAME_INTERVAL=1 s) saia em
- * segundos de relógio — sem pacing o decoder roda em excesso e o intervalo
- * quebra (aprendizado do S3).
+ * O decoder recebe um access unit por buffer, a 30 fps de relógio. Isso mantém
+ * o teste no mesmo ritmo do S3, independentemente do tamanho dos buffers que
+ * cada decoder oferece.
  */
 @RunWith(AndroidJUnit4::class)
 class VideoEncoderTest {
 
     private val frames = CopyOnWriteArrayList<EncodedFrame>()
     private var fixture = ByteArray(0)
+    private var fixtureUnits = emptyList<ByteArray>()
     private var encoder: VideoEncoder? = null
     private var decoder: MediaCodec? = null
     private var collector: Thread? = null
@@ -38,8 +36,12 @@ class VideoEncoderTest {
     @Test
     fun it201_annexb_keyframes_com_sps_e_pps_intervalo_1s() {
         setUp()
-        val runMs = pump(decoder!!, RUN_MS)
-        tearDown()
+        val runMs = try {
+            pump(decoder!!, RUN_MS)
+        } finally {
+            tearDown()
+        }
+        Log.i(TAG, "it201 pump concluído (${runMs}ms); iniciando teardown")
         Log.i(TAG, "frames=${frames.size} runMs=$runMs encoder=${encoder?.encoderName} " +
             "profile=${encoder?.profile} dropped=${encoder?.dropped}")
 
@@ -99,12 +101,16 @@ class VideoEncoderTest {
         setUp()
         val enc = encoder!!
         val requestPtsUs = AtomicLong(0)
-        val runMs = pump(decoder!!, RUN_MS_203, MID_MS) { elapsedMs ->
-            requestPtsUs.set(System.nanoTime() / 1000)
-            enc.requestKeyframe()
-            Log.i(TAG, "requestKeyframe enviado em ${elapsedMs}ms")
+        val runMs = try {
+            pump(decoder!!, RUN_MS_203, MID_MS) { elapsedMs ->
+                requestPtsUs.set(System.nanoTime() / 1000)
+                enc.requestKeyframe()
+                Log.i(TAG, "requestKeyframe enviado em ${elapsedMs}ms")
+            }
+        } finally {
+            tearDown()
         }
-        tearDown()
+        Log.i(TAG, "it203 pump concluído (${runMs}ms); iniciando teardown")
         Log.i(TAG, "frames=${frames.size} runMs=$runMs")
         val keyframes = frames.filter { it.isKeyframe }
         assertTrue("nenhum keyframe no stream (${frames.size} frames)", keyframes.isNotEmpty())
@@ -120,7 +126,12 @@ class VideoEncoderTest {
     /** Fixture + encoder configurado + decoder apontando para a inputSurface. */
     private fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        frames.clear()
         fixture = context.assets.open(ASSET_NAME).use { it.readBytes() }
+        fixtureUnits = H264Fixture.splitAccessUnits(fixture)
+        check(fixtureUnits.size == FIXTURE_FRAME_COUNT) {
+            "fixture tem ${fixtureUnits.size} access units; esperado $FIXTURE_FRAME_COUNT"
+        }
         encoder = VideoEncoder().also { it.configure(EncoderConfig()) }
         Log.i(TAG, "encoder=${encoder?.encoderName} profile=${encoder?.profile}")
         decoder = createDecoder(encoder!!.inputSurface)
@@ -139,6 +150,7 @@ class VideoEncoderTest {
      * fecha [VideoEncoder.output] → o collector termina.
      */
     private fun tearDown() {
+        Log.i(TAG, "teardown: decoder.stop início")
         decoder?.let { d ->
             try {
                 d.stop()
@@ -151,11 +163,15 @@ class VideoEncoderTest {
                 Log.w(TAG, "decoder.release: ${t.message}")
             }
         }
+        Log.i(TAG, "teardown: decoder liberado")
         decoder = null
+        Log.i(TAG, "teardown: encoder.stop início")
         encoder?.stop()
+        Log.i(TAG, "teardown: encoder.stop concluído")
+        Log.i(TAG, "teardown: collector.join início")
         collector?.join(JOIN_TIMEOUT_MS)
+        Log.i(TAG, "teardown: collector.join concluído")
         collector = null
-        frames.clear()
     }
 
     /** Encoder H.264 (decoding) com saída em [output]; nome nada é fixo. */
@@ -178,7 +194,10 @@ class VideoEncoderTest {
             ?: throw IllegalStateException("nenhum decoder H.264 disponivel")
         val d = MediaCodec.createByCodecName(info.name)
         val fmt = MediaFormat.createVideoFormat(mime, 1920, 1080)
-        fmt.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+        // O Surface não é selecionado pelo KEY_COLOR_FORMAT do decoder: é
+        // solicitado pelo argumento `surface` de configure(). Forçar
+        // COLOR_FormatSurface aqui faz o OMX do Moto recusar o formato e cair
+        // em saída por buffers, que este teste não drena.
         d.configure(fmt, output, null, 0)
         d.start()
         Log.i(TAG, "decoder=${info.name}")
@@ -186,8 +205,7 @@ class VideoEncoderTest {
     }
 
     /**
-     * Alimenta o decoder com a fixture em taxa de bytes constante
-     * (fixture de [FIXTURE_TOTAL_MS] em [FIXTURE_TOTAL_MS]) por [durationMs]
+     * Alimenta um access unit por buffer, em [FIXTURE_FPS] fps, por [durationMs]
      * de relógio; devolve o tempo real medido (ms). [midAction] roda uma vez
      * em [midAtMs] (null = nunca).
      */
@@ -198,43 +216,65 @@ class VideoEncoderTest {
         midAction: ((Long) -> Unit)? = null,
     ): Long {
         val t0 = System.nanoTime()
-        var pos = 0
+        val framesToFeed = minOf(fixtureUnits.size, (durationMs * FIXTURE_FPS / 1_000).toInt())
+        val decoderOutputInfo = MediaCodec.BufferInfo()
+        Log.i(TAG, "pump iniciado duration=${durationMs}ms accessUnits=$framesToFeed")
+        var frameIndex = 0
         var midFired = false
-        while (pos < fixture.size) {
+        var tryAgainCount = 0
+        var renderedFrames = 0
+        while (frameIndex < framesToFeed) {
             val elapsedMs = (System.nanoTime() - t0) / 1_000_000
             if (elapsedMs >= durationMs) break
             if (midAtMs != null && !midFired && elapsedMs >= midAtMs) {
                 midAction?.invoke(elapsedMs)
                 midFired = true
             }
+            if (frameIndex % FIXTURE_FPS.toInt() == 0) {
+                Log.i(TAG, "pump: dequeue frame=$frameIndex elapsed=${elapsedMs}ms")
+            }
+            renderedFrames += DecoderSurfaceDrain.drain(dec, decoderOutputInfo)
             val idx = dec.dequeueInputBuffer(DEQUEUE_TIMEOUT_US)
             if (idx == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                renderedFrames += DecoderSurfaceDrain.drain(dec, decoderOutputInfo)
+                tryAgainCount++
+                if (tryAgainCount % 100 == 0) Log.w(TAG, "pump: dequeueInputBuffer ainda indisponível ($tryAgainCount)")
                 Thread.sleep(1)
                 continue
             }
-            if (idx < 0) break
+            if (idx < 0) {
+                Log.e(TAG, "pump: dequeueInputBuffer retornou $idx no frame $frameIndex")
+                break
+            }
             val buf = dec.getInputBuffer(idx)
             if (buf == null) {
-                // Caminho anormal (so em codecs sem DDK buffer); o stub 36 nem
-                // tem releaseInputBuffer — interrompe o pump e o tearDown limpa.
                 Log.w(TAG, "getInputBuffer($idx) == null — pump interrompido")
                 break
             }
-            val n = minOf(buf.remaining(), fixture.size - pos)
-            if (n <= 0) {
-                dec.queueInputBuffer(idx, 0, 0, System.nanoTime() / 1000, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-                continue
+            val unit = fixtureUnits[frameIndex]
+            check(unit.size <= buf.capacity()) {
+                "access unit ${frameIndex + 1} tem ${unit.size}B; buffer do decoder tem ${buf.capacity()}B"
             }
             buf.clear()
-            buf.put(fixture, pos, n)
-            pos += n
-            dec.queueInputBuffer(idx, 0, n, System.nanoTime() / 1000, 0)
-            // Pacing: instante-alvo = pos * total / tamanho (bytes constantes/s).
-            val targetMs = (pos * 1000.0 * FIXTURE_TOTAL_MS) / fixture.size
-            val waitMs = targetMs - (System.nanoTime() - t0) / 1_000_000.0
+            buf.put(unit)
+            val ptsUs = frameIndex * 1_000_000L / FIXTURE_FPS
+            dec.queueInputBuffer(idx, 0, unit.size, ptsUs, 0)
+            renderedFrames += DecoderSurfaceDrain.drain(dec, decoderOutputInfo)
+            if (frameIndex == 0) Log.i(TAG, "pump: primeiro AU ${unit.size}B enviado (buffer=$idx ptsUs=$ptsUs)")
+            tryAgainCount = 0
+            frameIndex++
+            val targetMs = frameIndex * 1_000.0 / FIXTURE_FPS
+            val elapsedAfterQueueMs = (System.nanoTime() - t0) / 1_000_000.0
+            val waitMs = targetMs - elapsedAfterQueueMs
             if (waitMs > 2) Thread.sleep(waitMs.toLong())
         }
-        return (System.nanoTime() - t0) / 1_000_000
+        renderedFrames += DecoderSurfaceDrain.drain(dec, decoderOutputInfo)
+        val elapsedMs = (System.nanoTime() - t0) / 1_000_000
+        Log.i(
+            TAG,
+            "pump encerrado elapsed=${elapsedMs}ms accessUnits=$frameIndex/$framesToFeed rendered=$renderedFrames",
+        )
+        return elapsedMs
     }
 
     private companion object {
@@ -242,8 +282,9 @@ class VideoEncoderTest {
         private const val MIME_AVC = "video/avc"
         private const val ASSET_NAME = "pattern1080.h264"
 
-        /** A fixture tem 20 s; o teste de 10 s consome a metade em 30 fps reais. */
-        private const val FIXTURE_TOTAL_MS = 20_000L
+        /** Fixture gerada com 600 access units: 20 s a 30 fps. */
+        private const val FIXTURE_FPS = 30L
+        private const val FIXTURE_FRAME_COUNT = 600
         private const val RUN_MS = 10_000L
         private const val RUN_MS_203 = 4_000L
         private const val MID_MS = 2_000L
@@ -253,6 +294,5 @@ class VideoEncoderTest {
         /** Margem conservadora: ~10 s a 30 fps. */
         private const val MIN_FRAMES = 200
         private const val MIN_KEYFRAMES = 5
-        private const val TARGET_BPS = 8_000_000L
     }
 }

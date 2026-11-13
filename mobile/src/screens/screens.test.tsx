@@ -6,6 +6,7 @@ import { buildPairingUri } from "@localcamera/shared/protocol";
 import { renderWithProviders } from "@localcamera/shared/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "@/App";
+import type { LocalCameraApi, NativePermissionState } from "@/plugins/LocalCamera";
 import type { QrScannerApi } from "@/qr/qr-scanner";
 import { AppProvider } from "@/state/AppProvider";
 import { initialState, type AppState, type Target } from "@/state/connection";
@@ -26,12 +27,32 @@ const homeState: AppState = {
   permissionsDone: true,
 };
 
-function renderApp(state: AppState, scanner?: QrScannerApi) {
+function renderApp(state: AppState, scanner?: QrScannerApi, localCamera?: LocalCameraApi) {
   return renderWithProviders(
-    <AppProvider initialState={state} qrScanner={scanner}>
+    <AppProvider initialState={state} qrScanner={scanner} localCamera={localCamera}>
       <App />
     </AppProvider>,
   );
+}
+
+function permissionPlugin(cameraResult: NativePermissionState = "granted") {
+  const requestPermission = vi.fn(async ({ kind }: { kind: string }) => ({
+    status: kind === "camera" ? cameraResult : "prompt",
+  }));
+  const openPermissionSettings = vi.fn(async () => {});
+  const api = {
+    getCapabilities: async () => ({ caps: {} }),
+    connect: async () => {},
+    disconnect: async () => {},
+    getState: async () => ({ state: "" }),
+    getKnownPcs: async () => ({ pcs: [] }),
+    forgetPc: async () => {},
+    getPermissions: async () => ({ camera: "prompt", mic: "prompt", notifications: "prompt" }),
+    requestPermission,
+    openPermissionSettings,
+    addListener: async () => ({ remove: async () => {} }),
+  } as unknown as LocalCameraApi;
+  return { api, requestPermission, openPermissionSettings };
 }
 
 /** Scanner fake: captura o vídeo e callback para os testes dispararem um QR. */
@@ -60,6 +81,38 @@ function fakeScanner(): {
 }
 
 // ------------------------------- Home -------------------------------
+
+describe("PermissionsScreen (Android permissions)", () => {
+  it("requests the camera permission and only enables Continue after Android grants it", async () => {
+    const user = userEvent.setup();
+    const plugin = permissionPlugin();
+    await renderApp(initialState, undefined, plugin.api);
+
+    const [cameraGrantButton] = await screen.findAllByRole("button", { name: "Permitir" });
+    if (!cameraGrantButton) throw new Error("camera permission action was not rendered");
+    expect(screen.getByRole("button", { name: "Continuar" })).toBeDisabled();
+    await user.click(cameraGrantButton);
+
+    await waitFor(() => expect(plugin.requestPermission).toHaveBeenCalledWith({ kind: "camera" }));
+    expect(await screen.findByText("Concedida")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continuar" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(await screen.findByText("Pronto para conectar")).toBeInTheDocument();
+  });
+
+  it("opens Android app settings after a denied permission", async () => {
+    const user = userEvent.setup();
+    const plugin = permissionPlugin("denied");
+    await renderApp(initialState, undefined, plugin.api);
+    const [cameraGrantButton] = await screen.findAllByRole("button", { name: "Permitir" });
+    if (!cameraGrantButton) throw new Error("camera permission action was not rendered");
+    await user.click(cameraGrantButton);
+
+    await user.click(await screen.findByRole("button", { name: "Abrir configurações" }));
+    expect(plugin.openPermissionSettings).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Continuar" })).toBeDisabled();
+  });
+});
 
 describe("Home (UT-2.11)", () => {
   it("com PC conhecido mostra Reconectar + 'visto há…'", async () => {

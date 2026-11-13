@@ -1,9 +1,10 @@
-// F2-T13 — Wrapper tipado do plugin Capacitor `LocalCamera`.
+// F2-T13/F2-T14 — Wrapper tipado do plugin Capacitor `LocalCamera`.
 //
 // Ponte JS ⇄ Kotlin (lado Kotlin: `app/plugin/LocalCameraPlugin.kt`,
-// contrato auditado). 6 métodos + 4 eventos, nomes fixos (não renomear):
+// contrato auditado). Métodos de conexão/permissão + 4 eventos:
 // - métodos: `getCapabilities`, `connect`, `disconnect`, `getState`,
-//   `getKnownPcs`, `forgetPc`;
+//   `getKnownPcs`, `forgetPc`, `getPermissions`, `requestPermission`,
+//   `openPermissionSettings`;
 // - eventos: `connectionChanged`, `stateChanged`, `stats` (≤ 2 Hz) e
 //   `error` (**só códigos** — nunca texto da rede).
 //
@@ -17,6 +18,7 @@
 // nem guardado aqui.
 
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
+import type { PermissionKind } from "@/state/connection";
 
 /* -------------------------------- eventos ------------------------------- */
 
@@ -63,6 +65,14 @@ export interface StoredKnownPc {
   lastAccessed: number | null;
 }
 
+export type NativePermissionState = "granted" | "denied" | "prompt" | "prompt-with-rationale";
+
+export interface NativePermissionStates {
+  camera: NativePermissionState;
+  mic: NativePermissionState;
+  notifications: NativePermissionState;
+}
+
 /* -------------------------------- opções -------------------------------- */
 
 /** Pareamento (QR/deep link) ou PC conhecido (`pcId` — a `deviceKey` vem
@@ -89,6 +99,12 @@ export interface LocalCameraApi {
   getKnownPcs(): Promise<{ pcs: StoredKnownPc[] }>;
   /** Esquece o PC e remove sua `deviceKey` nativa. */
   forgetPc(options: { pcId: string }): Promise<void>;
+  /** Consulta o estado real das permissões Android, sem persistir cópias em JS. */
+  getPermissions(): Promise<NativePermissionStates>;
+  /** Solicita uma permissão runtime específica. */
+  requestPermission(options: { kind: PermissionKind }): Promise<{ status: NativePermissionState }>;
+  /** Abre as configurações Android do app após uma recusa permanente. */
+  openPermissionSettings(): Promise<void>;
   addListener(
     eventName: "connectionChanged",
     listenerFunc: (event: ConnectionChangedEvent) => void,

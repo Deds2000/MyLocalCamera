@@ -1,11 +1,18 @@
 package com.localcamera.app.plugin
 
+import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
+import com.getcapacitor.annotation.Permission
+import com.getcapacitor.annotation.PermissionCallback
 import com.localcamera.app.camera.CapabilitiesProbe
 import com.localcamera.app.service.StreamBus
 import com.localcamera.app.service.StreamEvent
@@ -56,7 +63,14 @@ import java.net.URLEncoder
  * é **regenerado** pelo `cap sync`, que escaneia o pacote local `@localcamera/plugin`
  * (ver `app/package.json` + stub em `app/android/@localcamera/plugin/`).
  */
-@CapacitorPlugin(name = "LocalCamera")
+@CapacitorPlugin(
+    name = "LocalCamera",
+    permissions = [
+        Permission(alias = "camera", strings = [Manifest.permission.CAMERA]),
+        Permission(alias = "mic", strings = [Manifest.permission.RECORD_AUDIO]),
+        Permission(alias = "notifications", strings = [Manifest.permission.POST_NOTIFICATIONS]),
+    ],
+)
 class LocalCameraPlugin : Plugin() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -130,6 +144,58 @@ class LocalCameraPlugin : Plugin() {
     }
 
     // ------------------------------ métodos (JS → Kotlin) ------------------------------
+
+    /** Estado real das permissões runtime solicitadas pela UI de primeira execução. */
+    @PluginMethod
+    fun getPermissions(call: PluginCall) {
+        call.resolve(
+            JSObject()
+                .put(PERMISSION_CAMERA, permissionStatus(PERMISSION_CAMERA))
+                .put(PERMISSION_MIC, permissionStatus(PERMISSION_MIC))
+                .put(PERMISSION_NOTIFICATIONS, permissionStatus(PERMISSION_NOTIFICATIONS)),
+        )
+    }
+
+    /** Solicita uma permissão por vez; a tela pede câmera antes de permitir continuar. */
+    @PluginMethod
+    fun requestPermission(call: PluginCall) {
+        val kind = call.getString(KEY_PERMISSION_KIND)
+        val alias = permissionAlias(kind)
+        if (alias == null) {
+            call.reject(ERROR_INVALID_PERMISSION_KIND)
+            return
+        }
+        if (alias == PERMISSION_NOTIFICATIONS && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            call.resolve(JSObject().put(KEY_PERMISSION_STATUS, PERMISSION_GRANTED))
+            return
+        }
+        requestPermissionForAlias(alias, call, CALLBACK_PERMISSION_RESULT)
+    }
+
+    @PermissionCallback
+    fun permissionRequestResult(call: PluginCall) {
+        val kind = call.getString(KEY_PERMISSION_KIND)
+        if (permissionAlias(kind) == null) {
+            call.reject(ERROR_INVALID_PERMISSION_KIND)
+            return
+        }
+        call.resolve(JSObject().put(KEY_PERMISSION_STATUS, permissionStatus(kind!!)))
+    }
+
+    /** Abre as configurações do app quando o Android não permite novo prompt. */
+    @PluginMethod
+    fun openPermissionSettings(call: PluginCall) {
+        try {
+            val intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", getContext().packageName, null),
+            )
+            getActivity().startActivity(intent)
+            call.resolve()
+        } catch (_: Exception) {
+            call.reject(ERROR_SETTINGS_UNAVAILABLE)
+        }
+    }
 
     /** `{caps}` — JSON da sonda do aparelho (F2-T06). */
     @PluginMethod
@@ -240,6 +306,18 @@ class LocalCameraPlugin : Plugin() {
         Log.i(TAG, msg)
     }
 
+    private fun permissionAlias(kind: String?): String? = when (kind) {
+        PERMISSION_CAMERA, PERMISSION_MIC, PERMISSION_NOTIFICATIONS -> kind
+        else -> null
+    }
+
+    private fun permissionStatus(kind: String): String {
+        if (kind == PERMISSION_NOTIFICATIONS && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return PERMISSION_GRANTED
+        }
+        return getPermissionState(kind)?.toString() ?: PERMISSION_PROMPT
+    }
+
     private companion object {
         const val TAG = "LocalCameraPlugin"
 
@@ -266,6 +344,15 @@ class LocalCameraPlugin : Plugin() {
         const val KEY_QUEUE_MS = "queueMs"
         const val KEY_RTT = "rtt"
         const val KEY_CAPS = "caps"
+        const val KEY_PERMISSION_KIND = "kind"
+        const val KEY_PERMISSION_STATUS = "status"
+
+        const val PERMISSION_CAMERA = "camera"
+        const val PERMISSION_MIC = "mic"
+        const val PERMISSION_NOTIFICATIONS = "notifications"
+        const val PERMISSION_GRANTED = "granted"
+        const val PERMISSION_PROMPT = "prompt"
+        const val CALLBACK_PERMISSION_RESULT = "permissionRequestResult"
 
         // Opções de `connect`.
         const val KEY_HOSTS = "hosts"
@@ -278,6 +365,8 @@ class LocalCameraPlugin : Plugin() {
         const val ERROR_UNKNOWN_PC = "unknown_pc"
         const val ERROR_NO_DEVICE_KEY = "no_device_key"
         const val ERROR_CAPS = "caps_failed"
+        const val ERROR_INVALID_PERMISSION_KIND = "invalid_permission_kind"
+        const val ERROR_SETTINGS_UNAVAILABLE = "permission_settings_unavailable"
 
         // Montagem da URI (mesmas constantes do parser F2-T05a).
         const val URI_PREFIX = "localcamera://connect?"

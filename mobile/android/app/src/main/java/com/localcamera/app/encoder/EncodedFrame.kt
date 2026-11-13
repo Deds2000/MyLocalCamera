@@ -3,6 +3,7 @@ package com.localcamera.app.encoder
 /**
  * Quadro H.264 pronto para a fila (cartão F2-T08): 1 access unit em
  * Annex-B (start codes de 3 bytes) + `ptsUs` do relógio monotônico +
+ * timestamp de origem opcional (diagnóstico câmera→encoder, não serializado) +
  * [flags] do cabeçalho do protocolo (CHEATSHEET: bit0 = keyframe,
  * bit1 = tem SPS/PPS).
  */
@@ -10,6 +11,7 @@ data class EncodedFrame(
     val ptsUs: Long,
     val annexb: ByteArray,
     val flags: Int,
+    val sourcePtsUs: Long? = null,
 ) {
     /** Bit 0 do cabeçalho: keyframe (IDR). */
     val isKeyframe: Boolean get() = flags and FLAG_KEYFRAME != 0
@@ -20,11 +22,13 @@ data class EncodedFrame(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is EncodedFrame) return false
-        return ptsUs == other.ptsUs && flags == other.flags && annexb.contentEquals(other.annexb)
+        return ptsUs == other.ptsUs && sourcePtsUs == other.sourcePtsUs &&
+            flags == other.flags && annexb.contentEquals(other.annexb)
     }
 
     override fun hashCode(): Int =
-        31 * (31 * (ptsUs.hashCode() * 31 + annexb.contentHashCode()) + flags)
+        31 * (31 * (31 * (ptsUs.hashCode() * 31 + annexb.contentHashCode()) + flags) +
+            (sourcePtsUs?.hashCode() ?: 0))
 
     override fun toString(): String =
         "EncodedFrame(ptsUs=$ptsUs, ${annexb.size}B, " +
@@ -82,12 +86,17 @@ object H264 {
     /**
      * Anexa os parameter sets guardados ([spsPps]) à frente do [unit]
      * (armadilha §6: encoders que não pré-preendem SPS/PPS nos keyframes).
-     * [spsPps] já começa com start code de 3 bytes.
+     * Normaliza o primeiro start code de 4 bytes para 3, como os AUs do
+     * assembler; start codes internos permanecem Annex-B válidos.
      */
     fun prependParamSets(spsPps: ByteArray, unit: ByteArray): ByteArray {
-        val out = ByteArray(spsPps.size + unit.size)
-        spsPps.copyInto(out)
-        unit.copyInto(out, spsPps.size)
+        val offset = if (spsPps.size >= 4 && spsPps[0] == 0.toByte() &&
+            spsPps[1] == 0.toByte() && spsPps[2] == 0.toByte() && spsPps[3] == 1.toByte()
+        ) 1 else 0
+        val prefixSize = spsPps.size - offset
+        val out = ByteArray(prefixSize + unit.size)
+        spsPps.copyInto(out, startIndex = offset)
+        unit.copyInto(out, prefixSize)
         return out
     }
 }
@@ -173,7 +182,9 @@ class AnnexBAssembler {
         if (sc + 3 < au.size) au[sc + 3].toInt() and 0x1F else null
 
     private fun startsWithStartCode(b: ByteArray): Boolean =
-        b.size >= 3 && b[0] == 0.toByte() && b[1] == 0.toByte() && b[2] == 1.toByte()
+        b.size >= 3 && b[0] == 0.toByte() && b[1] == 0.toByte() &&
+            (b[2] == 1.toByte() ||
+                (b.size >= 4 && b[2] == 0.toByte() && b[3] == 1.toByte()))
 
     /** Posição do 1º start code (`00 00 01`) em [b] a partir de [from], ou -1. */
     private fun findStartCode(b: ByteArray, from: Int): Int {

@@ -43,6 +43,9 @@ function makeFakePlugin(): {
     getState: async (): Promise<{ state: string }> => ({ state: "" }),
     getKnownPcs: async () => ({ pcs: [] }),
     forgetPc: async (): Promise<void> => {},
+    getPermissions: async () => ({ camera: "prompt", mic: "prompt", notifications: "prompt" }),
+    requestPermission: async () => ({ status: "prompt" }),
+    openPermissionSettings: async (): Promise<void> => {},
     addListener: async (name: EventName, fn: (e: AnyEvent) => void) => {
       buckets[name].add(fn);
       return {

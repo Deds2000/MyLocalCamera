@@ -1,11 +1,14 @@
 package com.localcamera.app.camera
 
 import android.Manifest
+import android.content.Context
 import android.graphics.ImageFormat
+import android.graphics.SurfaceTexture
 import android.media.ImageReader
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.util.Size
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -34,9 +37,11 @@ class CameraBackendSmokeTest {
 
     @Test
     fun start_10s_started_frames_no_error() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext.applicationContext
+        val size = supportedBackPreviewSize(context)
         val owner = TestLifecycleOwner()
-        owner.start()
+        instrumentation.runOnMainSync { owner.start() }
         val backend = CameraXBackend(context, owner)
 
         val events = CopyOnWriteArrayList<CameraEvent>()
@@ -50,7 +55,7 @@ class CameraBackendSmokeTest {
         backend.onRotationHint { hints.incrementAndGet() }
 
         // Superfície dummy: o ImageReader recebe o que iria para o encoder.
-        val reader = ImageReader.newInstance(1920, 1080, ImageFormat.PRIVATE, 3)
+        val reader = ImageReader.newInstance(size.width, size.height, ImageFormat.PRIVATE, 3)
         val frames = AtomicInteger(0)
         reader.setOnImageAvailableListener(
             {
@@ -64,13 +69,19 @@ class CameraBackendSmokeTest {
             Handler(Looper.getMainLooper()),
         )
 
-        backend.start(CameraConfig(Facing.BACK), reader.surface)
-
-        assertTrue("sem evento started em 30 s (eventos: $events)", started.await(30, TimeUnit.SECONDS))
-        Thread.sleep(RUN_MS)
-        backend.stop()
-        owner.finish()
-        reader.close()
+        try {
+            instrumentation.runOnMainSync {
+                backend.start(CameraConfig(Facing.BACK, width = size.width, height = size.height), reader.surface)
+            }
+            assertTrue("sem evento started em 30 s (eventos: $events)", started.await(30, TimeUnit.SECONDS))
+            Thread.sleep(RUN_MS)
+        } finally {
+            instrumentation.runOnMainSync {
+                backend.stop()
+                owner.finish()
+            }
+            reader.close()
+        }
 
         val errors = events.filterIsInstance<CameraEvent.Error>()
         Log.i(TAG, "frames=${frames.get()} hints=${hints.get()} eventos=$events")
@@ -80,6 +91,20 @@ class CameraBackendSmokeTest {
             "quadros não chegando (frames=${frames.get()}, esperado >= $MIN_FRAMES)",
             frames.get() >= MIN_FRAMES,
         )
+    }
+
+    /**
+     * Mesmo modo da sessão de produção: `CapabilitiesProbe.sessionModes` +
+     * `SessionModePicker` (primeira câmera back, melhor 16:9 ≤ 1080p). Sem
+     * modo verificado, falha o teste — não inventa um tamanho (decisão
+     * 2026-11-03).
+     */
+    private fun supportedBackPreviewSize(context: Context): Size {
+        val modes = CapabilitiesProbe.sessionModes(context, Facing.BACK)
+        val mode = SessionModePicker.pick(modes)
+            ?: throw AssertionError("câmera back não anuncia modo 16:9 até 1920x1080: $modes")
+        Log.i(TAG, "modo do smoke: ${mode.width}x${mode.height}@${mode.fps}")
+        return Size(mode.width, mode.height)
     }
 
     /** [LifecycleOwner] sem Activity: o teste roda sem activity visível. */

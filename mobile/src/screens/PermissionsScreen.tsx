@@ -20,21 +20,13 @@ const ROWS: PermissionRow[] = [
   { kind: "notifications", icon: Bell, required: false },
 ];
 
-// Intent `openSettings` (Abrir configurações do Android) — o chamado nativo
-// chega com o plugin Kotlin (F2-T13).
-function openAndroidSettings(): void {
-  // Ponto de integração F2-T13.
-}
-
 export function PermissionsScreen() {
   const { t } = useTranslation();
-  const { state, dispatch } = useApp();
+  const { state, dispatch, requestPermission, openPermissionSettings } = useApp();
 
   const cameraGranted = state.permissions.camera === "granted";
 
-  const grant = (kind: PermissionKind) =>
-    // Fase 2: marca otimizamente; F2-T13 substitui pelo request nativo real.
-    dispatch({ type: "PERMISSION", kind, status: "granted" });
+  const grant = (kind: PermissionKind) => void requestPermission(kind);
 
   return (
     <main className="flex h-full flex-col gap-6 overflow-y-auto p-5">
@@ -69,7 +61,7 @@ export function PermissionsScreen() {
                     {t("mobile.permissions.granted")}
                   </span>
                 ) : denied ? (
-                  <Button size="sm" variant="outline" onClick={() => openAndroidSettings()}>
+                  <Button size="sm" variant="outline" onClick={() => void openPermissionSettings()}>
                     {t("common.actions.openSettings")}
                   </Button>
                 ) : (

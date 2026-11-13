@@ -1,6 +1,7 @@
 package com.localcamera.app.encoder
 
 import android.media.MediaCodec
+import android.media.MediaCodecInfo
 import android.os.Bundle
 import android.util.Log
 import android.view.Surface
@@ -80,6 +81,9 @@ class VideoEncoder(private val clock: () -> Long = System::nanoTime) {
     private val info = MediaCodec.BufferInfo()
     private val lock = Any()
     private val firstPtsLogged = AtomicBoolean()
+    private var codecVideoBytes = 0L
+    private var assembledVideoBytes = 0L
+    private var codecVideoBuffers = 0
 
     // ------------------------------ configure ------------------------------
 
@@ -127,6 +131,9 @@ class VideoEncoder(private val clock: () -> Long = System::nanoTime) {
                             "${cfg.width}x${cfg.height}@${cfg.fps} kf=${cfg.keyframeIntervalS}s " +
                             "lowLatency=$lowLatency (tentativa ${i + 1}/${ranked.size})",
                     )
+                    val cbrSupported = capsMap[pick.name]?.encoderCapabilities
+                        ?.isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR)
+                    Log.i(LOG_TAG, "capacidade CBR anunciada=$cbrSupported")
                     return
                 } catch (e: Throwable) {
                     lastError = e
@@ -243,7 +250,7 @@ class VideoEncoder(private val clock: () -> Long = System::nanoTime) {
                 val idx = c.dequeueOutputBuffer(info, DEQUEUE_TIMEOUT_US)
                 when {
                     idx == MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
-                    idx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> Log.i(LOG_TAG, "outputFormatChanged")
+                    idx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> Log.i(LOG_TAG, "outputFormatChanged ${c.outputFormat}")
                     idx < 0 -> {
                         Log.e(LOG_TAG, "erro do codec (code=$idx)")
                         break
@@ -255,9 +262,11 @@ class VideoEncoder(private val clock: () -> Long = System::nanoTime) {
                     }
                 }
             }
-            if (!stopped) {
-                for (unit in assembler.flush()) emit(unit, clock() / NS_PER_US)
-            }
+            // Emite também o último AU pendente no encerramento normal. O
+            // próximo buffer normalmente delimita o AU anterior; no stop,
+            // esse próximo buffer pode nunca chegar.
+            for (unit in assembler.flush()) emit(unit, clock() / NS_PER_US, null)
+            Log.i(LOG_TAG, "bytes vídeo codec=$codecVideoBytes buffers=$codecVideoBuffers assembler=$assembledVideoBytes")
         } catch (t: Throwable) {
             // Falha fatal da drenagem: fecha [output] para o consumidor ver o fim.
             Log.e(LOG_TAG, "drain falhou: ${t.javaClass.simpleName}: ${t.message}")
@@ -271,7 +280,11 @@ class VideoEncoder(private val clock: () -> Long = System::nanoTime) {
         if (n <= 0) return null
         val src = c.getOutputBuffer(idx) ?: return null
         val out = ByteArray(n)
-        src.get(info.offset, out) // get absoluto (não move o cursor do buffer)
+        // ByteBuffer.get(index, byte[]) não existe no runtime API 27. A
+        // duplicata permite posicionar sem alterar o buffer do MediaCodec.
+        val view = src.duplicate()
+        view.position(info.offset)
+        view.get(out)
         return out
     }
 
@@ -287,15 +300,18 @@ class VideoEncoder(private val clock: () -> Long = System::nanoTime) {
             )
             return
         }
+        codecVideoBytes += bytes.size
+        codecVideoBuffers++
         val ptsUs = clock() / NS_PER_US // relógio monotônico (não o bufferPtsUs — logado 1×)
         if (firstPtsLogged.compareAndSet(false, true)) {
             Log.i(LOG_TAG, "ptsUs=$ptsUs bufferPtsUs=$bufferPtsUs (usando o clock)")
         }
-        for (unit in assembler.add(bytes)) emit(unit, ptsUs)
+        for (unit in assembler.add(bytes)) emit(unit, ptsUs, bufferPtsUs.takeIf { it > 0L })
     }
 
     /** SPS/PPS quando faltarem (armadilha §6), flags, e envio sem bloqueio. */
-    private fun emit(unit: ByteArray, ptsUs: Long) {
+    private fun emit(unit: ByteArray, ptsUs: Long, sourcePtsUs: Long?) {
+        assembledVideoBytes += unit.size
         var payload = unit
         if (H264.isIdr(unit) && !H264.hasParamSets(unit)) {
             val ps = paramSets
@@ -305,7 +321,7 @@ class VideoEncoder(private val clock: () -> Long = System::nanoTime) {
                 Log.e(LOG_TAG, "keyframe sem SPS/PPS e nada guardado (anômalo)")
             }
         }
-        val frame = EncodedFrame(ptsUs, payload, H264.flagsFor(payload))
+        val frame = EncodedFrame(ptsUs, payload, H264.flagsFor(payload), sourcePtsUs)
         frameCount++
         if (frame.isKeyframe && firstKeyframeMs == null) {
             firstKeyframeMs = ((clock() - t0Ns) / 1_000_000).toInt()

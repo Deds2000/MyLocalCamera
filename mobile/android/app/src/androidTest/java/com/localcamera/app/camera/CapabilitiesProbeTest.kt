@@ -16,7 +16,7 @@ import org.junit.runner.RunWith
  *
  * Valida que o JSON `caps` está no formato do vetor `hello_pair`
  * (`docs/protocol-vectors.json`) e foi medido do aparelho:
- * - ao menos 1 câmera `back` com modo 1920×1080 e 30 fps;
+ * - modos de vídeo reais do aparelho, incluindo 30 fps em uma câmera `back`;
  * - 60 fps nunca aparece em `modes` (S3: `offers60=false`);
  * - `concurrent` coerente: API < 31 → `false` (sem API pública de consulta);
  *   API 31+ → valor medido, impresso para o usuário validar no GATE
@@ -29,7 +29,7 @@ class CapabilitiesProbeTest {
     private val validFacings = setOf("back", "front", "external")
 
     @Test
-    fun probe_caps_no_formato_dos_vetores_com_1080p30_em_back() {
+    fun probe_caps_lista_modos_reais_e_encoder_h264() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val capsJson = CapabilitiesProbe.probe(context)
         // Impresso para o humano revisar (passo 5 do cartão F2-T06).
@@ -56,7 +56,7 @@ class CapabilitiesProbeTest {
         val cameras = caps.getJSONArray("cameras")
         assertTrue("nenhuma câmera listada", cameras.length() > 0)
 
-        var back1080p30 = false
+        var back30fps = false
         for (i in 0 until cameras.length()) {
             val camera = cameras.getJSONObject(i)
             assertTrue("falta id na câmera $i", camera.has("id"))
@@ -80,12 +80,10 @@ class CapabilitiesProbeTest {
                         it != 60
                     )
                 }
-                if (facing == "back" && width == 1920 && height == 1080 && 30 in fps) {
-                    back1080p30 = true
-                }
+                if (facing == "back" && 30 in fps) back30fps = true
             }
         }
-        assertTrue("nenhuma câmera back com modo 1080x30: $capsJson", back1080p30)
+        assertTrue("nenhuma câmera back com modo 30 fps: $capsJson", back30fps)
 
         // `concurrent` coerente: abaixo da API 31 não há API pública de
         // consulta, então a medição honesta é false. Na 31+ o valor é medido
@@ -95,6 +93,25 @@ class CapabilitiesProbeTest {
         if (Build.VERSION.SDK_INT < 31) {
             assertEquals("API < 31 deve reportar concurrent=false", false, concurrent)
         }
+    }
+
+    @Test
+    fun session_modes_back_sao_16x9_ate_1080p() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val modes = CapabilitiesProbe.sessionModes(context, Facing.BACK)
+        Log.i(TAG, "sessionModes back = $modes")
+        assertTrue("nenhum modo de sessão back", modes.isNotEmpty())
+        modes.forEach { mode ->
+            assertTrue("modo não 16:9: $mode", SessionModePicker.is16x9(mode.width, mode.height))
+            assertEquals("fps do modo de sessão", 30, mode.fps)
+        }
+        val picked = SessionModePicker.pick(modes)
+        assertTrue("picker não escolheu modo: $modes", picked != null)
+        assertTrue(
+            "picker escolheu acima de 1080p: $picked",
+            picked!!.width <= 1920 && picked.height <= 1080,
+        )
+        Log.i(TAG, "modo escolhido = $picked")
     }
 
     private fun JSONArray.intList(): List<Int> = (0 until length()).map { getInt(it) }

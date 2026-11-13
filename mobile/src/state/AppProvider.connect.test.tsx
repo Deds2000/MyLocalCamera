@@ -42,7 +42,7 @@ function makeFakePlugin(): {
   const connect = vi.fn(async (): Promise<void> => {});
   const disconnect = vi.fn(async (): Promise<void> => {});
   const getKnownPcs = vi.fn(async (): Promise<{ pcs: StoredKnownPc[] }> => ({ pcs: [] }));
-  const forgetPc = vi.fn(async (_options: { pcId: string }): Promise<void> => {});
+  const forgetPc = vi.fn(async (): Promise<void> => {});
   const api = {
     getCapabilities: async (): Promise<{ caps: unknown }> => ({ caps: {} }),
     connect,
@@ -50,6 +50,9 @@ function makeFakePlugin(): {
     getState: async (): Promise<{ state: string }> => ({ state: "" }),
     getKnownPcs,
     forgetPc,
+    getPermissions: async () => ({ camera: "prompt", mic: "prompt", notifications: "prompt" }),
+    requestPermission: async () => ({ status: "prompt" }),
+    openPermissionSettings: async (): Promise<void> => {},
     addListener: async (name: EventName, fn: (e: AnyEvent) => void) => {
       buckets[name].add(fn);
       return {

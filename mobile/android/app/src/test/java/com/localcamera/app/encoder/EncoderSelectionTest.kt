@@ -1,7 +1,9 @@
 package com.localcamera.app.encoder
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -10,6 +12,14 @@ import org.junit.Test
  * empate → ordem do `MediaCodecList`.
  */
 class EncoderSelectionTest {
+
+    @Test
+    fun `opcoes opcionais do codec respeitam a API minima`() {
+        assertFalse(supportsPrependHeaderToSyncFrames(28))
+        assertTrue(supportsPrependHeaderToSyncFrames(29))
+        assertFalse(supportsLowLatency(29))
+        assertTrue(supportsLowLatency(30))
+    }
 
     private fun c(name: String, profiles: List<Int>, canEncode: Boolean = true, surface: Boolean = true) =
         EncoderCandidate(name, canEncode, profiles, surface)

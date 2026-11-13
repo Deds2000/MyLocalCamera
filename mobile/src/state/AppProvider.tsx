@@ -47,14 +47,25 @@ import {
   type AppState,
   type Connection,
   type KnownPc,
+  type PermissionKind,
+  type PermissionStatus,
   type Target,
 } from "./connection";
+
+const PERMISSION_KINDS: readonly PermissionKind[] = ["camera", "mic", "notifications"];
+
+function appPermissionStatus(status: string | undefined): PermissionStatus {
+  if (status === "granted" || status === "denied") return status;
+  return "unknown";
+}
 
 export interface AppContextValue {
   state: AppState;
   dispatch: Dispatch<AppAction>;
   qrScanner: QrScannerApi;
   knownPcsLoading: boolean;
+  requestPermission(kind: PermissionKind): Promise<void>;
+  openPermissionSettings(): Promise<void>;
 }
 
 export interface AppProviderProps {
@@ -123,7 +134,61 @@ export function AppProvider({
   const [state, dispatch] = useReducer(reducer, initial ?? initialState);
   const scanner = useMemo(() => qrScanner ?? getQrScanner(), [qrScanner]);
   const camera = useMemo(() => localCamera ?? getLocalCamera(), [localCamera]);
-  const [knownPcsLoading, setKnownPcsLoading] = useState(false);
+  const [knownPcsLoading, setKnownPcsLoading] = useState(camera !== null);
+
+  const refreshPermissions = useCallback(async () => {
+    if (!camera) return;
+    try {
+      const permissions = await camera.getPermissions();
+      for (const kind of PERMISSION_KINDS) {
+        dispatch({ type: "PERMISSION", kind, status: appPermissionStatus(permissions[kind]) });
+      }
+    } catch {
+      // Uma falha de leitura nunca transforma uma permissão em concedida.
+    }
+  }, [camera, dispatch]);
+
+  const requestPermission = useCallback(
+    async (kind: PermissionKind) => {
+      if (!camera) {
+        // Web/jsdom mantém a simulação local existente; no Android, sempre
+        // aguardamos a resposta real do plugin antes de liberar a tela.
+        dispatch({ type: "PERMISSION", kind, status: "granted" });
+        return;
+      }
+      try {
+        const result = await camera.requestPermission({ kind });
+        dispatch({ type: "PERMISSION", kind, status: appPermissionStatus(result.status) });
+      } catch {
+        await refreshPermissions();
+      }
+    },
+    [camera, dispatch, refreshPermissions],
+  );
+
+  const openPermissionSettings = useCallback(async () => {
+    if (!camera) return;
+    try {
+      await camera.openPermissionSettings();
+    } catch {
+      await refreshPermissions();
+    }
+  }, [camera, refreshPermissions]);
+
+  useEffect(() => {
+    if (!camera) return;
+    void refreshPermissions();
+    const onFocus = (): void => void refreshPermissions();
+    const onVisibilityChange = (): void => {
+      if (document.visibilityState === "visible") void refreshPermissions();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [camera, refreshPermissions]);
 
   // Os handlers nativos leem o estado mais recente via ref (a assinatura
   // acontece uma única vez, quando o plugin está disponível).
@@ -151,7 +216,6 @@ export function AppProvider({
   useEffect(() => {
     if (!camera) return;
     let active = true;
-    setKnownPcsLoading(true);
     void refreshKnownPcs().finally(() => {
       if (active) setKnownPcsLoading(false);
     });
@@ -326,8 +390,15 @@ export function AppProvider({
   }, [camera, refreshKnownPcs]);
 
   const value = useMemo(
-    () => ({ state, dispatch: dispatchAppAction, qrScanner: scanner, knownPcsLoading }),
-    [state, dispatchAppAction, scanner, knownPcsLoading],
+    () => ({
+      state,
+      dispatch: dispatchAppAction,
+      qrScanner: scanner,
+      knownPcsLoading,
+      requestPermission,
+      openPermissionSettings,
+    }),
+    [state, dispatchAppAction, scanner, knownPcsLoading, requestPermission, openPermissionSettings],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -83,6 +83,19 @@ class AnnexBAssemblerTest {
     }
 
     @Test
+    fun `buffers consecutivos com start code de 4 bytes delimitam AUs`() {
+        val a = AnnexBAssembler()
+        val idr4 = bytes(0, 0, 0, 1, 0x65, 0xAA, 0xBB)
+        val slice4 = bytes(0, 0, 0, 1, 0x41, 0xDD, 0xEE, 0xFF)
+        val idr3 = bytes(0, 0, 1, 0x65, 0xAA, 0xBB)
+        val slice3 = bytes(0, 0, 1, 0x41, 0xDD, 0xEE, 0xFF)
+
+        assertUnits(emptyList(), a.add(idr4))
+        assertUnits(listOf(idr3), a.add(slice4))
+        assertUnits(listOf(slice3), a.flush())
+    }
+
+    @Test
     fun `lixo antes do primeiro start code e descartado`() {
         val a = AnnexBAssembler()
         val out = a.add(bytes(0x55, 0x56, 0x57) + aud + sps + pps + idr + aud + sliceAu)

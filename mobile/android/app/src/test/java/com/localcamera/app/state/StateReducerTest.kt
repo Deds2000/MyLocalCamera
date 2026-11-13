@@ -176,4 +176,40 @@ class StateReducerTest {
         assertTrue(p.getJSONObject("mirror").getBoolean("back"))
         assertEquals(270, p.getJSONObject("rotation").getInt("front"))
     }
+
+    // F2-T14 (decisão 2026-11-03): sessão sem reconfiguração a quente — o
+    // modo do vídeo não muda por SET; bitrate continua aplicável.
+    @Test
+    fun f214_sessionLocksVideoModeButAllowsBitrate() {
+        val logs = mutableListOf<String>()
+        val r = StateReducer(videoModeLocked = true, log = { logs += it })
+
+        r.applySet("""[{"key":"video.width","value":1280},{"key":"video.height","value":720},{"key":"video.fps","value":24}]""")
+        assertEquals(1920, r.state.video.width)
+        assertEquals(1080, r.state.video.height)
+        assertEquals(30, r.state.video.fps)
+        assertEquals(1L, r.state.rev)
+
+        r.applySet("""{"key":"video.bitrateKbps","value":6000}""")
+        assertEquals(6000, r.state.video.bitrateKbps)
+        assertEquals(2L, r.state.rev)
+        assertTrue(logs.any { "video.width" in it })
+    }
+
+    // F2-T14: câmera de destino sem o modo atual → SET recusado, câmera/modo
+    // atuais continuam anunciados; quando o destino suporta, a troca aplica.
+    @Test
+    fun f214_cameraChangeRequiresSupportedMode() {
+        val r = StateReducer(videoModeLocked = true, log = {}) // JVM: sem android.util.Log
+        r.canChangeCamera = { false }
+
+        r.applySet("""{"key":"camera.active","value":"front"}""")
+        assertEquals("back", r.state.camera.active)
+        assertEquals(1L, r.state.rev)
+
+        r.canChangeCamera = { true }
+        r.applySet("""{"key":"camera.active","value":"front"}""")
+        assertEquals("front", r.state.camera.active)
+        assertEquals(2L, r.state.rev)
+    }
 }

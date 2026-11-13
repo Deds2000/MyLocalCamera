@@ -21,6 +21,8 @@ import java.util.concurrent.atomic.AtomicReference
  *   `Network.getSocketFactory()`). `ConnectivityManager.requestNetwork(NetworkRequest,
  *   NetworkCallback)` é o pedido *ativo*: `onAvailable(network)` ao casar,
  *   `onUnavailable()` se nada casar — nenhum dos dois é deprecated.
+ *   O método exige `CHANGE_NETWORK_STATE` (declarado no manifest; requisito
+ *   confirmado na referência oficial do Android).
  *   O `NetworkRequest` usa **só** `addTransportType(TRANSPORT_WIFI)`, **sem**
  *   `NET_CAPABILITY_*`: assim o Wi-Fi da LAN casa **mesmo sem internet
  *   validada** (o caso FT-2.11, rede isolada). Pedir `NET_CAPABILITY_INTERNET`
@@ -38,13 +40,13 @@ import java.util.concurrent.atomic.AtomicReference
  *   `releaseNetworkRequest(Network)` **não existe** mais na superfície da API 36
  *   (sobra só o de `PendingIntent`). O callback fica registrado enquanto a
  *   sessão vive: mantém o pedido ativo e recebe `onLost`/`onAvailable`.
- * - **VPN (nota p/ `docs/devices.md`, observada em F2-T14/F2-T15):** o pedido
- *   casa só o transporte físico `TRANSPORT_WIFI`; uma VPN ativa é rede
- *   `TRANSPORT_VPN` e **não** é casada nem sequestrada — nada de forçar Wi-Fi
- *   quando o usuário está com VPN intencional. Sem Wi-Fi (VPN como rede
- *   padrão ou Wi-Fi desligado), [acquire] devolve `null` e o socket usa a
- *   rede padrão. Com VPN *split*, o tráfego de LAN já sai direto pela
- *   interface, fora do túnel — comportamento a registrar em `docs/devices.md`.
+ * - **VPN (não validada; anotar em `docs/devices.md`/F2-T15):** o pedido casa
+ *   com a rede física `TRANSPORT_WIFI`; a fábrica do [Network] vincula
+ *   explicitamente o socket a essa rede. Portanto, com VPN ativa, esse socket
+ *   pode sair fora do túnel (incluindo contra a intenção de uma VPN full-tunnel).
+ *   Não afirmar que o tráfego preserva a VPN: o comportamento não foi medido.
+ *   Esse vínculo permanece experimental; até validar a política, prefira a
+ *   rede padrão se o usuário exigir que o app permaneça dentro de uma VPN.
  *
  * Os hosts-alvo chegam como IP literal no QR (`PairingUri`) → sem resolução
  * de nome em rede específica (`Network.getAllByName` não é preciso).

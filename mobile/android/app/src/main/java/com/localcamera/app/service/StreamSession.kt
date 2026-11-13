@@ -8,7 +8,10 @@ import com.localcamera.app.camera.CameraConfig
 import com.localcamera.app.camera.CameraEvent
 import com.localcamera.app.camera.CameraEventCode
 import com.localcamera.app.camera.CameraXBackend
+import com.localcamera.app.camera.CapabilitiesProbe
 import com.localcamera.app.camera.Facing
+import com.localcamera.app.camera.SessionMode
+import com.localcamera.app.camera.SessionModePicker
 import com.localcamera.app.encoder.EncoderConfig
 import com.localcamera.app.encoder.VideoEncoder
 import com.localcamera.app.net.ConnectionEvent
@@ -20,6 +23,7 @@ import com.localcamera.app.net.WifiNetwork
 import com.localcamera.app.protocol.Frame
 import com.localcamera.app.protocol.MessageType
 import com.localcamera.app.protocol.StreamConfig
+import com.localcamera.app.protocol.VideoState
 import com.localcamera.app.protocol.encodeStreamConfig
 import com.localcamera.app.state.StateReducer
 import com.localcamera.app.store.PairingStore
@@ -69,6 +73,7 @@ class StreamSession(
     @Volatile private var established = false
     @Volatile private var rotationHint = 0
     @Volatile private var activeFacing = Facing.BACK
+    @Volatile private var sessionMode: SessionMode? = null
     @Volatile private var lastBitrate = 0
     private val bytesSent = AtomicLong(0)
 
@@ -86,11 +91,30 @@ class StreamSession(
         }
         onEvent(StreamEvent.Connecting)
 
-        val enc = VideoEncoder().apply { configure(ENCODER_CONFIG) } // 1080p30, 8 Mbps, kf=1s
+        // Modo da sessão (decisão 2026-11-02): melhor 16:9 verificado pela
+        // câmera e ≤ 1080p — o encoder é configurado nesse modo (a superfície
+        // de entrada tem esse tamanho; o HAL do Moto rejeita 1080p). Sem modo
+        // verificado a sessão não inicia: anunciar 1080p sem suporte foi a
+        // causa da falha fatal no Moto (decisão do usuário 2026-11-03).
+        val mode = pickSessionMode(Facing.BACK)
+        if (mode == null) {
+            log("nenhum modo 16:9 até 1080p30 verificado; sessão não inicia")
+            onEvent(StreamEvent.Error(CameraEventCode.CAMERA_UNAVAILABLE))
+            stop()
+            return
+        }
+        sessionMode = mode
+        log("modo da sessão: ${mode.width}x${mode.height}@${mode.fps}")
+
+        val enc = VideoEncoder().apply { configure(EncoderConfig(width = mode.width, height = mode.height, fps = mode.fps)) }
         encoder = enc
 
-        val red = StateReducer()
+        val red = StateReducer(
+            initialVideo = VideoState(mode.width, mode.height, mode.fps, bitrateKbps = 8000),
+            videoModeLocked = true, // sem reconfiguração a quente: STATE = modo aplicado
+        )
         red.onRotation = { setRotationHint(it) } // SET presentation.rotation
+        red.canChangeCamera = { code -> canSwitchTo(Facing.fromCode(code)) }
         reducer = red
         activeFacing = Facing.fromCode(red.state.camera.active) ?: Facing.BACK
         lastBitrate = red.state.video.bitrateKbps
@@ -104,7 +128,7 @@ class StreamSession(
         scope.launch(Dispatchers.IO) { wifi.acquire() }
 
         val conn = PrimaryConnection(
-            targets = target.hosts.map { InetSocketAddress.createUnresolved(it, target.port) },
+            targets = target.hosts.map { InetSocketAddress(it, target.port) },
             pcId = target.pc.orEmpty(),
             // §11 + F2-T16: SO_SNDBUF/NODELAY **antes** do connect; a factory (roda
             // antes dele) cria o socket já vinculado à Wi-Fi LAN (null → rede padrão).
@@ -120,7 +144,7 @@ class StreamSession(
         cam.onRotationHint { setRotationHint(it) } // rotação do aparelho (AT-2.14)
         cam.onEvent { ev -> onCameraEvent(ev) }
         camera = cam
-        cam.start(CameraConfig(activeFacing), enc.inputSurface)
+        cam.start(CameraConfig(activeFacing, mode.width, mode.height, mode.fps), enc.inputSurface)
         enc.start()
         connJob = scope.launch { conn.start(HelloBuilder.build(context, target, store)) }
         writerJob = scope.launch(Dispatchers.IO) { writerLoop() }
@@ -143,6 +167,7 @@ class StreamSession(
         val m = camera
         val q = queue
         connection = null; encoder = null; camera = null; queue = null
+        sessionMode = null
         wifi?.release(); wifi = null // F2-T16: libera o requestNetwork
         connJob = null; writerJob = null; videoJob = null; statsJob = null
         scope.launch(Dispatchers.IO) {
@@ -292,6 +317,46 @@ class StreamSession(
         old.stop()
     }
 
+    /**
+     * Seleciona o modo da sessão pelo probe (decisão 2026-11-02): melhor 16:9
+     * verificado pela câmera [facing] e ≤ 1080p. Probe vazio/falha → `null`:
+     * o chamador falha fechado em vez de anunciar 1080p sem suporte (decisão
+     * do usuário 2026-11-03).
+     */
+    private fun pickSessionMode(facing: Facing): SessionMode? {
+        val modes = try {
+            CapabilitiesProbe.sessionModes(context, facing)
+        } catch (t: Throwable) {
+            log("probe de modos falhou (${t.javaClass.simpleName})")
+            emptyList()
+        }
+        val mode = SessionModePicker.pick(modes)
+        if (mode == null) log("probe sem modo 16:9 elegível para ${facing.code}")
+        return mode
+    }
+
+    /**
+     * Troca de câmera só é aceita se o modo atual também for anunciado pela
+     * câmera de destino (decisão do usuário 2026-11-03: incompatível → mantém
+     * o modo/câmera atuais). O `STATE` não muda quando a troca é recusada.
+     */
+    private fun canSwitchTo(facing: Facing?): Boolean {
+        val mode = sessionMode ?: return false
+        if (facing == null) return false
+        if (facing == activeFacing) return true
+        val modes = try {
+            CapabilitiesProbe.sessionModes(context, facing)
+        } catch (t: Throwable) {
+            log("probe de ${facing.code} falhou (${t.javaClass.simpleName})")
+            emptyList()
+        }
+        val ok = modes.any { it.width == mode.width && it.height == mode.height && it.fps >= mode.fps }
+        if (!ok) {
+            log("troca para ${facing.code} recusada: modo ${mode.width}x${mode.height}@${mode.fps} não verificado")
+        }
+        return ok
+    }
+
     private companion object {
         const val TAG = "StreamSession"
         const val STREAM_A = 1 // modo single: câmera ativa = stream 1 (CHEATSHEET)
@@ -299,7 +364,6 @@ class StreamSession(
         const val DEFAULT_QUALITY = "1080p30"
         const val STATS_INTERVAL_MS = 500L
         const val SOCKET_POLL_MS = 100L
-        val ENCODER_CONFIG = EncoderConfig() // 1080p30 CBR 8 Mbps kf=1s (CHEATSHEET)
         val FATAL_CAMERA_CODES = setOf(CameraEventCode.CAMERA_IN_USE, CameraEventCode.MAX_CAMERAS_IN_USE,
             CameraEventCode.CAMERA_FATAL, CameraEventCode.CAMERA_REMOVED, CameraEventCode.CAMERA_DISABLED,
             CameraEventCode.START_FAILED, CameraEventCode.CAMERA_UNAVAILABLE, CameraEventCode.CAMERA_CLOSED)

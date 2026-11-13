@@ -12,6 +12,10 @@ import com.localcamera.app.protocol.ProtocolVersion
 import com.localcamera.app.protocol.decodeBye
 import com.localcamera.app.protocol.decodeHello
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -21,6 +25,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.Socket
 
 /**
  * UT-2.09 (F2-T09) — PrimaryConnection com socket fake (loopback em memória)
@@ -31,6 +37,30 @@ import java.net.InetSocketAddress
  * meio do teste ainda fecha os tubos/cancela os jobs e o `runTest` termina.
  */
 class PrimaryConnectionTest {
+
+    @Test
+    fun connectsToRealLoopbackListener() = runBlocking {
+        ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { listener ->
+            val accepted = async(Dispatchers.IO) { listener.accept() }
+            val conn = PrimaryConnection(
+                targets = listOf(InetSocketAddress("127.0.0.1", listener.localPort)),
+                pcId = pc1,
+                socketFactory = { Socket() },
+                onEvent = {},
+                log = {},
+            )
+            val job = launch(Dispatchers.IO) { conn.start(hello) }
+            try {
+                accepted.await().use { peer ->
+                    assertTrue(peer.isConnected)
+                    assertEquals("127.0.0.1", peer.inetAddress.hostAddress)
+                }
+            } finally {
+                conn.close("test")
+                job.cancelAndJoin()
+            }
+        }
+    }
 
     private val addr1 = InetSocketAddress("10.0.0.1", 48650)
     private val addr2 = InetSocketAddress("10.0.0.2", 48650)
