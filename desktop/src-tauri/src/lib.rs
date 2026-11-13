@@ -27,13 +27,9 @@ pub fn run() {
                 .app_data_dir()
                 .expect("app data dir do Tauri");
             let monitors = window_state::monitors_logical(&window.available_monitors()?);
-            if let Some(state) =
-                window_state::resolve(window_state::load(&data_dir), &monitors)
-            {
-                let _ = window
-                    .set_position(tauri::LogicalPosition::new(state.x, state.y));
-                let _ = window
-                    .set_size(tauri::LogicalSize::new(state.w as f64, state.h as f64));
+            if let Some(state) = window_state::resolve(window_state::load(&data_dir), &monitors) {
+                let _ = window.set_position(tauri::LogicalPosition::new(state.x, state.y));
+                let _ = window.set_size(tauri::LogicalSize::new(state.w as f64, state.h as f64));
                 if state.maximized {
                     let _ = window.maximize();
                 }

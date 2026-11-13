@@ -104,11 +104,12 @@ pub fn save(data_dir: &Path, state: &WindowState) {
 /// Verifica se a geometria salva (pixels lógicos) intersecta ao menos um
 /// monitor.
 pub fn valid_on_monitors(state: &WindowState, monitors: &[MonitorRect]) -> bool {
-    monitors
-        .iter()
-        .any(|mon| state.x < (mon.x + mon.w as i32) && state.x + state.w as i32 > mon.x
+    monitors.iter().any(|mon| {
+        state.x < (mon.x + mon.w as i32)
+            && state.x + state.w as i32 > mon.x
             && state.y < (mon.y + mon.h as i32)
-            && state.y + state.h as i32 > mon.y)
+            && state.y + state.h as i32 > mon.y
+    })
 }
 
 /// Grava a geometria atual da janela em pixels lógicos.
@@ -142,10 +143,22 @@ pub fn save_current(window: &tauri::WebviewWindow, data_dir: &Path) {
                 y: prev.y,
                 maximized: true,
             },
-            None => WindowState { w, h, x, y, maximized: true },
+            None => WindowState {
+                w,
+                h,
+                x,
+                y,
+                maximized: true,
+            },
         }
     } else {
-        WindowState { w, h, x, y, maximized: false }
+        WindowState {
+            w,
+            h,
+            x,
+            y,
+            maximized: false,
+        }
     };
     save(data_dir, &state);
 }
@@ -180,11 +193,7 @@ mod tests {
     }
 
     fn tmp_dir(tag: &str) -> PathBuf {
-        std::env::temp_dir().join(format!(
-            "lc-f3t01-window-{}-{}",
-            std::process::id(),
-            tag
-        ))
+        std::env::temp_dir().join(format!("lc-f3t01-window-{}-{}", std::process::id(), tag))
     }
 
     fn clean(dir: &Path) {
@@ -227,7 +236,10 @@ mod tests {
     fn ausente_centraliza_no_primeiro_monitor() {
         let mons = vec![monitor(640, 200, 2560, 1440)];
         let got = resolve(None, &mons).expect("deve centralizar");
-        assert_eq!((got.x, got.y), (640 + (2560 - 1280) / 2, 200 + (1440 - 800) / 2));
+        assert_eq!(
+            (got.x, got.y),
+            (640 + (2560 - 1280) / 2, 200 + (1440 - 800) / 2)
+        );
         assert_eq!((got.w, got.h), (1280, 800));
     }
 
@@ -259,8 +271,7 @@ mod tests {
             y: 0,
             maximized: false,
         };
-        fs::write(file_path(&dir), serde_json::to_string(&small).unwrap())
-            .expect("grava fixture");
+        fs::write(file_path(&dir), serde_json::to_string(&small).unwrap()).expect("grava fixture");
         assert_eq!(load(&dir), None);
         clean(&dir);
     }
