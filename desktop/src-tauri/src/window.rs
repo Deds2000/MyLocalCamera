@@ -170,10 +170,9 @@ pub fn save_current(window: &tauri::WebviewWindow, data_dir: &Path) {
 ///   centralizado no 1º monitor (UT-3.14/FT-3.09);
 /// - nenhum monitor (não deve ocorrer) → `None` (mantém o padrão do conf).
 pub fn resolve(saved: Option<WindowState>, monitors: &[MonitorRect]) -> Option<WindowState> {
-    if let Some(state) = saved {
-        if valid_on_monitors(&state, monitors) {
-            return Some(state);
-        }
+    match saved {
+        Some(state) if valid_on_monitors(&state, monitors) => return Some(state),
+        _ => {}
     }
     let base = monitors.first()?;
     let state = WindowState::default_state();
