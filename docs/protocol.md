@@ -156,6 +156,18 @@ Payload máximo 8 MiB. `magic` inválido ou payload acima do limite → encerrar
 | 0x40 | `REQUEST_KEYFRAME` | PC → cel | principal | vazio (stream no cabeçalho) |
 | 0x7F | `BYE` | ambos | ambos | JSON `{ reason }` |
 
+### API local do desktop (`lc-server`)
+
+Sem alterar os quadros acima, `ServerHandle::video_frames()` fornece um
+`VideoFrameSource` assíncrono com `session_id`, stream, flags, `pts_us` e o
+access unit. A fila local comporta 4 quadros: sob pressão remove o quadro
+não-chave mais antigo; se não houver um, descarta o quadro recebido. Em
+qualquer descarte, `VideoFrameSource::take_keyframe_requests()` informa a
+sessão/stream que precisa de keyframe. `ServerHandle::request_keyframe()` e
+`ServerHandle::send_set()` usam uma fila limitada de 16 comandos por sessão;
+um único laço serializa esses comandos com `PONG`, keepalive e demais respostas.
+Esses limites e APIs são internos ao desktop, não campos ou regras novos da wire.
+
 ## 9. Estado compartilhado
 
 O celular guarda o estado e o altera por um único **reducer**, sempre na ordem de chegada. Mudanças feitas na UI do celular e `SET`s vindos do PC passam pelo mesmo caminho. Depois de cada mudança, o celular envia `STATE` (com `rev` incrementado). A UI do PC pode atualizar de forma otimista, mas **reconcilia com o `STATE` recebido**.

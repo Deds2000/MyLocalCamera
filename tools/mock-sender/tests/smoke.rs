@@ -1,8 +1,11 @@
 //! Testes de fumaça do `mock-sender` contra o `lc-server` real.
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 use clap::Parser;
+use lc_protocol::flags;
+use lc_protocol::json::{SetItem, SetPayload};
 use lc_server::config::ServerConfig;
 use lc_server::events::ServerEvent;
 use lc_server::{start, ServerHandle};
@@ -150,4 +153,59 @@ async fn reconnect_with_state_file() {
     }
     assert!(sessions >= 2, "duas sessões aceitas (pareamento + device)");
     handle.shutdown().await;
+}
+
+/// REQUEST_KEYFRAME atravessa o canal PC→celular e faz o próximo quadro ser IDR.
+#[tokio::test]
+async fn keyframe_request_makes_mock_sender_emit_idr() {
+    let (mut handle, port, _dir) = boot().await;
+    let token = pair_token(&handle);
+    let mut source = handle.video_frames();
+    let mut cfg = config(port, Some(token));
+    cfg.file = Some(fixture("hd30.h264"));
+    cfg.loop_video = true;
+    cfg.fps = 2;
+
+    let sender = tokio::spawn(run(cfg));
+    let session_id = loop {
+        match handle.events().recv().await.expect("session event") {
+            ServerEvent::SessionStarted { session_id, .. } => break session_id,
+            _ => {}
+        }
+    };
+
+    let non_key = loop {
+        let frame = tokio::time::timeout(Duration::from_secs(5), source.recv())
+            .await
+            .expect("mock envia vídeo");
+        assert_eq!(frame.session_id, session_id);
+        if frame.flags & flags::KEYFRAME == 0 {
+            break frame;
+        }
+    };
+    handle
+        .send_set(
+            &session_id,
+            SetPayload::One(SetItem {
+                key: "camera.active".to_owned(),
+                value: serde_json::json!("front"),
+            }),
+        )
+        .expect("SET enfileirado");
+    handle
+        .request_keyframe(&session_id, 1)
+        .expect("pedido de keyframe enfileirado");
+
+    let frame = tokio::time::timeout(Duration::from_secs(2), source.recv())
+        .await
+        .expect("quadro seguinte");
+    assert!(frame.pts_us > non_key.pts_us, "PTS precisa avançar");
+    assert_ne!(
+        frame.flags & flags::KEYFRAME,
+        0,
+        "quadro seguinte deve ser IDR"
+    );
+
+    handle.shutdown().await;
+    sender.await.expect("mock task").expect("mock sender");
 }

@@ -181,7 +181,11 @@ async fn perform_hello(
             reason: Reason::Busy,
             min_supported: None,
         },
-        Claim::Granted { kick_rx, .. } => {
+        Claim::Granted {
+            kick_rx,
+            command_rx,
+            ..
+        } => {
             let audio_ticket = ctx
                 .tickets
                 .lock()
@@ -195,6 +199,7 @@ async fn perform_hello(
                 device_name: hello.device.name.clone(),
                 caps: hello.caps.clone(),
                 kick_rx,
+                command_rx,
             }))
         }
     }

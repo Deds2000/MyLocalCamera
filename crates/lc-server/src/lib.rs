@@ -7,6 +7,7 @@ pub mod audio;
 pub mod config;
 pub mod conn;
 pub mod events;
+pub mod frames;
 pub mod handshake;
 pub mod keepalive;
 pub mod redact;
@@ -28,8 +29,9 @@ use tokio::task::JoinHandle;
 use crate::audio::TicketStore;
 use crate::config::ServerConfig;
 use crate::events::{Decision, EventSink, ServerEvent};
+use crate::frames::{VideoFrameQueue, VideoFrameSource};
 use crate::handshake::ServerCtx;
-use crate::sessions::SessionRegistry;
+use crate::sessions::{SessionCommandError, SessionRegistry};
 use crate::trust::ratelimit::{AuthLimiter, ConnRateLimiter, Limiters};
 use crate::trust::{ApprovalManager, TrustError, TrustStore, UsbWindow};
 
@@ -56,6 +58,7 @@ pub struct ServerHandle {
     events_rx: mpsc::Receiver<ServerEvent>,
     port: u16,
     ctx: Arc<ServerCtx>,
+    video_frames: Arc<VideoFrameQueue>,
 }
 
 impl ServerHandle {
@@ -78,6 +81,31 @@ impl ServerHandle {
     #[must_use]
     pub fn sessions(&self) -> Arc<SessionRegistry> {
         self.ctx.sessions.clone()
+    }
+
+    /// Fonte limitada de quadros recebidos. Deve haver um consumidor por
+    /// servidor; cada quadro inclui o ID da sessão, PTS e flags.
+    #[must_use]
+    pub fn video_frames(&self) -> VideoFrameSource {
+        self.video_frames.source()
+    }
+
+    /// Envia `REQUEST_KEYFRAME` à sessão ativa.
+    pub fn request_keyframe(
+        &self,
+        session_id: &str,
+        stream: u8,
+    ) -> Result<(), SessionCommandError> {
+        self.ctx.sessions.request_keyframe(session_id, stream)
+    }
+
+    /// Envia um `SET` à sessão ativa.
+    pub fn send_set(
+        &self,
+        session_id: &str,
+        payload: lc_protocol::json::SetPayload,
+    ) -> Result<(), SessionCommandError> {
+        self.ctx.sessions.send_set(session_id, payload)
     }
 
     /// Decide um pedido de aprovação pendente (`ApprovalRequested`).
@@ -148,6 +176,7 @@ impl ServerHandle {
 /// emite [`ServerEvent::Listening`] com a porta efetiva.
 pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
     let (events_tx, events_rx) = mpsc::channel(EVENTS_CAPACITY);
+    let video_frames = VideoFrameQueue::new();
     let listener = bind_listener(&cfg, &events_tx).await?;
     let port = listener.local_addr()?.port();
     let _ = events_tx.send(ServerEvent::Listening { port }).await;
@@ -173,6 +202,7 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
         trust,
         tickets: Arc::new(Mutex::new(TicketStore::new())),
         sessions: Arc::new(SessionRegistry::new()),
+        video_frames: video_frames.clone(),
         approvals: Arc::new(ApprovalManager::new()),
         usb_window: Arc::new(Mutex::new(UsbWindow::new())),
         limiters,
@@ -218,6 +248,7 @@ pub async fn start(cfg: ServerConfig) -> Result<ServerHandle, ServerError> {
         events_rx,
         port,
         ctx,
+        video_frames,
     })
 }
 

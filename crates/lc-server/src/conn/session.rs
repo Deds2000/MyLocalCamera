@@ -6,9 +6,10 @@ use lc_protocol::json::{AudioTicket, Bye, PcInfo, Reason, Welcome};
 use lc_protocol::{flags, type_name, FrameReader, Message};
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
-use tokio::sync::{oneshot, watch};
+use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::events::{CloseReason, EventSink, ServerEvent};
+use crate::frames::VideoFrame;
 use crate::handshake::{now_secs, write_msg, ServerCtx};
 use crate::keepalive::{mono_ms, Keepalive};
 use crate::sessions::SessionCounters;
@@ -24,6 +25,8 @@ pub(super) struct SessionData {
     /// Contadores da sessão (vídeo + RTT; `None` na race de
     /// substituição — a sessão encerra via `kick_rx`).
     pub(super) counters: Option<Arc<SessionCounters>>,
+    /// Fila de comandos; o próprio laço serializa as escritas do socket.
+    pub(super) command_rx: mpsc::Receiver<Message>,
     /// Intervalo dos `PING` de keepalive (F1-T10).
     pub(super) ping_interval: Duration,
     /// Sem `PONG` por este intervalo → `ConnectionLost` (F1-T10).
@@ -42,11 +45,12 @@ pub(super) async fn session_loop(
     stream: &mut TcpStream,
     reader: &mut FrameReader,
     buf: &mut [u8],
-    session: &SessionData,
+    session: &mut SessionData,
     conn_id: u64,
     mut kick_rx: oneshot::Receiver<()>,
     shutdown_rx: &mut watch::Receiver<bool>,
 ) -> CloseReason {
+    let command_rx = &mut session.command_rx;
     let SessionData {
         ping_interval,
         liveness_timeout,
@@ -87,8 +91,15 @@ pub(super) async fn session_loop(
                                         .store(rtt_to_u32(rtt), Ordering::Relaxed);
                                 }
                             }
-                            Message::Video { stream, flags, data, .. } => {
+                            Message::Video { stream, flags, pts_us, data } => {
                                 count_video(session.counters.as_ref(), stream, flags, data.len());
+                                session.ctx.video_frames.push(VideoFrame {
+                                    session_id: session.session_id.clone(),
+                                    stream,
+                                    flags,
+                                    pts_us,
+                                    data,
+                                });
                             }
                             Message::AudioTicketRequest => {
                                 // Sessão ativa: emite um novo ticket de
@@ -149,6 +160,12 @@ pub(super) async fn session_loop(
                     tracing::warn!(conn_id, error = %e, "falha ao enviar BYE(replaced)");
                 }
                 return CloseReason::Replaced;
+            }
+            Some(message) = command_rx.recv() => {
+                if let Err(e) = write_msg(stream, &message).await {
+                    tracing::warn!(conn_id, error = %e, "falha ao enviar comando à sessão");
+                    return CloseReason::ConnectionLost;
+                }
             }
             _ = shutdown_rx.changed() => return CloseReason::Shutdown,
         }

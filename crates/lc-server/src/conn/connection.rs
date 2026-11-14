@@ -157,6 +157,7 @@ pub(super) async fn run_conn(
                 device_name,
                 caps,
                 kick_rx,
+                command_rx,
             } = *a;
             let welcome = Message::Welcome(accepted_welcome(
                 &ctx,
@@ -208,10 +209,11 @@ pub(super) async fn run_conn(
                 ));
                 (tx, task)
             });
-            let session_data = SessionData {
+            let mut session_data = SessionData {
                 ctx: ctx.clone(),
                 session_id: session_id.clone(),
                 counters,
+                command_rx,
                 ping_interval,
                 liveness_timeout,
             };
@@ -219,7 +221,7 @@ pub(super) async fn run_conn(
                 &mut stream,
                 &mut reader,
                 &mut buf,
-                &session_data,
+                &mut session_data,
                 conn_id,
                 kick_rx,
                 &mut shutdown_rx,

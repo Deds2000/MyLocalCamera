@@ -4,13 +4,13 @@
 //! ~300 linhas (o cartão F1-T11a fixa `session.rs` para a orquestração).
 
 use std::net::SocketAddr;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
 use bytes::Bytes;
 use lc_protocol::json::AudioHello;
-use lc_protocol::Message;
+use lc_protocol::{flags, Message};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio::time::{interval, MissedTickBehavior};
@@ -27,6 +27,7 @@ pub(crate) async fn reader_loop(
     closed_by: Arc<StdMutex<Option<String>>>,
     no_pong: bool,
     drop_ping: bool,
+    request_keyframe: Arc<AtomicBool>,
 ) {
     let mut dropped_first = false;
     loop {
@@ -48,6 +49,9 @@ pub(crate) async fn reader_loop(
                 *closed_by.lock().unwrap_or_else(|p| p.into_inner()) = Some(bye.reason);
                 break;
             }
+            Ok(Some(Message::RequestKeyframe { stream: 1 })) => {
+                request_keyframe.store(true, Ordering::Release);
+            }
             Ok(Some(_)) => {}
             Ok(None) | Err(_) => break,
         }
@@ -63,6 +67,7 @@ pub(crate) async fn video_loop(
     writer: Writer,
     counters: Arc<Counters>,
     unknown_type: bool,
+    request_keyframe: Arc<AtomicBool>,
 ) {
     let mut ticker = interval(Duration::from_secs_f64(1.0 / f64::from(fps)));
     // `Burst`: o timer do Windows tem granularidade de ~15,6 ms; com
@@ -71,9 +76,18 @@ pub(crate) async fn video_loop(
     ticker.set_missed_tick_behavior(MissedTickBehavior::Burst);
     ticker.tick().await; // descarta o tick imediato
     let mut index = 0u64;
+    let idr = aus
+        .iter()
+        .find(|range| video::flags_from_au(&data[(*range).clone()]) & flags::KEYFRAME != 0)
+        .cloned();
     'outer: loop {
         for range in &aus {
-            let au = &data[range.clone()];
+            let selected = if request_keyframe.swap(false, Ordering::AcqRel) {
+                idr.as_ref().unwrap_or(range)
+            } else {
+                range
+            };
+            let au = &data[selected.clone()];
             let flags = video::flags_from_au(au);
             let pts = video::pts_for_frame(index, fps);
             let msg = Message::Video {

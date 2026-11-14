@@ -25,6 +25,7 @@ use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::audio::TicketStore;
 use crate::events::{CloseReason, EventSink, ServerEvent};
+use crate::frames::VideoFrameQueue;
 use crate::sessions::SessionRegistry;
 use crate::trust::{ApprovalManager, Limiters, TrustStore, UsbWindow};
 
@@ -40,6 +41,8 @@ pub struct ServerCtx {
     pub tickets: Arc<Mutex<TicketStore>>,
     /// Registro da sessão ativa (uma única).
     pub sessions: Arc<SessionRegistry>,
+    /// Fonte limitada de quadros para consumidores desktop.
+    pub(crate) video_frames: Arc<VideoFrameQueue>,
     /// Pedidos de aprovação de pareamento (máximo de um pendente).
     pub approvals: Arc<ApprovalManager>,
     /// Prazo da aprovação no PC (padrão 30 s).
@@ -95,6 +98,8 @@ pub struct Accepted {
     /// Dispara se **esta** sessão for substituída pelo mesmo dispositivo
     /// (a conexão envia `BYE{reason:"replaced"}`).
     pub kick_rx: oneshot::Receiver<()>,
+    /// Canal PC→celular da sessão; o laço ativo serializa todas as escritas.
+    pub command_rx: mpsc::Receiver<Message>,
 }
 
 impl fmt::Debug for Accepted {
@@ -162,7 +167,10 @@ pub(crate) async fn perform_with_sink(
 }
 /// Serializa e envia a mensagem (flush no fim). Compartilhado com
 /// `conn.rs` (que importa esta função).
-pub(crate) async fn write_msg(stream: &mut TcpStream, msg: &Message) -> io::Result<()> {
+pub(crate) async fn write_msg<W>(stream: &mut W, msg: &Message) -> io::Result<()>
+where
+    W: tokio::io::AsyncWrite + Unpin,
+{
     let bytes = msg
         .encode(0)
         .map_err(|e| io::Error::other(format!("encode de quadro: {e}")))?;
@@ -185,6 +193,7 @@ mod tests {
             device_name: "Fone".to_owned(),
             caps: Caps::default(),
             kick_rx: oneshot::channel::<()>().1,
+            command_rx: mpsc::channel(1).1,
         }));
         let rendered = format!("{outcome:?}");
         assert!(!rendered.contains("secret-ticket"), "{rendered}");
