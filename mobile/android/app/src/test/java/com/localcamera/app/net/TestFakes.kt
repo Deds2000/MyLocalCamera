@@ -225,6 +225,7 @@ fun makeRig(
     targets: List<InetSocketAddress>,
     script: (Int, FakeSocket) -> suspend (Frame) -> Unit,
     failConnect: Boolean = false,
+    failAttempts: Int = 0,
     launchServer: (suspend () -> Unit) -> Job,
 ): Rig {
     val clock = FakeClock()
@@ -239,7 +240,7 @@ fun makeRig(
         pcId = "pc-1",
         socketFactory = {
             calls++ // conta a TENTATIVA (mesmo quando o connect falha)
-            if (failConnect) throw IOException("host fora do ar")
+            if (failConnect || calls <= failAttempts) throw IOException("host fora do ar")
             val (c, s) = FakeSocket.pair()
             clients.add(c)
             servers.add(s)

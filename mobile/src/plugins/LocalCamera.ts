@@ -75,10 +75,10 @@ export interface NativePermissionStates {
 
 /* -------------------------------- opções -------------------------------- */
 
-/** Pareamento (QR/deep link) ou PC conhecido (`pcId` — a `deviceKey` vem
- *  do `PairingStore` no Kotlin, F2-T05). */
+/** Pareamento (QR/deep link; `pcId` opcional identifica o PC para retries)
+ *  ou PC conhecido (`pcId` sozinho — auth por `deviceKey`, F2-T05). */
 export type ConnectOptions =
-  | { hosts: string[]; port: number; token: string }
+  | { hosts: string[]; port: number; token: string; pcId?: string }
   | { pcId: string };
 
 /* ------------------------------- interface ----------------------------- */

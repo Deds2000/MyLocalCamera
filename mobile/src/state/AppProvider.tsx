@@ -104,7 +104,12 @@ function connectOptions(target: Target): ConnectOptions | null {
   if (target.rawUri) {
     const parsed = parsePairingUri(target.rawUri);
     return parsed.ok
-      ? { hosts: parsed.value.hosts, port: parsed.value.port, token: parsed.value.token }
+      ? {
+          hosts: parsed.value.hosts,
+          port: parsed.value.port,
+          token: parsed.value.token,
+          ...(parsed.value.pc ? { pcId: parsed.value.pc } : {}),
+        }
       : null;
   }
   if (target.host && target.port && target.token) {

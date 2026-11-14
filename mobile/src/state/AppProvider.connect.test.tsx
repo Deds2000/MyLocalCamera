@@ -105,7 +105,7 @@ function KnownPcsProbe() {
 }
 
 describe("AppProvider — ponte nativa de conexão (F2-T13)", () => {
-  it("chama connect(hosts, port, token) ao entrar em connecting", async () => {
+  it("preserva o pcId do deep link ao chamar o plugin nativo", async () => {
     const fake = makeFakePlugin();
     const target = targetFromRawUri(URI);
 
@@ -122,6 +122,7 @@ describe("AppProvider — ponte nativa de conexão (F2-T13)", () => {
         hosts: ["192.168.0.10"],
         port: 48650,
         token: TOKEN,
+        pcId: "11111111-1111-4111-8111-111111111111",
       }),
     );
   });
@@ -146,6 +147,7 @@ describe("AppProvider — ponte nativa de conexão (F2-T13)", () => {
         hosts: ["192.168.0.10"],
         port: 48650,
         token: TOKEN,
+        pcId: "11111111-1111-4111-8111-111111111111",
       }),
     );
   });

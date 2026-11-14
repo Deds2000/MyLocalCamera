@@ -2,7 +2,7 @@
 
 > Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada. Executor: agente; testes de aparelho via IA + ADB, conforme `AGENTS.md`.
 
-**Próxima tarefa:** **F2-FIX-01** — reconexão após queda de Wi-Fi. **D1:** sequência intercalada autorizada. **Atualizado:** 2026-11-13.
+**Próxima tarefa:** **F3-T13** — ponte Tauri ↔ lc-server (dependências T01 e T13b concluídas). F2-FIX-01 concluída; Fase 2 segue **NÃO APROVADA** até F2-FIX-02…04 e F2-GATE-R. **D1:** sequência intercalada autorizada. **Atualizado:** 2026-11-14.
 
 ## Bloqueios abertos
 
@@ -20,7 +20,7 @@
 | [x] | R-01 | Compactar progresso e arquivar histórico | — | `docs/tasks/R-01.md` |
 | [x] | R-05 | Dividir conn/handshake sem mudar comportamento; 107 testes passaram, 1 ignorado; clippy/fmt verdes | R-01 | `docs/tasks/R-05.md` |
 | [x] | F3-T13b | Quadros limitados e comandos no lc-server; PONG, ordem/PTS, keyframe e sessão encerrada verificados | R-05 | `docs/tasks/fase-3/F3-T13b.md` |
-| [ ] | F2-FIX-01 | Reconexão após queda de Wi-Fi | — | `docs/tasks/fase-2/F2-FIX-01.md` |
+| [x] | F2-FIX-01 | Reconexão após queda de Wi-Fi — Pair→Device, cache de rede e retry validados por ADB | — | `docs/tasks/fase-2/F2-FIX-01.md` |
 | [ ] | F3-T13 | Ponte Tauri ↔ lc-server | T01, T13b | `docs/tasks/fase-3/F3-T13.md` |
 | [ ] | F2-FIX-03 | Testes JVM do estado da câmera | — | `docs/tasks/fase-2/F2-FIX-03.md` |
 | [ ] | F3-T07 | Decodificador H.264 | F3-T13b, F3-T13 | `docs/tasks/fase-3/F3-T07.md` |
@@ -54,3 +54,4 @@
 - **R-01:** histórico arquivado; 127 IDs de tarefa e 111 IDs de teste distintos preservados; nota removida por D5; Fase 2 segue NÃO APROVADA.
 - **R-05:** `cargo test -p lc-server` — 107 aprovados, 1 ignorado; `cargo clippy -p lc-server` e `cargo fmt --all --check` verdes. Testes existentes não editados; módulos extraídos com ≤300 linhas.
 - **F3-T13b:** `cargo test -p lc-server`, `cargo clippy -p lc-server`, `cargo test -p mock-sender` e `cargo fmt --all --check` verdes; novas integrações cobrem pressão sem bloquear PONG, metadados/ordem, envio de SET/keyframe e erro após encerramento. Protocolo v1.0 e `lc-protocol` sem alterações.
+- **F2-FIX-01:** causa corrigida: `AppProvider.connectOptions()` descartava o `pc` do deep link, deixando `PrimaryConnection.pcId` vazio e mantendo retries em `auth=pair`. O ID agora atravessa o contrato JS/Kotlin; retries usam a `deviceKey` persistida (`auth=device`). Cache de rede obsoleto substituível e testes JVM para N falhas e Pair→Device. Gradle JVM direcionado, Vitest (7 testes), typecheck, build web, APKs debug/instrumentação e `git diff --check` passaram. No Samsung, modo avião/Wi-Fi desligado por 9 s e restaurado; runner destacado terminou `exit_code=0`, `OK (1 test)`; servidor registrou a sessão inicial, `ConnectionLost` e segunda sessão até 8 s após a volta da rede, sustentada até o cleanup (`PeerClosed`). Logs coletados somente de `PrimaryConn`/`WifiNetwork`, sem credenciais; baseline restaurado (`airplane=0`, `wifi=1`). Sem alteração do protocolo v1.0. Fase 2 permanece **NÃO APROVADA**.
