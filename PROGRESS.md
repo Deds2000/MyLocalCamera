@@ -2,7 +2,7 @@
 
 > Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada. Executor: agente; testes de aparelho via IA + ADB, conforme `AGENTS.md`.
 
-**Próxima tarefa:** **R-05** — dividir `conn.rs`/`handshake.rs` sem mudança de comportamento; depende de R-01 `[x]`. **D1:** sequência intercalada autorizada (2026-11-13). **Fase atual:** sequência revisada Fase 3 + trilhas paralelas. **Atualizado:** 2026-11-13.
+**Próxima tarefa:** **F2-FIX-01** — reconexão após queda de Wi-Fi. F3-T13b fica bloqueada até decisão D7; enquanto isso, seguir pela trilha independente. **D1:** sequência intercalada autorizada (2026-11-13). **Atualizado:** 2026-11-13.
 
 ## Bloqueios abertos
 
@@ -18,7 +18,7 @@
 | St | ID | Resumo | Depende de | Cartão |
 |---|---|---|---|---|
 | [x] | R-01 | Compactar progresso e arquivar histórico | — | `docs/tasks/R-01.md` |
-| [ ] | R-05 | Dividir conn/handshake sem mudar comportamento | R-01 | `docs/tasks/R-05.md` |
+| [x] | R-05 | Dividir conn/handshake sem mudar comportamento; 107 testes passaram, 1 ignorado; clippy/fmt verdes | R-01 | `docs/tasks/R-05.md` |
 | [!] | F3-T13b | Mídia e comandos no lc-server; aguarda D7 | R-05 | `docs/tasks/fase-3/F3-T13b.md` |
 | [ ] | F2-FIX-01 | Reconexão após queda de Wi-Fi | — | `docs/tasks/fase-2/F2-FIX-01.md` |
 | [ ] | F3-T13 | Ponte Tauri ↔ lc-server | T01, T13b | `docs/tasks/fase-3/F3-T13.md` |
@@ -49,8 +49,7 @@
 | [x] | F3-T03 | i18n `common.*` | — | `docs/tasks/fase-3/F3-T03.md` |
 | [x] | F3-T14b | i18n `desktop.*` | T03 | `docs/tasks/fase-3/F3-T14b.md` |
 
-## R-01 — verificação
+## Evidência recente
 
-- Histórico anterior preservado no arquivo, exceto a nota removida por D5.
-- `PROGRESS.md` compacto; links dos cartões e do arquivo mantidos.
-- Fase 2 continua NÃO APROVADA; nenhuma evidência/gate foi reclassificada.
+- **R-01:** histórico arquivado; 127 IDs de tarefa e 111 IDs de teste distintos preservados; nota removida por D5; Fase 2 segue NÃO APROVADA.
+- **R-05:** `cargo test -p lc-server` — 107 aprovados, 1 ignorado; `cargo clippy -p lc-server` e `cargo fmt --all --check` verdes. Testes existentes não editados; todos os módulos extraídos têm ≤300 linhas. Próxima decisão: D7 antes de F3-T13b.
