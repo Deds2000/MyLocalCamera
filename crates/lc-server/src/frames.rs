@@ -1,6 +1,7 @@
 //! Fonte limitada de quadros H.264, independente dos eventos de UI.
 
 use std::collections::{BTreeSet, VecDeque};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
@@ -46,6 +47,7 @@ struct QueueState {
 pub(crate) struct VideoFrameQueue {
     state: Mutex<QueueState>,
     ready: Notify,
+    dropped_frames: AtomicU64,
 }
 
 impl VideoFrameQueue {
@@ -53,7 +55,12 @@ impl VideoFrameQueue {
         Arc::new(Self {
             state: Mutex::new(QueueState::default()),
             ready: Notify::new(),
+            dropped_frames: AtomicU64::new(0),
         })
+    }
+
+    pub(crate) fn dropped_frames(&self) -> u64 {
+        self.dropped_frames.load(Ordering::Relaxed)
     }
 
     pub(crate) fn source(self: &Arc<Self>) -> VideoFrameSource {
@@ -77,11 +84,13 @@ impl VideoFrameQueue {
                 .position(|queued| queued.flags & lc_protocol::flags::KEYFRAME == 0);
             if let Some(index) = oldest_non_key {
                 let dropped = state.frames.remove(index).expect("índice encontrado acima");
+                self.dropped_frames.fetch_add(1, Ordering::Relaxed);
                 state.keyframe_needed.insert(KeyframeRequest {
                     session_id: dropped.session_id,
                     stream: dropped.stream,
                 });
             } else {
+                self.dropped_frames.fetch_add(1, Ordering::Relaxed);
                 state.keyframe_needed.insert(KeyframeRequest {
                     session_id: frame.session_id,
                     stream: frame.stream,
@@ -173,5 +182,18 @@ mod tests {
         assert_eq!(queue.pop().expect("frame").pts_us, 2);
         assert_eq!(queue.pop().expect("frame").pts_us, 3);
         assert_eq!(queue.pop().expect("frame").pts_us, 4);
+        assert_eq!(queue.dropped_frames(), 1);
+    }
+
+    #[test]
+    fn pressure_counts_incoming_frame_when_queue_contains_only_keyframes() {
+        let queue = VideoFrameQueue::new();
+        for pts in 0..4 {
+            queue.push(frame(pts, lc_protocol::flags::KEYFRAME));
+        }
+        queue.push(frame(4, 0));
+
+        assert_eq!(queue.dropped_frames(), 1);
+        assert_eq!(queue.pop().expect("frame").pts_us, 0);
     }
 }

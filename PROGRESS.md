@@ -2,7 +2,7 @@
 
 > Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada. Executor: agente; testes de aparelho via IA + ADB, conforme `AGENTS.md`.
 
-**Próxima tarefa:** **F3-T13** — ponte Tauri ↔ lc-server (dependências T01 e T13b concluídas). F2-FIX-01 concluída; Fase 2 segue **NÃO APROVADA** até F2-FIX-02…04 e F2-GATE-R. **D1:** sequência intercalada autorizada. **Atualizado:** 2026-11-14.
+**Próxima tarefa:** **F2-FIX-03** — testes JVM do estado da câmera. F2-FIX-01 concluída; Fase 2 segue **NÃO APROVADA** até F2-FIX-02…04 e F2-GATE-R. **D1:** sequência intercalada autorizada. **Atualizado:** 2026-11-14.
 
 ## Bloqueios abertos
 
@@ -21,7 +21,7 @@
 | [x] | R-05 | Dividir conn/handshake sem mudar comportamento; 107 testes passaram, 1 ignorado; clippy/fmt verdes | R-01 | `docs/tasks/R-05.md` |
 | [x] | F3-T13b | Quadros limitados e comandos no lc-server; PONG, ordem/PTS, keyframe e sessão encerrada verificados | R-05 | `docs/tasks/fase-3/F3-T13b.md` |
 | [x] | F2-FIX-01 | Reconexão após queda de Wi-Fi — Pair→Device, cache de rede e retry validados por ADB | — | `docs/tasks/fase-2/F2-FIX-01.md` |
-| [ ] | F3-T13 | Ponte Tauri ↔ lc-server | T01, T13b | `docs/tasks/fase-3/F3-T13.md` |
+| [x] | F3-T13 | Ponte Tauri ↔ lc-server; comandos, eventos e wrapper web/mock testados | T01, T13b | `docs/tasks/fase-3/F3-T13.md` |
 | [ ] | F2-FIX-03 | Testes JVM do estado da câmera | — | `docs/tasks/fase-2/F2-FIX-03.md` |
 | [ ] | F3-T07 | Decodificador H.264 | F3-T13b, F3-T13 | `docs/tasks/fase-3/F3-T07.md` |
 | [ ] | F2-FIX-02 | Medição de latência captura→socket | — | `docs/tasks/fase-2/F2-FIX-02.md` |
@@ -55,3 +55,9 @@
 - **R-05:** `cargo test -p lc-server` — 107 aprovados, 1 ignorado; `cargo clippy -p lc-server` e `cargo fmt --all --check` verdes. Testes existentes não editados; módulos extraídos com ≤300 linhas.
 - **F3-T13b:** `cargo test -p lc-server`, `cargo clippy -p lc-server`, `cargo test -p mock-sender` e `cargo fmt --all --check` verdes; novas integrações cobrem pressão sem bloquear PONG, metadados/ordem, envio de SET/keyframe e erro após encerramento. Protocolo v1.0 e `lc-protocol` sem alterações.
 - **F2-FIX-01:** causa corrigida: `AppProvider.connectOptions()` descartava o `pc` do deep link, deixando `PrimaryConnection.pcId` vazio e mantendo retries em `auth=pair`. O ID agora atravessa o contrato JS/Kotlin; retries usam a `deviceKey` persistida (`auth=device`). Cache de rede obsoleto substituível e testes JVM para N falhas e Pair→Device. Gradle JVM direcionado, Vitest (7 testes), typecheck, build web, APKs debug/instrumentação e `git diff --check` passaram. No Samsung, modo avião/Wi-Fi desligado por 9 s e restaurado; runner destacado terminou `exit_code=0`, `OK (1 test)`; servidor registrou a sessão inicial, `ConnectionLost` e segunda sessão até 8 s após a volta da rede, sustentada até o cleanup (`PeerClosed`). Logs coletados somente de `PrimaryConn`/`WifiNetwork`, sem credenciais; baseline restaurado (`airplane=0`, `wifi=1`). Sem alteração do protocolo v1.0. Fase 2 permanece **NÃO APROVADA**.
+- **F3-T13:** `cargo test -p desktop` (16), `cargo clippy -p desktop`, `cargo fmt --all --check`, `pnpm --filter desktop test -- lib` (3), `pnpm --filter desktop typecheck`, `git diff --check`, `cargo build -p desktop` e `cargo build --release -p desktop` verdes. Smoke automatizado no WebView2 de debug, via CDP restrito a `127.0.0.1`: `get_connection_info` retornou `port/effectivePort=48650` e URI válida; `trust://pending` chegou ao frontend após conexão do `mock-sender` (`F3-T13`, `Mock`, `127.0.0.1`, sem campos de segredo); rejeição limpou o pedido e `get_health` reportou `listening`. ST-3.01/02/03/04/05 cobertos: PID do `desktop.exe` sem conexões externas, capabilities/build conferidos, entradas inválidas rejeitadas, título `LocalCamera` e logs sem token, `devtools` ausente no release. Ressalva do runtime WebView2 registrada em Observações.
+
+## Observações
+
+- F3-T13: `if-addrs` fornece nome, IPv4, estado operacional e ponto-a-ponto, mas não uma propriedade confiável de virtualização; `isVirtual` usa heurística por nomes comuns de adaptadores virtuais e pode classificar alguns casos incorretamente. `get_health.stubs` está como placeholder genérico `em breve` até a F3-T12 definir os campos de health específicos.
+- F3-T13 smoke: Vite e app foram encerrados após o teste; portas `1420`, `48650` e CDP `9224` liberadas. O mock foi rejeitado sem aprovação e o nome `F3-T13` não foi persistido no `trust.json`. As conexões externas observadas pertencem ao runtime WebView2, não ao PID `desktop.exe`; o CDP temporário escutou apenas em `127.0.0.1`.

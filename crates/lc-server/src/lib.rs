@@ -68,6 +68,13 @@ impl ServerHandle {
         self.port
     }
 
+    /// Total de quadros de vídeo descartados pela fila limitada desde o
+    /// início do servidor. Não inclui quadros consumidos normalmente.
+    #[must_use]
+    pub fn dropped_video_frames(&self) -> u64 {
+        self.video_frames.dropped_frames()
+    }
+
     /// Loja de confiança (token de pareamento e dispositivos confiáveis) —
     /// usada pela UI no fluxo de aprovação (F1-T06) e em testes.
     #[must_use]

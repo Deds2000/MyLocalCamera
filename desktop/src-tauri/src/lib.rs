@@ -1,6 +1,12 @@
+mod commands;
+mod events_pump;
+mod server;
 mod window;
 
-use tauri::{Manager, WindowEvent};
+use std::sync::atomic::Ordering;
+
+use lc_server::events::Decision;
+use tauri::{Manager, RunEvent, WindowEvent};
 
 use crate::window as window_state;
 
@@ -16,6 +22,15 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![
+            commands::get_connection_info,
+            commands::regenerate_token,
+            commands::approve,
+            commands::reject,
+            commands::list_trusted,
+            commands::revoke_trusted,
+            commands::get_health,
+        ])
         .setup(|app| {
             // Restaura tamanho/posição/estado salvos (validando o monitor).
             let window = app
@@ -35,6 +50,11 @@ pub fn run() {
                 }
             }
 
+            let server = tauri::async_runtime::block_on(server::AppState::start(data_dir.clone()))
+                .map_err(Box::<dyn std::error::Error>::from)?;
+            app.manage(server);
+            events_pump::spawn(app.handle().clone());
+
             // Salva o estado em CloseRequested e em maximize/restore (Resized).
             let saved_window = window.clone();
             window.on_window_event(move |event| match event {
@@ -45,6 +65,21 @@ pub fn run() {
             });
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let RunEvent::Exit = event {
+                let state = app.state::<server::AppState>();
+                state.shutting_down.store(true, Ordering::Release);
+                tauri::async_runtime::block_on(async {
+                    let pending_id = state.pending_request_id.swap(0, Ordering::AcqRel);
+                    if let Some(mut server) = server::take_server(&state) {
+                        if pending_id != 0 {
+                            let _ = server.decide(pending_id, Decision::Reject);
+                        }
+                        server.shutdown().await;
+                    }
+                });
+            }
+        });
 }
