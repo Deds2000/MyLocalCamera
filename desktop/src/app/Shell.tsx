@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import Titlebar from "./Titlebar";
-import { panelWidth, previewPadding } from "./layout";
+import { panelWidth } from "./layout";
+import { ConnectionTab } from "@/features/connection/ConnectionTab";
+import { PreviewArea } from "@/features/preview/PreviewArea";
 
 /** Grade do app (F3-T01): titlebar 40 px · (preview + painel) · rodapé 32 px. */
 
@@ -23,21 +25,14 @@ export default function Shell() {
     <div className="flex h-full flex-col bg-bg text-text">
       <Titlebar />
       <div className="flex min-h-0 flex-1">
-        <section
-          data-testid="preview"
-          className="flex min-w-0 flex-1 items-center justify-center bg-raised"
-          style={{ padding: previewPadding(width) }}
-        >
-          <div
-            data-testid="preview-frame"
-            className="aspect-video max-h-full max-w-full rounded-lg border border-glass-border bg-glass"
-          />
-        </section>
+        <PreviewArea width={width} />
         <aside
           data-testid="panel"
-          className="h-full shrink-0 border-l border-glass-border bg-raised"
+          className="h-full min-w-0 shrink-0 border-l border-glass-border bg-raised"
           style={{ width: panelWidth(width) }}
-        />
+        >
+          <ConnectionTab />
+        </aside>
       </div>
       <footer
         data-testid="footer"

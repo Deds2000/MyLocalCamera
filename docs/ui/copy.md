@@ -56,15 +56,22 @@ Regras: nenhuma frase vem da rede (só **códigos**); textos em pt-BR podem ser 
 | `desktop.empty.subtitle` | Escaneie o QR code com o app LocalCamera ou plugue o cabo USB. | Scan the QR code with the LocalCamera app or plug in a USB cable. |
 | `desktop.empty.network` | Rede: {{ip}} · Porta {{port}} | Network: {{ip}} · Port {{port}} |
 | `desktop.empty.usbHint` | Ative a depuração USB no celular e plugue o cabo. | Turn on USB debugging on your phone and plug in the cable. |
+| `desktop.empty.usbSeparator` | ou use o cabo USB | or use a USB cable |
 | `desktop.connection.pairTitle` | Parear novo aparelho | Pair a new device |
 | `desktop.connection.regenerate` | Regenerar QR code | Regenerate QR code |
 | `desktop.connection.regenerateConfirm` | Regenerar invalida o QR atual. Aparelhos já pareados continuam funcionando. | Regenerating invalidates the current QR. Already paired devices keep working. |
 | `desktop.connection.code` | Código de pareamento | Pairing code |
+| `desktop.connection.showCode` | Mostrar código de pareamento | Show pairing code |
+| `desktop.connection.hideCode` | Ocultar código de pareamento | Hide pairing code |
+| `desktop.connection.qrLabel` | QR code de pareamento LocalCamera | LocalCamera pairing QR code |
 | `desktop.connection.interface` | Interface de rede | Network interface |
+| `desktop.connection.interfaceAll` | Todas as redes disponíveis | All available networks |
 | `desktop.connection.disconnect` | Desconectar | Disconnect |
+| `desktop.connection.disconnectUnavailable` | A desconexão pelo PC ainda não está disponível. | Disconnecting from the PC is not available yet. |
 | `desktop.connection.usbTitle` | Aparelhos USB | USB devices |
 | `desktop.connection.usbNone` | Nenhum aparelho detectado. | No device detected. |
 | `desktop.connection.usbAuto` | Conectar automaticamente ao plugar | Connect automatically when plugged in |
+| `desktop.connection.usbAutoHelp` | A conexão USB estará disponível em uma atualização futura. | USB connection will be available in a future update. |
 | `desktop.connection.connect` | Conectar | Connect |
 | `desktop.adb.ready` | Pronto | Ready |
 | `desktop.adb.unauthorized` | Autorize no celular | Authorize on your phone |

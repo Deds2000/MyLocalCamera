@@ -60,18 +60,25 @@
       "title": "Connect your phone",
       "subtitle": "Scan the QR code with the LocalCamera app or plug in a USB cable.",
       "network": "Network: {{ip}} · Port {{port}}",
-      "usbHint": "Turn on USB debugging on your phone and plug in the cable."
+      "usbHint": "Turn on USB debugging on your phone and plug in the cable.",
+      "usbSeparator": "or use a USB cable"
     },
     "connection": {
       "pairTitle": "Pair a new device",
       "regenerate": "Regenerate QR code",
       "regenerateConfirm": "Regenerating invalidates the current QR. Already paired devices keep working.",
       "code": "Pairing code",
+      "showCode": "Show pairing code",
+      "hideCode": "Hide pairing code",
+      "qrLabel": "LocalCamera pairing QR code",
       "interface": "Network interface",
+      "interfaceAll": "All available networks",
       "disconnect": "Disconnect",
+      "disconnectUnavailable": "Disconnecting from the PC is not available yet.",
       "usbTitle": "USB devices",
       "usbNone": "No device detected.",
       "usbAuto": "Connect automatically when plugged in",
+      "usbAutoHelp": "USB connection will be available in a future update.",
       "connect": "Connect"
     },
     "adb": {

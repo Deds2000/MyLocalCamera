@@ -37,6 +37,7 @@ export function useTauriEvents(
 
     void store.getState().loadTrustedDevices();
     void store.getState().loadHealth();
+    void store.getState().loadConnectionInfo();
     void subscribe();
 
     return () => {

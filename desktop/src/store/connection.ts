@@ -1,5 +1,5 @@
-import type { ConnectionEvent } from "@/lib/tauri";
-import type { AppSet } from "./types";
+import type { ConnectionEvent, ConnectionInfo, TauriClient } from "@/lib/tauri";
+import type { AppGet, AppSet } from "./types";
 
 export type DesktopConnectionState = "waiting" | "pairing" | "connected" | "reconnecting" | "error";
 
@@ -12,8 +12,13 @@ export interface ConnectionSnapshot {
 
 export interface ConnectionSlice {
   connection: ConnectionSnapshot;
+  connectionInfo: ConnectionInfo | null;
+  connectionInfoLoading: boolean;
+  connectionInfoErrorCode: string | null;
   applyConnectionEvent: (event: ConnectionEvent) => void;
   setConnectionError: (code: string) => void;
+  loadConnectionInfo: () => Promise<void>;
+  regeneratePairingToken: () => Promise<void>;
 }
 
 function mapConnectionState(state: ConnectionEvent["state"]): DesktopConnectionState {
@@ -36,7 +41,20 @@ function mapConnectionState(state: ConnectionEvent["state"]): DesktopConnectionS
   }
 }
 
-export function createConnectionSlice(set: AppSet): ConnectionSlice {
+export function createConnectionSlice(set: AppSet, get: AppGet, client: TauriClient): ConnectionSlice {
+  const loadInfo = async (): Promise<boolean> => {
+    if (get().connectionInfoLoading) return false;
+    set({ connectionInfoLoading: true, connectionInfoErrorCode: null });
+    try {
+      const connectionInfo = await client.getConnectionInfo();
+      set({ connectionInfo, connectionInfoLoading: false, connectionInfoErrorCode: null });
+      return true;
+    } catch {
+      set({ connectionInfoLoading: false, connectionInfoErrorCode: "CONNECTION_INFO_FAILED" });
+      return false;
+    }
+  };
+
   return {
     connection: {
       state: "waiting",
@@ -44,6 +62,9 @@ export function createConnectionSlice(set: AppSet): ConnectionSlice {
       transport: null,
       errorCode: null,
     },
+    connectionInfo: null,
+    connectionInfoLoading: false,
+    connectionInfoErrorCode: null,
     applyConnectionEvent: (event) => set({
       connection: {
         state: mapConnectionState(event.state),
@@ -57,5 +78,16 @@ export function createConnectionSlice(set: AppSet): ConnectionSlice {
     setConnectionError: (code) => set((state) => ({
       connection: { ...state.connection, state: "error", errorCode: code },
     })),
+    loadConnectionInfo: async () => { await loadInfo(); },
+    regeneratePairingToken: async () => {
+      try {
+        await client.regenerateToken();
+      } catch {
+        set({ connectionInfoErrorCode: "QR_REGENERATE_FAILED" });
+        return;
+      }
+      const refreshed = await loadInfo();
+      if (!refreshed) set({ connectionInfoErrorCode: "QR_REGENERATE_FAILED" });
+    },
   };
 }

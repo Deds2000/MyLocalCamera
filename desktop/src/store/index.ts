@@ -16,7 +16,7 @@ function appState(client: TauriClient): StateCreator<AppStore> {
   return (set, get) => {
     const settings = createSettingsSlice(set);
     return {
-      ...createConnectionSlice(set),
+      ...createConnectionSlice(set, get, client),
       ...createCameraSlice(set),
       ...createStatsSlice(set),
       ...createTrustSlice(set, get, client),

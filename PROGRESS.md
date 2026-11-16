@@ -2,7 +2,7 @@
 
 > Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada. Executor: agente; testes de aparelho via IA + ADB, conforme `AGENTS.md`.
 
-**Próxima tarefa:** **F3-T04** — estado vazio e aba Conexão (T02, T14b e T14a concluídas). F2-FIX-02 permanece bloqueada pela medição p95 acima de 80 ms em seis execuções; não alterar o limite nem declarar conformidade sem decisão. F3-T07 segue parcial enquanto IT-3.04 estiver bloqueado por `DXGI_ERROR_DRIVER_INTERNAL_ERROR` (não repetir GPU sem mudança de causa). F2-FIX-03 concluída. Fase 2 segue **NÃO APROVADA** até F2-FIX-02…04 e F2-GATE-R. **D1:** sequência intercalada autorizada. **Atualizado:** 2026-11-16.
+**Próxima tarefa:** **F3-T05** — ApprovalDialog (T02, T14b e T14a concluídas). F2-FIX-02 permanece bloqueada pela medição p95 acima de 80 ms em seis execuções; não alterar o limite nem declarar conformidade sem decisão. F3-T07 segue parcial enquanto IT-3.04 estiver bloqueado por `DXGI_ERROR_DRIVER_INTERNAL_ERROR` (não repetir GPU sem mudança de causa). F2-FIX-03 concluída. Fase 2 segue **NÃO APROVADA** até F2-FIX-02…04 e F2-GATE-R. **D1:** sequência intercalada autorizada. **Atualizado:** 2026-11-16.
 
 ## Bloqueios abertos
 
@@ -28,7 +28,7 @@
 | [~] | F3-T07 | Decodificador H.264 e integração sessão→decoder; IT-3.04 permanece bloqueado por erro interno do driver GPU | F3-T13b, F3-T13 | `docs/tasks/fase-3/F3-T07.md` |
 | [!] | F2-FIX-02 | p95 total >80 ms em seis execuções; aguarda decisão, sem alterar limite | — | `docs/tasks/fase-2/F2-FIX-02.md` |
 | [x] | F3-T14a | Store Zustand com 8 slices, seletores estreitos, eventos únicos e idioma em settings | F3-T13 | `docs/tasks/fase-3/F3-T14a.md` |
-| [ ] | F3-T04 | Estado vazio e aba Conexão | T02, T14b, T14a | `docs/tasks/fase-3/F3-T04.md` |
+| [x] | F3-T04 | Estado vazio/QR e aba Conexão; UTs e AT-3.01 via UIA | T02, T14b, T14a | `docs/tasks/fase-3/F3-T04.md` |
 | [ ] | F3-T05 | ApprovalDialog | T02, T14b, T14a | `docs/tasks/fase-3/F3-T05.md` |
 | [ ] | F3-T06 | Dispositivos confiáveis | T04 | `docs/tasks/fase-3/F3-T06.md` |
 | [ ] | F3-T08 | Composição NV12 | T07 | `docs/tasks/fase-3/F3-T08.md` |
@@ -62,6 +62,7 @@
 - **F3-T07 (parcial; sem commit):** UT-3.05/06/07/08, teste de fila, integração com `mock-sender`, FT-3.01 (120 s), FT-3.02 e FT-3.05 passaram em software. Testes recentes: 20 testes desktop lib passaram/1 soak ignorado; UTs de decode (4) passaram; smoke do mock (3) passou; FT-3.05 passou. Clippy de desktop, lc-server e mock-sender, fmt e diff-check verdes. O IT-3.04 GPU continua pendente por falha interna do driver; não repetir sem alteração concreta da causa.
 - **F2-FIX-02 (pendente; sem conformidade):** três execuções baseline deram p95 total 92,22/91,34/91,75 ms e superfície→codec 90,51/88,86/89,50 ms. Com `KEY_MAX_B_FRAMES=0` aceito e sem reordenação de PTS, p95 total 90,96/91,71/91,94 ms e superfície→codec 88,61/89,75/89,68 ms. Fila/socket abaixo de 2 ms, `invalidClock=0`, sem drops. O harness de três ciclos, JVMs, `:app:testDebugUnitTest`, `:app:lintDebug` e `:app:assembleDebugAndroidTest` passaram. O limite de 80 ms permanece; decisão necessária antes de concluir a tarefa.
 - **F3-T14a:** store Zustand 5.1.0 com 8 slices e seletores exportados; `useTauriEvents` centraliza as quatro assinaturas disponíveis e health é carregado por `get_health`. Idioma, aba e interface ficam no slice settings (localStorage como fallback, sem API de settings no contrato). UT-3.11 executou 10 atualizações de stats em 5 s: componente de stats atualizou e o de conexão não rerenderizou. Ações trust aguardam evento para confirmar e erros viram códigos estáveis. `pnpm --filter desktop test -- store` (5), regressão `App.test.tsx` (6), typecheck e lint passaram; grep confirmou ausência de localStorage na Titlebar.
+- **F3-T04:** UT-3.12/13/23 passaram; teste de conexão/preview (6), typecheck, lint e suíte i18n compartilhada (13) passaram. AT-3.01: `pnpm --filter desktop tauri dev`, UIA identificou estado `waiting`, QR/IP e ações; cancelar preservou os pixels do QR e confirmar regenerou o QR (SHA-256 da captura antes/depois diferente). Capturas `F3-T04-AT-3.01-{before,confirm,after}.png` em `docs/tests/evidence/fase-3/`; dev server/processos encerrados após a coleta.
 
 ## Observações
 
