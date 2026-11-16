@@ -2,7 +2,8 @@ import { Camera, Check, ChevronDown, Copy, Globe, Minus, Square, X } from "lucid
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { resolveLanguage, savedLanguage, storeLanguage, type LanguageChoice } from "./lang";
+import { resolveLanguage, type LanguageChoice } from "./lang";
+import { selectLanguage as selectSettingLanguage, useAppStore } from "@/store";
 
 /**
  * Titlebar de 40 px (F3-T01).
@@ -21,7 +22,8 @@ const windowButton =
 export default function Titlebar() {
   const { t, i18n } = useTranslation();
   const [maximized, setMaximized] = useState(false);
-  const [choice, setChoice] = useState<LanguageChoice>(() => savedLanguage());
+  const choice = useAppStore(selectSettingLanguage);
+  const setLanguage = useAppStore((state) => state.setLanguage);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const win = isTauri ? getCurrentWindow() : null;
@@ -58,8 +60,7 @@ export default function Titlebar() {
   }, [menuOpen]);
 
   const selectLanguage = (next: LanguageChoice) => {
-    setChoice(next);
-    storeLanguage(next);
+    setLanguage(next);
     void i18n.changeLanguage(resolveLanguage(next));
     setMenuOpen(false);
   };

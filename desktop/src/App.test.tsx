@@ -4,6 +4,7 @@ import { renderWithProviders } from "@localcamera/shared/test";
 import { beforeEach, describe, expect, it } from "vitest";
 import App from "./App";
 import { panelWidth, previewPadding } from "./app/layout";
+import { appStore } from "./store";
 
 function setWindowWidth(width: number) {
   Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: width });
@@ -12,6 +13,7 @@ function setWindowWidth(width: number) {
 
 beforeEach(() => {
   localStorage.clear();
+  appStore.setState({ settings: { ...appStore.getState().settings, language: "system" } });
   setWindowWidth(1024);
 });
 
