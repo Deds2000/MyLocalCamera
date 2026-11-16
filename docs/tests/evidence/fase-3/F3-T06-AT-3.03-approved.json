@@ -1,0 +1,54 @@
+{
+  "test": "AT-3.03",
+  "result": "PASS",
+  "diagnosticOnly": false,
+  "desktopPid": 35476,
+  "mockPairExitCode": 0,
+  "reconnectExitCode": 2,
+  "revokedReasonObserved": true,
+  "sameStateFileFingerprint": true,
+  "trustedNameAbsent": true,
+  "cancelInitiallyFocused": true,
+  "hostsNormalizedToLoopback": true,
+  "elapsedSeconds": 5.96,
+  "screenshotSha256": {
+    "F3-T06-AT-3.03-trusted.png": "0047D5BA0F8DA064D8B88C0FF0416FFACB554C0786FE4272C2380E8589A53AE6",
+    "F3-T06-AT-3.03-confirm.png": "FF9A433B95EDE6FE0DB9244ACDE9D99A09BC2CE364299919B2D2C7EAA7061C4F",
+    "F3-T06-AT-3.03-revoked.png": "340CC1BB7C53A98C9608461A723A0FF703054173CF20410B122156ED036BC839"
+  },
+  "removeTriggerSupportedPatterns": [
+    "ExpandCollapsePatternIdentifiers.Pattern",
+    "ScrollItemPatternIdentifiers.Pattern"
+  ],
+  "uiaActionPatterns": [
+    "InvokePattern.Invoke",
+    "ExpandCollapsePattern.Expand",
+    "InvokePattern.Invoke",
+    "ExpandCollapsePattern.Expand",
+    "InvokePattern.Invoke"
+  ],
+  "credential": "state file same before/after; contents withheld",
+  "uri": "withheld",
+  "sourceSha256": {
+    "testedHarness": "5E76B1E3176E86189FF8A49F3F1A8EECB2B9A40AD37A84688F4A4874E172A156",
+    "cleanupHelper": "6D2F56CD878F157D62755DFFEB9271072107DC07CC74D47EFF9116003BE8B5DD",
+    "runtimeHelper": "2AC73300FC8BD8471601A4A54C23C600C091D688834A8A81A494CEE1B6C5DE18",
+    "mockSender": "9CDF4B8EBBFEAFFA700162ACFFCBCFF82859811AD5CEC973FAA679A6F84F9030",
+    "testedOrchestrator": "E911E6E1B6A9430555DE57DD837ECE797B666DF7433F4E198D02CEA2B7C14C2F"
+  },
+  "versionInfo": {
+    "mockSender": null,
+    "desktopExe": "0.1.0",
+    "os": "Microsoft Windows NT 10.0.26300.0",
+    "harnessLineCount": 201
+  },
+  "runtimeOwnership": {
+    "desktopPid": 35476,
+    "vitePid": "not retained in evidence",
+    "ownedStartTimestampChecked": true,
+    "stopPerformedByHelper": true,
+    "ownedProcessCountAfterStop": 0,
+    "ownedPortListenerCountAfterStop": 0,
+    "startTimes": "Helper recorded ISO timestamps in its private state during run; removed after ownership-checked stop"
+  }
+}

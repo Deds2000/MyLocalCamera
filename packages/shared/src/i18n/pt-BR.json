@@ -94,7 +94,15 @@
       "title": "Dispositivos confiáveis",
       "empty": "Nenhum aparelho pareado.",
       "lastSeen": "Visto {{when}}",
-      "removeConfirm": "Remover \"{{name}}\"? Ele precisará ser pareado e aprovado de novo."
+      "removeConfirm": "Remover \"{{name}}\"? Ele precisará ser pareado e aprovado de novo.",
+      "remove": "Remover {{name}}",
+      "removing": "Removendo…",
+      "refresh": "Atualizar lista",
+      "refreshing": "Atualizando…",
+      "refreshPresent": "O dispositivo ainda consta na lista. Você pode confirmar a remoção novamente.",
+      "loading": "Carregando dispositivos confiáveis…",
+      "loadFailed": "Não foi possível carregar os dispositivos confiáveis.",
+      "revokeFailed": "Não foi possível confirmar a remoção. Confira a lista e tente de novo."
     },
     "approval": {
       "title": "Permitir que \"{{name}}\" se conecte?",

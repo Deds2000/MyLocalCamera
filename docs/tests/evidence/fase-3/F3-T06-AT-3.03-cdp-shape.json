@@ -1,0 +1,23 @@
+{
+  "test": "AT-3.03 CDP shape only",
+  "result": "PASS",
+  "runtimeCommand": "get_connection_info",
+  "resultType": "object",
+  "keys": [
+    "effectivePort",
+    "interfaces",
+    "name",
+    "pairCodeMasked",
+    "pcId",
+    "port",
+    "qrcodeUri"
+  ],
+  "scheme": "localcamera:",
+  "uriPort": 48650,
+  "hostCount": 4,
+  "allHostsLoopback": false,
+  "tokenPresent": true,
+  "deviceNameLength": 5,
+  "uri": "never returned",
+  "handshakeStarted": false
+}

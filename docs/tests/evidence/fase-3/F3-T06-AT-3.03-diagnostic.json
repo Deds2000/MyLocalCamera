@@ -1,0 +1,37 @@
+{
+  "test": "AT-3.03 offline harness diagnosis",
+  "result": "PASS",
+  "runtimeStarted": false,
+  "pairingStarted": false,
+  "processStartInfoArgumentList": "verified",
+  "powershellArrayBindingArgumentCount": 8,
+  "syntheticUriHostRewritePreservedOtherQueryParameters": true,
+  "binaryHelpExitCode": 0,
+  "binaryFlags": [
+    "--uri",
+    "--host",
+    "--port",
+    "--state-file",
+    "--seconds"
+  ],
+  "syntheticInvalidUriExitCode": 1,
+  "syntheticInvalidUriCategory": "uri_parser_error",
+  "networkAttempted": false,
+  "mockExecutable": "D:\\Repositorios\\MyLocalCamera\\target\\debug\\mock-sender.exe",
+  "mockExecutableSha256": "9CDF4B8EBBFEAFFA700162ACFFCBCFF82859811AD5CEC973FAA679A6F84F9030",
+  "mockExecutableLastWriteUtc": "2026-11-16T08:37:08.4874547Z",
+  "mockSourceLastWriteUtc": {
+    "main.rs": "2026-10-29T17:25:22.7464411Z",
+    "cli.rs": "2026-11-16T06:58:02.8558803Z",
+    "uri.rs": "2026-10-29T17:17:38.9645363Z",
+    "session.rs": "2026-11-16T07:10:19.9849649Z"
+  },
+  "workingDirectory": "D:\\Repositorios\\MyLocalCamera",
+  "argumentsRecordedAsFlagsOnly": true,
+  "secrets": "synthetic only; values not recorded",
+  "priorRuntimeAttemptExitCode": 1,
+  "priorRuntimeAttemptReason": "unclassified; raw output was not retained",
+  "priorRuntimeAttemptStage": "pair-mock",
+  "runtimeCauseProven": false,
+  "diagnosis": "No concrete runtime cause established: prior raw mock output was not retained. Offline argument binding and executable parser checks pass."
+}

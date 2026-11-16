@@ -6,6 +6,7 @@ import { appStore, selectConnection, selectStats, type AppStore } from "@/store"
 import { DeviceCard } from "./DeviceCard";
 import { PairingQrCard } from "./PairingQrCard";
 import { UsbList } from "./UsbList";
+import { TrustedList } from "./TrustedList";
 
 interface ConnectionTabProps {
   store?: StoreApi<AppStore>;
@@ -15,7 +16,6 @@ export function ConnectionTab({ store = appStore }: ConnectionTabProps) {
   const { t } = useTranslation();
   const connection = useStore(store, selectConnection);
   const stats = useStore(store, selectStats);
-  const trustedDevices = useStore(store, (state) => state.trust.trusted);
 
   useEffect(() => {
     if (!store.getState().connectionInfo && !store.getState().connectionInfoLoading) {
@@ -35,25 +35,7 @@ export function ConnectionTab({ store = appStore }: ConnectionTabProps) {
           </section>
         )}
         <UsbList />
-        <section aria-labelledby="trusted-title" className="space-y-3">
-          <h3 id="trusted-title" className="text-sm font-semibold">{t("desktop.trusted.title")}</h3>
-          {trustedDevices.length === 0 ? (
-            <p className="rounded-lg border border-glass-border bg-glass p-3 text-sm text-text-muted">
-              {t("desktop.trusted.empty")}
-            </p>
-          ) : (
-            <ul className="space-y-2" aria-label={t("desktop.trusted.title")}>
-              {trustedDevices.map((device) => (
-                <li key={device.deviceId} className="rounded-lg border border-glass-border bg-glass p-3">
-                  <p className="truncate text-sm font-medium">{device.name}</p>
-                  <p className="truncate text-xs text-text-muted">
-                    {[device.model, device.lastIp].filter(Boolean).join(" · ")}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <TrustedList store={store} />
       </div>
     </div>
   );

@@ -1,0 +1,47 @@
+{
+  "test": "AT-3.03-connect-diagnostic",
+  "result": "handshakependingobserved",
+  "stage": "uia-reject",
+  "desktopPid": 35072,
+  "cdpPort": 9226,
+  "backendState": "listening",
+  "backendPort": 48650,
+  "hostsNormalizedToLoopback": true,
+  "pairingUri": "withheld",
+  "mock": {
+    "exe": "D:\\Repositorios\\MyLocalCamera\\target\\debug\\mock-sender.exe",
+    "cwd": "D:\\Repositorios\\MyLocalCamera",
+    "argumentCount": 6,
+    "flags": [
+      "--uri",
+      "--state-file",
+      "--name"
+    ],
+    "values": "withheld"
+  },
+  "mockExitCode": 2,
+  "mockReasonCategory": "not_approved",
+  "ioCode": null,
+  "stdoutEmpty": false,
+  "stderrEmpty": false,
+  "stdoutCharCount": 147,
+  "stderrCharCount": 42,
+  "approvalPromptObserved": true,
+  "approvalTitleMatchedOwnDevice": true,
+  "approvalRole": "Button",
+  "approvalTimeoutSeconds": 30,
+  "approvalPromptAfterMs": 313,
+  "uiaAction": "rejected-by-UIA",
+  "trustedStateWritten": false,
+  "serverEventCategory": "trust_pending_observed_in_UIA",
+  "rawOutput": "withheld",
+  "preflightFailure": "PowerShell emitted VoidTaskResult from async connect/send calls into Invoke-Cdp return pipeline; suppressed in harness",
+  "preflightBeforeFix": {
+    "stage": "pairing-uri",
+    "exceptionType": "System.Management.Automation.RuntimeException",
+    "line": 8,
+    "mockStarted": false,
+    "rootCause": "unsuppressed non-generic Task.GetResult emitted VoidTaskResult into PowerShell function output"
+  },
+  "diagnosticIsNotATApproval": true
+}

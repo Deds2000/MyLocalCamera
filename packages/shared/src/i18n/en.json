@@ -94,7 +94,15 @@
       "title": "Trusted devices",
       "empty": "No paired devices.",
       "lastSeen": "Last seen {{when}}",
-      "removeConfirm": "Remove \"{{name}}\"? It will need to be paired and approved again."
+      "removeConfirm": "Remove \"{{name}}\"? It will need to be paired and approved again.",
+      "remove": "Remove {{name}}",
+      "removing": "Removing…",
+      "refresh": "Refresh list",
+      "refreshing": "Refreshing…",
+      "refreshPresent": "The device is still listed. You can confirm removal again.",
+      "loading": "Loading trusted devices…",
+      "loadFailed": "Couldn't load trusted devices.",
+      "revokeFailed": "Couldn't confirm the removal. Check the list and try again."
     },
     "approval": {
       "title": "Allow \"{{name}}\" to connect?",

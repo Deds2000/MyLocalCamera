@@ -1,0 +1,26 @@
+{
+  "test": "AT-3.03",
+  "result": "BLOCKED",
+  "stage": "initialization",
+  "exceptionType": "System.Management.Automation.RuntimeException",
+  "line": "9",
+  "mockExitCode": null,
+  "mockExitReason": "unclassified",
+  "hostsNormalizedToLoopback": false,
+  "mockInvocation": null,
+  "uiaActionPatterns": [],
+  "ownedTrustedDeviceCleanup": "not-needed",
+  "ownedDeviceName": null,
+  "uri": "withheld",
+  "sourceSha256": {
+    "testedHarness": "825AD922D2AC0029EB09A61C0ECEA77B54531F83123329EB8024B3B35A001060",
+    "cleanupHelper": "6D2F56CD878F157D62755DFFEB9271072107DC07CC74D47EFF9116003BE8B5DD",
+    "runtimeHelper": "2AC73300FC8BD8471601A4A54C23C600C091D688834A8A81A494CEE1B6C5DE18",
+    "mockSender": "9CDF4B8EBBFEAFFA700162ACFFCBCFF82859811AD5CEC973FAA679A6F84F9030"
+  },
+  "versionInfo": {
+    "mockSender": null,
+    "desktopExe": "0.1.0",
+    "os": "Microsoft Windows NT 10.0.26300.0"
+  }
+}

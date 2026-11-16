@@ -1,0 +1,28 @@
+{
+  "test": "AT-3.03",
+  "result": "BLOCKED",
+  "stage": "pair-mock",
+  "exceptionType": "System.Management.Automation.RuntimeException",
+  "line": "101",
+  "mockExitCode": 1,
+  "mockExitReason": "unknown",
+  "ownedTrustedDeviceCleanup": "not-needed",
+  "ownedDeviceName": null,
+  "uri": "withheld",
+  "setupChange": "pairing hosts normalized to loopback; pairing parameters preserved",
+  "attempts": [
+    {
+      "attempt": 1,
+      "result": "UIA approval button absent",
+      "stage": "approve-permanent"
+    },
+    {
+      "attempt": 2,
+      "result": "mock exit code 1; reason not safely classifiable",
+      "stage": "pair-mock"
+    }
+  ],
+  "trustCreated": false,
+  "screenshotsCaptured": false,
+  "runtimeNotRestarted": true
+}
