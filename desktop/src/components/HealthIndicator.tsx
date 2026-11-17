@@ -41,21 +41,19 @@ export function HealthIndicator({
 }: HealthIndicatorProps) {
   const content = (
     <>
-      <span
-        aria-hidden="true"
-        className={cn("h-2 w-2 shrink-0 rounded-full", DOT_COLOR[state])}
-      />
+      <span aria-hidden="true" className={cn("h-2 w-2 shrink-0 rounded-full", DOT_COLOR[state])} />
       <span className="truncate text-xs text-text">{detail}</span>
     </>
   );
 
-  const base = cn(
-    "flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1",
-    className,
-  );
+  const base = cn("flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1", className);
 
   if (!onClick) {
-    return <div data-kind={kind} className={base}>{content}</div>;
+    return (
+      <div data-kind={kind} className={base}>
+        {content}
+      </div>
+    );
   }
 
   return (

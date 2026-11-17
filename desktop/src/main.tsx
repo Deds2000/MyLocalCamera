@@ -10,7 +10,9 @@ import "./index.css";
 import App from "./App";
 
 async function bootstrap() {
-  const i18n = await createI18n(resolveLanguage(appStore.getState().settings.language, navigator.language));
+  const i18n = await createI18n(
+    resolveLanguage(appStore.getState().settings.language, navigator.language),
+  );
   document.documentElement.classList.add("dark");
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>

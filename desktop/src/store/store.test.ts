@@ -1,7 +1,12 @@
 import { act, render, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { useStore } from "zustand";
-import { createMockTauriAdapter, createTauriClient, type ConnectionEvent, type StatsEvent } from "@/lib/tauri";
+import {
+  createMockTauriAdapter,
+  createTauriClient,
+  type ConnectionEvent,
+  type StatsEvent,
+} from "@/lib/tauri";
 import { useTauriEvents } from "@/hooks/useTauriEvents";
 import { appStore, createAppStore, selectConnectionState, selectStats } from "./index";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -14,7 +19,10 @@ const pendingApproval = {
   ip: "192.168.1.20",
 };
 
-function connectionEvent(state: ConnectionEvent["state"], deviceId: string | null): ConnectionEvent {
+function connectionEvent(
+  state: ConnectionEvent["state"],
+  deviceId: string | null,
+): ConnectionEvent {
   return {
     state,
     sessionId: state === "streaming" ? "session-1" : null,
@@ -59,11 +67,15 @@ describe("store Zustand (F3-T14a)", () => {
       return null;
     }
 
-    render(createElement("div", null,
-      createElement(Events),
-      createElement(StatsView),
-      createElement(ConnectionView),
-    ));
+    render(
+      createElement(
+        "div",
+        null,
+        createElement(Events),
+        createElement(StatsView),
+        createElement(ConnectionView),
+      ),
+    );
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });

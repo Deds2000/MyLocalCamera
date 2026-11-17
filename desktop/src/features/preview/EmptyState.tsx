@@ -5,7 +5,10 @@ export function EmptyState() {
   const { t } = useTranslation();
 
   return (
-    <div data-testid="preview-empty-state" className="mx-auto flex min-h-full w-full flex-col items-center justify-center gap-1 text-center">
+    <div
+      data-testid="preview-empty-state"
+      className="mx-auto flex min-h-full w-full flex-col items-center justify-center gap-1 text-center"
+    >
       <div className="space-y-1">
         <h2 className="text-base font-semibold tracking-tight">{t("desktop.empty.title")}</h2>
         <p className="text-xs text-text-muted">{t("desktop.empty.subtitle")}</p>

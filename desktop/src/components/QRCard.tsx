@@ -16,7 +16,14 @@ export interface QRCardProps {
  * QR de 220 px com margem clara de 16 px (zona silenciosa, contraste para
  * leitura) + hosts/porta exibidos. O consumo do QR é da F3-T04.
  */
-export function QRCard({ uri, hosts, port, className, size = 220, showNetworkDetails = true }: QRCardProps) {
+export function QRCard({
+  uri,
+  hosts,
+  port,
+  className,
+  size = 220,
+  showNetworkDetails = true,
+}: QRCardProps) {
   return (
     <div
       data-testid="qr-card"

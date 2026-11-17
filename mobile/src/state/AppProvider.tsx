@@ -211,7 +211,9 @@ export function AppProvider({
       if (request !== knownPcsRequest.current) return;
       dispatch({
         type: "KPC_REPLACE",
-        pcs: (Array.isArray(pcs) ? pcs : []).map(toAppKnownPc).filter((pc): pc is KnownPc => pc !== null),
+        pcs: (Array.isArray(pcs) ? pcs : [])
+          .map(toAppKnownPc)
+          .filter((pc): pc is KnownPc => pc !== null),
       });
     } catch {
       // Falha de leitura não apaga PCs já exibidos nem injeta texto nativo na UI.
@@ -283,7 +285,10 @@ export function AppProvider({
     if (!camera) return;
     const kind = state.connection.kind;
     const active =
-      kind === "connecting" || kind === "pending" || kind === "streaming" || kind === "reconnecting";
+      kind === "connecting" ||
+      kind === "pending" ||
+      kind === "streaming" ||
+      kind === "reconnecting";
     if (nativeActive.current && !active) void camera.disconnect().catch(() => {});
     nativeActive.current = active;
   }, [camera, state.connection.kind]);

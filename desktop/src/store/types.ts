@@ -8,8 +8,14 @@ import type { TrustSlice } from "./trust";
 import type { UiSlice } from "./ui";
 import type { UsbSlice } from "./usb";
 
-export type AppStore = ConnectionSlice & CameraSlice & StatsSlice & TrustSlice &
-  UsbSlice & HealthSlice & SettingsSlice & UiSlice;
+export type AppStore = ConnectionSlice &
+  CameraSlice &
+  StatsSlice &
+  TrustSlice &
+  UsbSlice &
+  HealthSlice &
+  SettingsSlice &
+  UiSlice;
 
 export type AppSet = StoreApi<AppStore>["setState"];
 export type AppGet = StoreApi<AppStore>["getState"];

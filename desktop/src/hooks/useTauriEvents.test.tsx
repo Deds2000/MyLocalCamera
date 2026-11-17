@@ -11,10 +11,11 @@ describe("useTauriEvents health subscription", () => {
     const calls: string[] = [];
     const adapter: TauriAdapter = {
       invoke: async <T,>(command: string): Promise<T> => {
-        if (command === "get_health") return {
-          server: { state: "listening", port: 48650, effectivePort: 48650 },
-          stubs: [],
-        } as T;
+        if (command === "get_health")
+          return {
+            server: { state: "listening", port: 48650, effectivePort: 48650 },
+            stubs: [],
+          } as T;
         if (command === "list_trusted") return [] as T;
         if (command === "get_connection_info") throw new Error("unused");
         return undefined as T;
@@ -33,7 +34,10 @@ describe("useTauriEvents health subscription", () => {
       return null;
     }
     const view = render(createElement(Events));
-    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
     expect(calls).toHaveLength(5);
     expect(calls[0]).toBe("health://changed");
     const changed: HealthInfo = {

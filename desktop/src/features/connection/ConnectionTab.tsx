@@ -30,7 +30,9 @@ export function ConnectionTab({ store = appStore }: ConnectionTabProps) {
         <DeviceCard connection={connection} rttMs={stats?.rttMs ?? null} />
         {connection.state !== "connected" && (
           <section aria-labelledby="pair-title" data-testid="pairing-section" className="space-y-3">
-            <h3 id="pair-title" className="text-sm font-semibold">{t("desktop.connection.pairTitle")}</h3>
+            <h3 id="pair-title" className="text-sm font-semibold">
+              {t("desktop.connection.pairTitle")}
+            </h3>
             <PairingQrCard store={store} />
           </section>
         )}

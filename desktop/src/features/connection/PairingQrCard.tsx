@@ -57,9 +57,10 @@ export function PairingQrCard({
     () => filterInterfaces(info?.interfaces ?? [], savedInterface),
     [info, savedInterface],
   );
-  const selectedInterface = savedInterface && filtered.shown.some((item) => item.ip === savedInterface)
-    ? savedInterface
-    : null;
+  const selectedInterface =
+    savedInterface && filtered.shown.some((item) => item.ip === savedInterface)
+      ? savedInterface
+      : null;
   const pairingLink = useMemo(
     () => (info ? pairingLinkForInterface(info, selectedInterface) : null),
     [info, selectedInterface],
@@ -96,7 +97,11 @@ export function PairingQrCard({
               {errorCode ? t("common.errors.generic") : t("common.errors.noNetwork")}
             </p>
             {errorCode && (
-              <Button variant="secondary" size="sm" onClick={() => void store.getState().loadConnectionInfo()}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void store.getState().loadConnectionInfo()}
+              >
                 {t("common.actions.retry")}
               </Button>
             )}
@@ -161,7 +166,9 @@ export function PairingQrCard({
         </AlertDialogTrigger>
         <AlertDialogContent data-testid="regenerate-dialog">
           <AlertDialogTitle>{t("desktop.connection.regenerate")}</AlertDialogTitle>
-          <AlertDialogDescription>{t("desktop.connection.regenerateConfirm")}</AlertDialogDescription>
+          <AlertDialogDescription>
+            {t("desktop.connection.regenerateConfirm")}
+          </AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel asChild>
               <Button variant="outline">{t("common.actions.cancel")}</Button>
@@ -184,7 +191,9 @@ export function PairingQrCard({
 
       {showCode && (
         <div className="w-full space-y-1.5">
-          <span className="text-xs font-medium text-text-muted">{t("desktop.connection.code")}</span>
+          <span className="text-xs font-medium text-text-muted">
+            {t("desktop.connection.code")}
+          </span>
           <div className="flex items-center gap-2 rounded-md border border-glass-border bg-glass px-2 py-1.5">
             <code data-testid="pairing-code" className="min-w-0 flex-1 truncate font-mono text-xs">
               {showFullCode && fullCode ? fullCode : info.pairCodeMasked}
@@ -193,7 +202,9 @@ export function PairingQrCard({
               type="button"
               size="icon"
               variant="ghost"
-              aria-label={t(showFullCode ? "desktop.connection.hideCode" : "desktop.connection.showCode")}
+              aria-label={t(
+                showFullCode ? "desktop.connection.hideCode" : "desktop.connection.showCode",
+              )}
               aria-pressed={showFullCode}
               disabled={!fullCode}
               onClick={() => setShowFullCode((visible) => !visible)}

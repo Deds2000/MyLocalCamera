@@ -35,10 +35,7 @@ export default function Shell() {
           <ConnectionTab />
         </aside>
       </div>
-      <footer
-        data-testid="footer"
-        className="h-8 shrink-0 border-t border-glass-border bg-raised"
-      >
+      <footer data-testid="footer" className="h-8 shrink-0 border-t border-glass-border bg-raised">
         <HealthBar />
       </footer>
     </div>

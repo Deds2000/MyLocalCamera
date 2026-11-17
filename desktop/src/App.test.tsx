@@ -63,7 +63,9 @@ describe("App (desktop) — shell (F3-T01)", () => {
     await user.click(screen.getByRole("menuitem", { name: "English" }));
 
     // textos visíveis mudam na hora
-    await waitFor(() => expect(screen.getByTestId("status-pill")).toHaveTextContent("Disconnected"));
+    await waitFor(() =>
+      expect(screen.getByTestId("status-pill")).toHaveTextContent("Disconnected"),
+    );
     expect(await screen.findByRole("button", { name: "English" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Maximize" })).toBeInTheDocument();
     expect(localStorage.getItem("lang")).toBe("en");
@@ -85,7 +87,9 @@ describe("App (desktop) — shell (F3-T01)", () => {
     expect(systemItem.querySelector("svg")).toBeInTheDocument();
 
     await user.click(screen.getByRole("menuitem", { name: "Português" }));
-    await waitFor(() => expect(screen.getByTestId("status-pill")).toHaveTextContent("Desconectado"));
+    await waitFor(() =>
+      expect(screen.getByTestId("status-pill")).toHaveTextContent("Desconectado"),
+    );
     expect(localStorage.getItem("lang")).toBe("pt-BR");
   });
 });

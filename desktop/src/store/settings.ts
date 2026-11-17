@@ -38,9 +38,8 @@ function persistPreference(key: string, value: string | null): void {
 
 export function createSettingsSlice(set: AppSet): SettingsSlice {
   const savedLanguage = readPreference(LANGUAGE_KEY);
-  const language: LanguageChoice = savedLanguage === "pt-BR" || savedLanguage === "en"
-    ? savedLanguage
-    : "system";
+  const language: LanguageChoice =
+    savedLanguage === "pt-BR" || savedLanguage === "en" ? savedLanguage : "system";
   return {
     settings: {
       language,

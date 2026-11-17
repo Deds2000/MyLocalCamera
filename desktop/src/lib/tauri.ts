@@ -170,8 +170,7 @@ export function createMockTauriAdapter(): MockTauriAdapter {
 }
 
 const realAdapter: TauriAdapter = {
-  invoke: <T>(command: string, args?: Record<string, unknown>) =>
-    tauriInvoke<T>(command, args),
+  invoke: <T>(command: string, args?: Record<string, unknown>) => tauriInvoke<T>(command, args),
   listen: async <T>(event: string, handler: EventHandler<T>) =>
     tauriListen<T>(event, (tauriEvent) => handler(tauriEvent.payload)),
 };

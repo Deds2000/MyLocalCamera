@@ -1,10 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  createMockTauriAdapter,
-  createTauriClient,
-  tauri,
-  type TauriAdapter,
-} from "./tauri";
+import { createMockTauriAdapter, createTauriClient, tauri, type TauriAdapter } from "./tauri";
 
 describe("LocalCamera Tauri bridge (F3-T13)", () => {
   it("provides a valid pairing URI in the web mock", async () => {

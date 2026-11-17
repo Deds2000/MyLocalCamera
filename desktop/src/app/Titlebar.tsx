@@ -140,7 +140,12 @@ export default function Titlebar() {
           )}
         </div>
 
-        <button type="button" aria-label={t("desktop.window.minimize")} onClick={() => void win?.minimize()} className={windowButton}>
+        <button
+          type="button"
+          aria-label={t("desktop.window.minimize")}
+          onClick={() => void win?.minimize()}
+          className={windowButton}
+        >
           <Minus className="size-4" aria-hidden />
         </button>
         <button
@@ -149,7 +154,11 @@ export default function Titlebar() {
           onClick={() => void (maximized ? win?.unmaximize() : win?.maximize())}
           className={windowButton}
         >
-          {maximized ? <Copy className="size-4" aria-hidden /> : <Square className="size-4" aria-hidden />}
+          {maximized ? (
+            <Copy className="size-4" aria-hidden />
+          ) : (
+            <Square className="size-4" aria-hidden />
+          )}
         </button>
         <button
           type="button"

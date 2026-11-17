@@ -19,13 +19,15 @@ describe("health slice", () => {
     expect(store.getState().health.data?.server.state).toBe("listening");
     expect(store.getState().health.loading).toBe(false);
 
-    const failing = createAppStore(createTauriClient({
-      invoke: async <T>(command: string): Promise<T> => {
-        if (command === "get_health") throw new Error("private details");
-        return undefined as T;
-      },
-      listen: (event, handler) => adapter.listen(event, handler),
-    }));
+    const failing = createAppStore(
+      createTauriClient({
+        invoke: async <T>(command: string): Promise<T> => {
+          if (command === "get_health") throw new Error("private details");
+          return undefined as T;
+        },
+        listen: (event, handler) => adapter.listen(event, handler),
+      }),
+    );
     await failing.getState().loadHealth();
     expect(failing.getState().health.errorCode).toBe("HEALTH_LOAD_FAILED");
     expect(failing.getState().health.loading).toBe(false);
@@ -36,9 +38,10 @@ describe("health slice", () => {
     const adapter = createMockTauriAdapter();
     const client = createTauriClient({
       invoke: async <T>(command: string): Promise<T> => {
-        if (command === "get_health") return await new Promise<HealthInfo>((resolve) => {
-          resolveHealth = resolve;
-        }) as T;
+        if (command === "get_health")
+          return (await new Promise<HealthInfo>((resolve) => {
+            resolveHealth = resolve;
+          })) as T;
         return adapter.invoke<T>(command);
       },
       listen: (event, handler) => adapter.listen(event, handler),
@@ -58,9 +61,10 @@ describe("health slice", () => {
     const client = createTauriClient({
       invoke: async <T>(command: string): Promise<T> => {
         if (command === "get_health") return listening as T;
-        if (command === "restart_server") return await new Promise<void>((resolve) => {
-          resolveRestart = resolve;
-        }) as T;
+        if (command === "restart_server")
+          return (await new Promise<void>((resolve) => {
+            resolveRestart = resolve;
+          })) as T;
         return adapter.invoke<T>(command);
       },
       listen: (event, handler) => adapter.listen(event, handler),

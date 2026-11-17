@@ -27,9 +27,10 @@ export function createUiSlice(set: AppSet, get: AppGet, initialTab: string): UiS
       get().setActiveTabPreference(activeTab);
     },
     setFullscreen: (fullscreen) => set((state) => ({ ui: { ...state.ui, fullscreen } })),
-    setDialogOpen: (dialog, open) => set((state) => ({
-      ui: { ...state.ui, dialogs: { ...state.ui.dialogs, [dialog]: open } },
-    })),
+    setDialogOpen: (dialog, open) =>
+      set((state) => ({
+        ui: { ...state.ui, dialogs: { ...state.ui.dialogs, [dialog]: open } },
+      })),
     setMirror: (mirror) => set((state) => ({ ui: { ...state.ui, mirror } })),
     setRotation: (rotation) => set((state) => ({ ui: { ...state.ui, rotation } })),
   };

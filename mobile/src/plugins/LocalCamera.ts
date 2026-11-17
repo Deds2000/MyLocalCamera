@@ -24,12 +24,7 @@ import type { PermissionKind } from "@/state/connection";
 
 /** Máquina §12 — mesmo vocabulário do reducer local (`state/connection.ts`). */
 export type ConnectionState =
-  | "idle"
-  | "connecting"
-  | "pending"
-  | "streaming"
-  | "reconnecting"
-  | "error";
+  "idle" | "connecting" | "pending" | "streaming" | "reconnecting" | "error";
 
 export interface ConnectionChangedEvent {
   state: ConnectionState;
@@ -78,8 +73,7 @@ export interface NativePermissionStates {
 /** Pareamento (QR/deep link; `pcId` opcional identifica o PC para retries)
  *  ou PC conhecido (`pcId` sozinho — auth por `deviceKey`, F2-T05). */
 export type ConnectOptions =
-  | { hosts: string[]; port: number; token: string; pcId?: string }
-  | { pcId: string };
+  { hosts: string[]; port: number; token: string; pcId?: string } | { pcId: string };
 
 /* ------------------------------- interface ----------------------------- */
 

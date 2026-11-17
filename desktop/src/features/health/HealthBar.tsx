@@ -15,10 +15,21 @@ export function HealthBar({ store = appStore }: { store?: StoreApi<AppStore> }) 
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const server = health.data?.server;
-  const state: ServerState = server?.state === "listening" ? "listening" : server?.state === "altPort" ? "altPort" : "failed";
+  const state: ServerState =
+    server?.state === "listening"
+      ? "listening"
+      : server?.state === "altPort"
+        ? "altPort"
+        : "failed";
   const port = server?.effectivePort ?? server?.port ?? 0;
-  const detail = state === "listening" ? t("desktop.health.server.ok", { port }) : state === "altPort" ? t("desktop.health.server.altPort", { port }) : t("desktop.health.server.down");
-  const serverLabel = state === "altPort" ? `${t("desktop.health.label.server")} ${detail}` : detail;
+  const detail =
+    state === "listening"
+      ? t("desktop.health.server.ok", { port })
+      : state === "altPort"
+        ? t("desktop.health.server.altPort", { port })
+        : t("desktop.health.server.down");
+  const serverLabel =
+    state === "altPort" ? `${t("desktop.health.label.server")} ${detail}` : detail;
   const close = useCallback(() => {
     setOpen(false);
     triggerRef.current?.focus();
@@ -31,11 +42,17 @@ export function HealthBar({ store = appStore }: { store?: StoreApi<AppStore> }) 
   };
 
   useEffect(() => {
-    if (health.data === null && !health.loading && health.errorCode === null) void store.getState().loadHealth();
+    if (health.data === null && !health.loading && health.errorCode === null)
+      void store.getState().loadHealth();
   }, [health.data, health.loading, health.errorCode, store]);
 
   return (
-    <div role="group" data-testid="health-bar" aria-label={t("desktop.health.aria.bar")} className="relative flex h-8 min-w-0 items-center gap-1 px-2">
+    <div
+      role="group"
+      data-testid="health-bar"
+      aria-label={t("desktop.health.aria.bar")}
+      className="relative flex h-8 min-w-0 items-center gap-1 px-2"
+    >
       <div className="relative min-w-0 shrink">
         <HealthIndicator
           kind="server"
@@ -49,12 +66,28 @@ export function HealthBar({ store = appStore }: { store?: StoreApi<AppStore> }) 
           buttonRef={triggerRef}
           className="max-w-full"
         />
-        {open && <HealthPopover state={state} port={port} health={health} onRetry={retry} onClose={close} triggerRef={triggerRef} />}
+        {open && (
+          <HealthPopover
+            state={state}
+            port={port}
+            health={health}
+            onRetry={retry}
+            onClose={close}
+            triggerRef={triggerRef}
+          />
+        )}
       </div>
       {futureKinds.map((kind) => (
-        <HealthIndicator key={kind} kind={kind} state="muted"
-          detail={t("desktop.health.soonItem", { item: t(`desktop.health.label.${kind}`), soon: t("desktop.health.soon") })}
-          className="min-w-0 flex-1 justify-center" />
+        <HealthIndicator
+          key={kind}
+          kind={kind}
+          state="muted"
+          detail={t("desktop.health.soonItem", {
+            item: t(`desktop.health.label.${kind}`),
+            soon: t("desktop.health.soon"),
+          })}
+          className="min-w-0 flex-1 justify-center"
+        />
       ))}
     </div>
   );

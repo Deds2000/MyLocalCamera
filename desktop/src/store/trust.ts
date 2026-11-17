@@ -1,4 +1,9 @@
-import type { ConnectionEvent, PendingApprovalEvent, TauriClient, TrustedDevice } from "@/lib/tauri";
+import type {
+  ConnectionEvent,
+  PendingApprovalEvent,
+  TauriClient,
+  TrustedDevice,
+} from "@/lib/tauri";
 import type { AppGet, AppSet } from "./types";
 
 export type TrustAction = { requestId: number; kind: "approve" | "reject" };
@@ -46,14 +51,16 @@ export function createTrustSlice(set: AppSet, get: AppGet, client: TauriClient):
 
   return {
     trust: { pending: null, trusted: [], pendingAction: null, errorCode: null },
-    applyPendingApproval: (event) => set((state) => ({
-      trust: { ...state.trust, pending: event, pendingAction: null, errorCode: null },
-    })),
+    applyPendingApproval: (event) =>
+      set((state) => ({
+        trust: { ...state.trust, pending: event, pendingAction: null, errorCode: null },
+      })),
     confirmTrustFromConnection: (event) => {
       const trust = get().trust;
       if (!trust.pending) return;
       const sameDevice = event.deviceId === trust.pending.deviceId;
-      const approved = sameDevice && (event.state === "streaming" || event.state === "audioConnected");
+      const approved =
+        sameDevice && (event.state === "streaming" || event.state === "audioConnected");
       const rejected = trust.pendingAction?.kind === "reject" && event.state === "idle";
       const failed = sameDevice && event.state === "error";
       if (approved || rejected || failed) {
@@ -69,16 +76,9 @@ export function createTrustSlice(set: AppSet, get: AppGet, client: TauriClient):
         set((state) => ({ trust: { ...state.trust, errorCode: "TRUST_LIST_FAILED" } }));
       }
     },
-    approveTrust: (requestId, mode) => runTrustAction(
-      requestId,
-      "approve",
-      () => client.approve(requestId, mode),
-    ),
-    rejectTrust: (requestId) => runTrustAction(
-      requestId,
-      "reject",
-      () => client.reject(requestId),
-    ),
+    approveTrust: (requestId, mode) =>
+      runTrustAction(requestId, "approve", () => client.approve(requestId, mode)),
+    rejectTrust: (requestId) => runTrustAction(requestId, "reject", () => client.reject(requestId)),
     revokeTrustedDevice: async (deviceId) => {
       try {
         const revoked = await client.revokeTrusted(deviceId);

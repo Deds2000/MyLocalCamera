@@ -96,7 +96,9 @@ function KnownPcsProbe() {
       <p data-testid="known-pc-names">{state.knownPcs.map((pc) => pc.name).join(",")}</p>
       <button
         type="button"
-        onClick={() => dispatch({ type: "KPC_FORGET", pcId: "11111111-1111-4111-8111-111111111111" })}
+        onClick={() =>
+          dispatch({ type: "KPC_FORGET", pcId: "11111111-1111-4111-8111-111111111111" })
+        }
       >
         forget
       </button>
@@ -206,7 +208,11 @@ describe("AppProvider — ponte nativa de conexão (F2-T13)", () => {
   it("mostra o estado de carregamento enquanto consulta o PairingStore", async () => {
     const fake = makeFakePlugin();
     let finishLoad!: (value: { pcs: StoredKnownPc[] }) => void;
-    fake.getKnownPcs.mockReturnValue(new Promise((resolve) => { finishLoad = resolve; }));
+    fake.getKnownPcs.mockReturnValue(
+      new Promise((resolve) => {
+        finishLoad = resolve;
+      }),
+    );
 
     await act(async () => {
       await renderWithProviders(
@@ -245,19 +251,17 @@ describe("AppProvider — ponte nativa de conexão (F2-T13)", () => {
 
   it("atualiza a lista nativa depois do WELCOME", async () => {
     const fake = makeFakePlugin();
-    fake.getKnownPcs
-      .mockResolvedValueOnce({ pcs: [] })
-      .mockResolvedValue({
-        pcs: [
-          {
-            pcId: "11111111-1111-4111-8111-111111111111",
-            name: "PC após parear",
-            hosts: ["192.168.0.10"],
-            port: 48650,
-            lastAccessed: 456,
-          },
-        ],
-      });
+    fake.getKnownPcs.mockResolvedValueOnce({ pcs: [] }).mockResolvedValue({
+      pcs: [
+        {
+          pcId: "11111111-1111-4111-8111-111111111111",
+          name: "PC após parear",
+          hosts: ["192.168.0.10"],
+          port: 48650,
+          lastAccessed: 456,
+        },
+      ],
+    });
     const target = targetFromRawUri(URI);
 
     await act(async () => {

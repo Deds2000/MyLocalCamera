@@ -16,13 +16,17 @@ export function useTauriEvents(
     const subscribe = async () => {
       const subscriptions: Array<() => Promise<UnlistenFn>> = [
         () => client.onHealthChanged((event) => store.getState().applyHealthEvent(event)),
-        () => client.onConnection((event) => {
-          store.getState().applyConnectionEvent(event);
-          store.getState().confirmTrustFromConnection(event);
-        }),
+        () =>
+          client.onConnection((event) => {
+            store.getState().applyConnectionEvent(event);
+            store.getState().confirmTrustFromConnection(event);
+          }),
         () => client.onStats((event) => store.getState().applyStatsEvent(event)),
         () => client.onPendingApproval((event) => store.getState().applyPendingApproval(event)),
-        () => client.listen<CameraStateEvent>("session://state", (event) => store.getState().applyCameraState(event)),
+        () =>
+          client.listen<CameraStateEvent>("session://state", (event) =>
+            store.getState().applyCameraState(event),
+          ),
       ];
 
       for (const [index, register] of subscriptions.entries()) {

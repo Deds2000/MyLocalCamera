@@ -41,7 +41,11 @@ function mapConnectionState(state: ConnectionEvent["state"]): DesktopConnectionS
   }
 }
 
-export function createConnectionSlice(set: AppSet, get: AppGet, client: TauriClient): ConnectionSlice {
+export function createConnectionSlice(
+  set: AppSet,
+  get: AppGet,
+  client: TauriClient,
+): ConnectionSlice {
   const loadInfo = async (): Promise<boolean> => {
     if (get().connectionInfoLoading) return false;
     set({ connectionInfoLoading: true, connectionInfoErrorCode: null });
@@ -65,20 +69,24 @@ export function createConnectionSlice(set: AppSet, get: AppGet, client: TauriCli
     connectionInfo: null,
     connectionInfoLoading: false,
     connectionInfoErrorCode: null,
-    applyConnectionEvent: (event) => set({
-      connection: {
-        state: mapConnectionState(event.state),
-        device: event.deviceId
-          ? { deviceId: event.deviceId, name: event.name, model: event.model, ip: event.ip }
-          : null,
-        transport: event.transport,
-        errorCode: event.errorCode,
-      },
-    }),
-    setConnectionError: (code) => set((state) => ({
-      connection: { ...state.connection, state: "error", errorCode: code },
-    })),
-    loadConnectionInfo: async () => { await loadInfo(); },
+    applyConnectionEvent: (event) =>
+      set({
+        connection: {
+          state: mapConnectionState(event.state),
+          device: event.deviceId
+            ? { deviceId: event.deviceId, name: event.name, model: event.model, ip: event.ip }
+            : null,
+          transport: event.transport,
+          errorCode: event.errorCode,
+        },
+      }),
+    setConnectionError: (code) =>
+      set((state) => ({
+        connection: { ...state.connection, state: "error", errorCode: code },
+      })),
+    loadConnectionInfo: async () => {
+      await loadInfo();
+    },
     regeneratePairingToken: async () => {
       try {
         await client.regenerateToken();

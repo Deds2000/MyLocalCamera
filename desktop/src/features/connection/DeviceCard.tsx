@@ -23,13 +23,17 @@ export function DeviceCard({ connection, rttMs }: DeviceCardProps) {
       <div className="flex items-start gap-2.5">
         <Camera className="mt-0.5 size-5 shrink-0 text-brand" aria-hidden="true" />
         <div className="min-w-0 flex-1">
-          <h3 id="connected-device-title" className="truncate text-sm font-semibold">{device.name}</h3>
+          <h3 id="connected-device-title" className="truncate text-sm font-semibold">
+            {device.name}
+          </h3>
           {device.model && <p className="truncate text-xs text-text-muted">{device.model}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-text-muted">
             {connection.transport && (
               <span className="inline-flex items-center gap-1 rounded-full border border-glass-border px-2 py-0.5">
                 {connection.transport === "tcp" && <Wifi className="size-3.5" aria-hidden="true" />}
-                {t(connection.transport === "tcp" ? "common.transport.wifi" : "common.transport.usb")}
+                {t(
+                  connection.transport === "tcp" ? "common.transport.wifi" : "common.transport.usb",
+                )}
               </span>
             )}
             {rttMs !== null && <span>{t("common.units.ms", { value: Math.round(rttMs) })}</span>}

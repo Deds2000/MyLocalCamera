@@ -8,7 +8,9 @@ export function UsbList() {
 
   return (
     <section aria-labelledby="usb-list-title" className="space-y-3">
-      <h3 id="usb-list-title" className="text-sm font-semibold">{t("desktop.connection.usbTitle")}</h3>
+      <h3 id="usb-list-title" className="text-sm font-semibold">
+        {t("desktop.connection.usbTitle")}
+      </h3>
       <div className="rounded-lg border border-glass-border bg-glass p-3">
         <div className="flex items-start gap-2 text-sm text-text-muted">
           <Usb className="mt-0.5 size-4 shrink-0" aria-hidden="true" />

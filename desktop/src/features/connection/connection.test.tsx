@@ -36,8 +36,12 @@ describe("ConnectionTab (F3-T04)", () => {
     const { container } = await renderWithProviders(<ConnectionTab store={store} />);
     const qr = () => container.querySelector('[data-testid="qr-card"] svg')?.outerHTML;
 
-    await act(async () => { await waitFor(() => expect(qr()).toBeTruthy()); });
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await waitFor(() => expect(qr()).toBeTruthy());
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
     const initialQr = qr();
     expect(screen.getByTestId("pairing-code")).toHaveTextContent("0123••••");
 
@@ -61,13 +65,19 @@ describe("ConnectionTab (F3-T04)", () => {
     const { container } = await renderWithProviders(<ConnectionTab store={store} />);
     const qr = () => container.querySelector('[data-testid="qr-card"] svg')?.outerHTML;
 
-    await act(async () => { await waitFor(() => expect(qr()).toBeTruthy()); });
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await waitFor(() => expect(qr()).toBeTruthy());
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
     const allNetworksQr = qr();
     await user.click(screen.getByTestId("interface-select"));
     await user.click(await screen.findByRole("option", { name: "Wi-Fi · 10.0.0.7" }));
 
-    await act(async () => { await waitFor(() => expect(qr()).not.toBe(allNetworksQr)); });
+    await act(async () => {
+      await waitFor(() => expect(qr()).not.toBe(allNetworksQr));
+    });
     expect(screen.getByTestId("network-caption")).toHaveTextContent("10.0.0.7");
     expect(screen.getByTestId("network-caption")).toHaveTextContent("50123");
     expect(store.getState().settings.networkInterface).toBe("10.0.0.7");
@@ -87,7 +97,9 @@ describe("ConnectionTab (F3-T04)", () => {
     await screen.findByTestId("pairing-code");
     expect(screen.getByTestId("pairing-code")).toHaveTextContent("0123••••");
     await user.click(screen.getByRole("button", { name: "Mostrar código de pareamento" }));
-    expect(screen.getByTestId("pairing-code")).toHaveTextContent("0123456789abcdef0123456789abcdef");
+    expect(screen.getByTestId("pairing-code")).toHaveTextContent(
+      "0123456789abcdef0123456789abcdef",
+    );
     await user.click(screen.getByRole("button", { name: "Copiar" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("0123456789abcdef0123456789abcdef"));
   });

@@ -12,7 +12,8 @@ export interface PairingLink {
   ip: string;
 }
 
-const OBVIOUS_VIRTUAL_ADAPTER = /hyper[\s-]?v|vmware|virtualbox|vpn|tunnel|\btun\d*\b|\btap\d*\b|wsl|docker|loopback|tailscale|wireguard|zerotier/i;
+const OBVIOUS_VIRTUAL_ADAPTER =
+  /hyper[\s-]?v|vmware|virtualbox|vpn|tunnel|\btun\d*\b|\btap\d*\b|wsl|docker|loopback|tailscale|wireguard|zerotier/i;
 
 function isVirtual(networkInterface: NetworkInterface): boolean {
   return networkInterface.isVirtual || OBVIOUS_VIRTUAL_ADAPTER.test(networkInterface.name);
@@ -24,7 +25,9 @@ export function filterInterfaces(
   userChoice?: string | null,
 ): FilteredInterfaces {
   const real = interfaces.filter((networkInterface) => !isVirtual(networkInterface));
-  const chosen = userChoice ? interfaces.find((networkInterface) => networkInterface.ip === userChoice) : undefined;
+  const chosen = userChoice
+    ? interfaces.find((networkInterface) => networkInterface.ip === userChoice)
+    : undefined;
   const shown = [...real];
   if (chosen && isVirtual(chosen)) shown.push(chosen);
   return {
@@ -42,9 +45,8 @@ export function pairingLinkForInterface(
   if (!parsed.ok) return null;
 
   const filtered = filterInterfaces(info.interfaces, userChoice);
-  const selected = userChoice && filtered.shown.some((item) => item.ip === userChoice)
-    ? userChoice
-    : null;
+  const selected =
+    userChoice && filtered.shown.some((item) => item.ip === userChoice) ? userChoice : null;
   const visibleIps = new Set(filtered.shown.map((item) => item.ip));
   const hosts = selected
     ? [selected]
