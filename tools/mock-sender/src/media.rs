@@ -59,6 +59,8 @@ pub(crate) async fn reader_loop(
 }
 
 /// Envia os access units a `fps`, com `pts` crescente; `loop` reinicia.
+// Parâmetros posicionais do mock; agrupamento em struct previsto para F3-T07.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn video_loop(
     data: Vec<u8>,
     aus: Vec<std::ops::Range<usize>>,
