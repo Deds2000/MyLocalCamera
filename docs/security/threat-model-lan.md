@@ -55,21 +55,21 @@ A aprovação protege contra pareamento casual/não autorizado: só quem conhece
 6. Proteger o PC e o armazenamento privado Android, revogar dispositivos não reconhecidos e não usar build de debug em ambiente exposto.
 7. Fazer avaliação separada de USB/ADB, descoberta mDNS e câmeras/microfone virtuais; não inferir garantias de isolamento.
 
-## Auditorias de dependências — bloqueadas
+## Auditorias de dependências
 
-Instalação de ferramentas depende de autorização D3, que consta pendente no cartão R-04; nada foi instalado. Checks não executados: **bloqueado, nunca aprovado**.
+- **Data:** 2026-11-16.
+- **Ferramentas:** `cargo-audit 0.23.0`, `cargo-deny 0.21.0`; instaladas com `cargo install cargo-audit --locked` e `cargo install cargo-deny --locked` (ambos concluídos).
+- **Ambiente:** `cargo 1.99.1 (5f94df478 2026-08-27)`; `rustc 1.99.1 (58cf8f9c3 2026-10-13)`.
 
-| Comando | Saída/resultado |
-|---|---|
-| `cargo audit --version` | `error: no such command: audit`; ferramenta ausente. |
-| `cargo deny --version` | `error: no such command: deny`; ferramenta ausente. |
-| `cargo --version` | `cargo 1.99.1 (5f94df478 2026-08-27)` |
-| `rustc --version` | `rustc 1.99.1 (58cf8f9c3 2026-10-13)` |
-| `cargo audit` | Não executado: ferramenta ausente e D3 pendente. |
-| `cargo deny check licenses` | Não executado: ferramenta ausente e D3 pendente. |
+| Comando | Exit code | Resultado |
+|---|---:|---|
+| `cargo audit` | 0 | Carregou 1509 advisories. 5 advisories apresentados: `RUSTSEC-2024-0370` (proc-macro-error, não mantido), `RUSTSEC-2026-0371` (zbus_names, não mantido), `RUSTSEC-2026-0370` (zvariant, não mantido), `RUSTSEC-2026-0372` (zvariant_derive, não mantido) e `RUSTSEC-2024-0429` (glib, unsoundness em iteradores; corrigido em >=0.20.0). Não foram exibidos níveis CVSS/severidade; não atribuí severidade adicional. Também listou `async-executor 1.14.0` como yanked, sem ID indicado. Saída final: 6 allowed warnings; o comando terminou com sucesso, portanto sucesso não significa ausência de advisories. |
+| `cargo deny check licenses` | 4 | `deny.toml` não existe na raiz. O comando foi executado, mas recusou licenças que não estão explicitamente permitidas (incluindo Unicode-3.0 e MIT); **bloqueado por falta de configuração/decisão de política, não aprovado**. Nenhum `deny.toml` foi criado e nenhuma licença foi aprovada nesta tarefa. |
+
+Limitações: auditoria baseada no lockfile e no banco local de advisories consultado por `cargo-audit`; o resultado é temporal e não substitui revisão de aplicabilidade/exposição. Nenhuma dependência foi corrigida nesta tarefa. O `cargo deny` não fornece uma validação de licenças aprovada enquanto não houver `deny.toml` definido por decisão apropriada.
 
 ## Limitações e observações
 
-Esta é revisão estática do commit informado; não foram executados testes dinâmicos, captura de rede, fuzzing, auditoria automatizada de dependências, nem testes em Android/Windows/USB. Não se avaliou configuração efetiva de firewall, permissões do sistema de arquivos ou proteção em repouso fornecida pelo SO.
+Esta é revisão estática do commit informado; não foram executados testes dinâmicos, captura de rede, fuzzing, nem testes em Android/Windows/USB. Foi executado `cargo audit`, conforme resultados acima; checagem de licenças permanece bloqueada por ausência de configuração. Não se avaliou configuração efetiva de firewall, permissões do sistema de arquivos ou proteção em repouso fornecida pelo SO.
 
 O CHEATSHEET e protocolo descrevem o token/chave e controles; o protocolo é fonte normativa (`docs/protocol.md:1`). A configuração documentada indica porta padrão e limites; valores efetivos podem ser configuráveis. A tarefa pediu verificar bind em `0.0.0.0`; confirmei em `desktop/src-tauri/src/server.rs:41`. O áudio tem ticket de uso único e validade de 10 s (`docs/protocol.md:34`), mas isso não cifra o canal.
