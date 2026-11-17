@@ -58,10 +58,10 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       # fixtures/ é gitignored e não vem no checkout. hd30.h264 e pattern43.h264
-      # são exigidos por cargo test. Versão do ffmpeg travada (9.0.2) para não
+      # são exigidos por cargo test. Versão do ffmpeg travada (6.1.1) para não
       # depender do que o runner traz no PATH.
       - name: Install ffmpeg (pinned)
-        run: choco install ffmpeg --version=9.0.2 -y --no-progress
+        run: choco install ffmpeg --version=6.1.1 -y --no-progress
 
       - name: Generate test fixtures
         shell: pwsh
