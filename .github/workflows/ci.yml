@@ -82,7 +82,10 @@ jobs:
         run: |
           $base = if ('${{ github.event_name }}' -eq 'pull_request') { 'origin/${{ github.event.pull_request.base.ref }}' } else { 'origin/main' }
           git fetch origin $base.Split('/')[1]
-          $files = git diff --name-only --diff-filter=ACMRT "$base...HEAD" | Where-Object { Test-Path $_ }
+          $prettierExtensions = @('.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.mts', '.cts', '.json', '.jsonc', '.json5', '.md', '.mdx', '.css', '.scss', '.less', '.html', '.yml', '.yaml')
+          $files = git diff --name-only --diff-filter=ACMRT "$base...HEAD" | Where-Object {
+            (Test-Path $_) -and ($prettierExtensions -contains [IO.Path]::GetExtension($_).ToLowerInvariant())
+          }
           if ($files) { pnpm exec prettier --check $files; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
 
       - name: Prettier baseline (informational)
