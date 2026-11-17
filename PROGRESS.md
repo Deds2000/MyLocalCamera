@@ -2,7 +2,7 @@
 
 > Legenda: `[ ]` a fazer · `[~]` em andamento · `[x]` pronta · `[!]` bloqueada. Executor: agente; testes de aparelho via IA + ADB, conforme `AGENTS.md`.
 
-**Próxima tarefa:** **F3-T12** — HealthBar (T13, T14a e T02 concluídas), conforme plano detalhado. F2-FIX-04 concluída como classificação: dez IDs com justificativa/destino; nove continuam PENDENTE e AT-2.06 N/A, sem novos desvios aceitos. F2-GATE-R continua bloqueada por FIX-02. F3-T06 concluída. F3-T05 permanece parcial pelo Esc, sem repetir o harness sem decisão. F2-FIX-02 mantém p95 >80 ms sem conformidade. F3-T07 segue parcial por `DXGI_ERROR_DRIVER_INTERNAL_ERROR`, sem repetir GPU. Fase 2 segue **NÃO APROVADA**. **D1:** sequência intercalada autorizada. **Atualizado:** 2026-11-16.
+**Próxima tarefa:** **R-02** — README e raiz do repositório (R-01 concluída; F3-T14c segue bloqueada por T14a2/T05). **F3-T12 concluída:** HealthBar com cinco indicadores, restart idempotente e evento `health://changed`; F2-FIX-04 concluída como classificação: dez IDs com justificativa/destino; nove continuam PENDENTE e AT-2.06 N/A, sem novos desvios aceitos. F2-GATE-R continua bloqueada por FIX-02. F3-T06 concluída. F3-T05 permanece parcial pelo Esc, sem repetir o harness sem decisão. F2-FIX-02 mantém p95 >80 ms sem conformidade. F3-T07 segue parcial por `DXGI_ERROR_DRIVER_INTERNAL_ERROR`, sem repetir GPU. Fase 2 segue **NÃO APROVADA**. **D1:** sequência intercalada autorizada. **Atualizado:** 2026-11-16.
 
 ## Bloqueios abertos
 
@@ -38,7 +38,7 @@
 | [ ] | F3-T10 | Regras de desempenho | T09 | `docs/tasks/fase-3/F3-T10.md` |
 | [ ] | F3-T11 | Estados do preview e toolbar | T10 | `docs/tasks/fase-3/F3-T11.md` |
 | [ ] | F3-T14a2 | Painel lateral | T04, T11, T14b | `docs/tasks/fase-3/F3-T14a2.md` |
-| [ ] | F3-T12 | HealthBar | T13, T14a, T02 | `docs/tasks/fase-3/F3-T12.md` |
+| [x] | F3-T12 | HealthBar — 5 indicadores, servidor dinâmico, popover e restart; FT-3.08 e testes direcionados verdes | T13, T14a, T02 | `docs/tasks/fase-3/F3-T12.md` |
 | [ ] | F3-T14c | Catálogo, capturas e axe | T14a2, T12, T05 | `docs/tasks/fase-3/F3-T14c.md` |
 | [ ] | F3-T17 | Instrumentação/soaks de desempenho | T10, T14a2 | `docs/tasks/fase-3/F3-T17.md` |
 | [ ] | R-02 | README e raiz do repositório | R-01 | `docs/tasks/R-02.md` |
@@ -53,6 +53,7 @@
 
 ## Evidência recente
 
+- **F3-T12:** `health://changed` deduplicado com transição `failed`→`listening`; `restart_server` idempotente, setup não aborta o app e a pump sobrevive sem listener; `failed` usa `effectivePort: 0`. Rust: `cargo test -p desktop --test health` 3/3; `cargo test -p desktop --lib commands::tests` 7/7 (FT-3.08, restart e corrida shutdown/restart, com porta 48650 serializada); evento health 1/1; `cargo clippy -p desktop --tests` sem warnings novos (resta `collapsible_if` preexistente de T07 em `decode/session_tests.rs`); fmt e diff-check verdes. Frontend: `features/health` 10/10, store/hook 4/4, `App.test` 6/6, typecheck/lint verdes; i18n compartilhado 13/13. Limitações: popover validado estruturalmente, sem inspeção visual de runtime; Ajustes desabilitado até a F3-T14a2; espelho `desktop-coverage.test.ts` das novas chaves fica para a F3-T14b; o respawn do decoder após restart permanece no diff pendente da F3-T07 e não entrou neste commit.
 - **F2-FIX-04:** dois Luna e revisão do gerente confrontaram os dez IDs com `docs/phases/fase-2-mobile-transmissao-minima.md` §§7.3–7.5, código e harnesses. AT-2.07/08/09 e PT-2.06 encaminhados à integração desktop futura F3/F4 com revisão em F2-GATE-R; AT-2.10, FT-2.02/04/09/14 têm proposta D6 não aceita; AT-2.06 continua N/A pela decisão existente. Nove resultados seguem PENDENTE. Unit JVM `PrimaryConnectionTest.ut209_revokedApagaChaveENaoReconecta` passou em 16 s (1 teste, 0 falhas/erros/skips), mas usa peer/store fake: não comprova AndroidKeyStore nem revogação pela UI desktop. Resumo sanitizado e hash do XML conferidos em `docs/tests/evidence/fase-2/F2-FIX-04-ut209.json`; auditoria em `F2-FIX-04-audit.md`. Inventário ADB apenas no Moto G5, sem alterar aparelho, dados ou rede. Dez linhas únicas e referências verificadas; FT-2.10/11 adiados, F2-T16 fora do gate e limite 80 ms preservados. Nenhum teste funcional/aprovação de fase foi inventado, nem soak/GPU repetido.
 - **R-01:** histórico arquivado; 127 IDs de tarefa e 111 IDs de teste distintos preservados; nota removida por D5; Fase 2 segue NÃO APROVADA.
 - **R-05:** `cargo test -p lc-server` — 107 aprovados, 1 ignorado; `cargo clippy -p lc-server` e `cargo fmt --all --check` verdes. Testes existentes não editados; módulos extraídos com ≤300 linhas.

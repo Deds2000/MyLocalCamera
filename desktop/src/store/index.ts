@@ -44,6 +44,8 @@ export const selectTrustPending = (state: AppStore) => state.trust.pending;
 export const selectTrustedDevices = (state: AppStore) => state.trust.trusted;
 export const selectUsbDevices = (state: AppStore) => state.usb.devices;
 export const selectHealth = (state: AppStore) => state.health;
+export const selectHealthData = (state: AppStore) => state.health.data;
+export const selectHealthRestarting = (state: AppStore) => state.health.restarting;
 export const selectLanguage = (state: AppStore) => state.settings.language;
 export const selectActiveTab = (state: AppStore) => state.ui.activeTab;
 export const selectUi = (state: AppStore) => state.ui;

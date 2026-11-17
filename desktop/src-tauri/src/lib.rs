@@ -1,6 +1,7 @@
 mod commands;
 mod events_pump;
-mod server;
+pub mod health;
+pub mod server;
 mod window;
 
 use std::sync::atomic::Ordering;
@@ -30,6 +31,7 @@ pub fn run() {
             commands::list_trusted,
             commands::revoke_trusted,
             commands::get_health,
+            commands::restart_server,
         ])
         .setup(|app| {
             // Restaura tamanho/posição/estado salvos (validando o monitor).
@@ -50,9 +52,23 @@ pub fn run() {
                 }
             }
 
-            let server = tauri::async_runtime::block_on(server::AppState::start(data_dir.clone()))
-                .map_err(Box::<dyn std::error::Error>::from)?;
+            let server = server::AppState::new(
+                data_dir.clone(),
+                std::env::var("COMPUTERNAME")
+                    .ok()
+                    .filter(|name| !name.trim().is_empty())
+                    .unwrap_or_else(|| "LocalCamera PC".to_owned()),
+            );
             app.manage(server);
+            {
+                let state = app.state::<server::AppState>();
+                match tauri::async_runtime::block_on(state.start_server()) {
+                    Ok(handle) => *server::lock_server(&state) = Some(handle),
+                    Err(error) => {
+                        tracing::warn!(error = %error, "initial server start failed");
+                    }
+                }
+            }
             events_pump::spawn(app.handle().clone());
 
             // Salva o estado em CloseRequested e em maximize/restore (Resized).
@@ -72,6 +88,7 @@ pub fn run() {
                 let state = app.state::<server::AppState>();
                 state.shutting_down.store(true, Ordering::Release);
                 tauri::async_runtime::block_on(async {
+                    let _lifecycle = state.lifecycle.lock().await;
                     let pending_id = state.pending_request_id.swap(0, Ordering::AcqRel);
                     if let Some(mut server) = server::take_server(&state) {
                         if pending_id != 0 {

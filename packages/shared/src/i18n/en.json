@@ -231,7 +231,29 @@
         "ok": "ADB v{{version}}",
         "missing": "ADB missing"
       },
-      "soon": "Coming soon"
+      "soon": "Coming soon",
+      "label": {
+        "server": "Server",
+        "discovery": "Discovery",
+        "vcam": "Virtual camera",
+        "mic": "Virtual microphone",
+        "adb": "ADB"
+      },
+      "soonItem": "{{item}} — coming soon",
+      "openSettings": "Open settings",
+      "settingsSoon": "Settings will be available soon.",
+      "retry": "Try again",
+      "retrying": "Restarting…",
+      "retryFailed": "The server could not be restarted. Try again.",
+      "detail": {
+        "ok": "The server is listening on port {{port}}.",
+        "altPort": "The requested port is unavailable. The server is listening on port {{port}}.",
+        "down": "The server is not running."
+      },
+      "aria": {
+        "bar": "Health status",
+        "serverDetails": "Server details"
+      }
     },
     "wizard": {
       "title": "Let's get everything ready",

@@ -13,22 +13,35 @@ use lc_server::{ServerError, ServerHandle, start};
 
 pub(crate) const REQUESTED_PORT: u16 = 48_650;
 
-pub(crate) struct AppState {
+pub struct AppState {
     pub(crate) server: Mutex<Option<ServerHandle>>,
     pub(crate) pending_request_id: AtomicU64,
     pub(crate) shutting_down: AtomicBool,
-    pub(crate) requested_port: u16,
+    pub requested_port: u16,
     pub(crate) pc_name: String,
+    pub(crate) data_dir: PathBuf,
+    pub(crate) lifecycle: tokio::sync::Mutex<()>,
 }
 
 impl AppState {
-    pub(crate) async fn start(data_dir: PathBuf) -> Result<Self, ServerError> {
-        let pc_name = pc_name();
+    pub fn new(data_dir: PathBuf, pc_name: String) -> Self {
+        Self {
+            server: Mutex::new(None),
+            pending_request_id: AtomicU64::new(0),
+            shutting_down: AtomicBool::new(false),
+            requested_port: REQUESTED_PORT,
+            pc_name,
+            data_dir,
+            lifecycle: tokio::sync::Mutex::new(()),
+        }
+    }
+
+    pub async fn start_server(&self) -> Result<ServerHandle, ServerError> {
         let config = ServerConfig {
             bind_ip: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             port: REQUESTED_PORT,
-            data_dir,
-            pc_name: pc_name.clone(),
+            data_dir: self.data_dir.clone(),
+            pc_name: self.pc_name.clone(),
             app_version: env!("CARGO_PKG_VERSION").to_owned(),
             max_unauth_conns: DEFAULT_MAX_UNAUTH_CONNS,
             hello_timeout: DEFAULT_HELLO_TIMEOUT,
@@ -44,11 +57,20 @@ impl AppState {
             liveness_timeout: DEFAULT_LIVENESS_TIMEOUT,
             stats_interval: DEFAULT_STATS_INTERVAL,
         };
-        let server = start(config).await?;
-
-        Ok(Self::from_server(server, REQUESTED_PORT, pc_name))
+        start(config).await
     }
 
+    pub fn install_server(&self, server: ServerHandle) {
+        *lock_server(self) = Some(server);
+    }
+
+    pub async fn stop_server(&self) {
+        if let Some(mut server) = take_server(self) {
+            server.shutdown().await;
+        }
+    }
+
+    #[cfg(test)]
     pub(crate) fn from_server(server: ServerHandle, requested_port: u16, pc_name: String) -> Self {
         Self {
             server: Mutex::new(Some(server)),
@@ -56,6 +78,8 @@ impl AppState {
             shutting_down: AtomicBool::new(false),
             requested_port,
             pc_name,
+            data_dir: PathBuf::new(),
+            lifecycle: tokio::sync::Mutex::new(()),
         }
     }
 }
@@ -69,11 +93,4 @@ pub(crate) fn lock_server(state: &AppState) -> std::sync::MutexGuard<'_, Option<
 
 pub(crate) fn take_server(state: &AppState) -> Option<ServerHandle> {
     lock_server(state).take()
-}
-
-fn pc_name() -> String {
-    std::env::var("COMPUTERNAME")
-        .ok()
-        .filter(|name| !name.trim().is_empty())
-        .unwrap_or_else(|| "LocalCamera PC".to_owned())
 }

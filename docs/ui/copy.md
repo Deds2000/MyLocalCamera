@@ -197,6 +197,22 @@ Regras: nenhuma frase vem da rede (só **códigos**); textos em pt-BR podem ser 
 | `desktop.health.adb.ok` | ADB v{{version}} | ADB v{{version}} |
 | `desktop.health.adb.missing` | ADB ausente | ADB missing |
 | `desktop.health.soon` | Em breve | Coming soon |
+| `desktop.health.label.server` | Servidor | Server |
+| `desktop.health.label.discovery` | Descoberta | Discovery |
+| `desktop.health.label.vcam` | Câmera virtual | Virtual camera |
+| `desktop.health.label.mic` | Microfone virtual | Virtual microphone |
+| `desktop.health.label.adb` | ADB | ADB |
+| `desktop.health.soonItem` | {{item}} — {{soon}} | {{item}} — coming soon |
+| `desktop.health.openSettings` | Abrir Ajustes | Open settings |
+| `desktop.health.settingsSoon` | Os Ajustes estarão disponíveis em breve. | Settings will be available soon. |
+| `desktop.health.retry` | Tentar novamente | Try again |
+| `desktop.health.retrying` | Reiniciando… | Restarting… |
+| `desktop.health.retryFailed` | Não foi possível reiniciar o servidor. Tente novamente. | The server could not be restarted. Try again. |
+| `desktop.health.detail.ok` | O servidor está escutando na porta {{port}}. | The server is listening on port {{port}}. |
+| `desktop.health.detail.altPort` | A porta solicitada está indisponível. O servidor está escutando na porta {{port}}. | The requested port is unavailable. The server is listening on port {{port}}. |
+| `desktop.health.detail.down` | O servidor não está em execução. | The server is not running. |
+| `desktop.health.aria.bar` | Estado de saúde | Health status |
+| `desktop.health.aria.serverDetails` | Detalhes do servidor | Server details |
 | `desktop.wizard.title` | Vamos deixar tudo pronto | Let's get everything ready |
 | `desktop.wizard.step.network` | Rede | Network |
 | `desktop.wizard.step.camera` | Câmera virtual | Virtual camera |

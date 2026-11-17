@@ -231,7 +231,29 @@
         "ok": "ADB v{{version}}",
         "missing": "ADB ausente"
       },
-      "soon": "Em breve"
+      "soon": "Em breve",
+      "label": {
+        "server": "Servidor",
+        "discovery": "Descoberta",
+        "vcam": "Câmera virtual",
+        "mic": "Microfone virtual",
+        "adb": "ADB"
+      },
+      "soonItem": "{{item}} — {{soon}}",
+      "openSettings": "Abrir Ajustes",
+      "settingsSoon": "Os Ajustes estarão disponíveis em breve.",
+      "retry": "Tentar novamente",
+      "retrying": "Reiniciando…",
+      "retryFailed": "Não foi possível reiniciar o servidor. Tente novamente.",
+      "detail": {
+        "ok": "O servidor está escutando na porta {{port}}.",
+        "altPort": "A porta solicitada está indisponível. O servidor está escutando na porta {{port}}.",
+        "down": "O servidor não está em execução."
+      },
+      "aria": {
+        "bar": "Estado de saúde",
+        "serverDetails": "Detalhes do servidor"
+      }
     },
     "wizard": {
       "title": "Vamos deixar tudo pronto",

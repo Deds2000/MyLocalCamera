@@ -92,9 +92,11 @@ export interface TauriClient {
   listTrusted(): Promise<TrustedDevice[]>;
   revokeTrusted(deviceId: string): Promise<boolean>;
   getHealth(): Promise<HealthInfo>;
+  restartServer(): Promise<void>;
   onConnection(handler: EventHandler<ConnectionEvent>): Promise<UnlistenFn>;
   onStats(handler: EventHandler<StatsEvent>): Promise<UnlistenFn>;
   onPendingApproval(handler: EventHandler<PendingApprovalEvent>): Promise<UnlistenFn>;
+  onHealthChanged(handler: EventHandler<HealthInfo>): Promise<UnlistenFn>;
 }
 
 export function createTauriClient(adapter: TauriAdapter): TauriClient {
@@ -108,9 +110,11 @@ export function createTauriClient(adapter: TauriAdapter): TauriClient {
     listTrusted: () => adapter.invoke("list_trusted"),
     revokeTrusted: (deviceId) => adapter.invoke("revoke_trusted", { deviceId }),
     getHealth: () => adapter.invoke("get_health"),
+    restartServer: () => adapter.invoke("restart_server"),
     onConnection: (handler) => adapter.listen("session://connection", handler),
     onStats: (handler) => adapter.listen("session://stats", handler),
     onPendingApproval: (handler) => adapter.listen("trust://pending", handler),
+    onHealthChanged: (handler) => adapter.listen("health://changed", handler),
   };
 }
 
@@ -142,6 +146,7 @@ export function createMockTauriAdapter(): MockTauriAdapter {
           server: { state: "listening", port: 48650, effectivePort: 48650 },
           stubs: ["em breve"],
         },
+        restart_server: undefined,
       };
       if (!(command in responses)) {
         throw new Error("Unsupported LocalCamera mock command");

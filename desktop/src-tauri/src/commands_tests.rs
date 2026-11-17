@@ -1,8 +1,13 @@
+use std::sync::atomic::Ordering;
+
 use super::{
-    CommandError, MAX_DEVICE_ID_BYTES, connection_info, mask_pair_token, pairing_uri,
-    validate_device_id, validate_pending_request,
+    CommandError, MAX_DEVICE_ID_BYTES, connection_info, ensure_server_running,
+    install_restarted_server, mask_pair_token, pairing_uri, validate_device_id,
+    validate_pending_request,
 };
 use crate::server::{AppState, REQUESTED_PORT, take_server};
+
+static PORT_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 #[test]
 fn rejects_oversized_device_id_without_echoing_input() {
@@ -14,6 +19,70 @@ fn rejects_oversized_device_id_without_echoing_input() {
         "\"invalid_input\""
     );
     assert!(validate_device_id(&"a".repeat(MAX_DEVICE_ID_BYTES)).is_ok());
+}
+
+#[tokio::test]
+async fn restart_starts_missing_listener_and_is_idempotent() {
+    let _port = PORT_LOCK.lock().await;
+    let data_dir = tempfile::tempdir().expect("test data dir");
+    let state = AppState::new(data_dir.path().to_owned(), "test".to_owned());
+    assert!(ensure_server_running(&state).await.expect("first restart"));
+    assert!(
+        !ensure_server_running(&state)
+            .await
+            .expect("idempotent restart")
+    );
+    if let Some(mut server) = take_server(&state) {
+        server.shutdown().await;
+    }
+}
+
+#[tokio::test]
+async fn shutdown_during_restart_does_not_install_new_listener() {
+    let _port = PORT_LOCK.lock().await;
+    let data_dir = tempfile::tempdir().expect("test data dir");
+    let state = AppState::new(data_dir.path().to_owned(), "test".to_owned());
+    let server = state
+        .start_server()
+        .await
+        .expect("start temporary listener");
+    let port = server.local_port();
+    state.shutting_down.store(true, Ordering::Release);
+    assert_eq!(
+        install_restarted_server(&state, server).await,
+        Err(CommandError::ServerUnavailable)
+    );
+    assert!(crate::server::lock_server(&state).is_none());
+    let _rebound = std::net::TcpListener::bind(("0.0.0.0", port))
+        .expect("shutdown closes newly started listener");
+}
+
+#[tokio::test]
+async fn ft_308_reports_alternate_listener_and_matching_qr_port() {
+    let _port = PORT_LOCK.lock().await;
+    let _occupied =
+        std::net::TcpListener::bind(("0.0.0.0", REQUESTED_PORT)).expect("reserve requested port");
+    let data_dir = tempfile::tempdir().expect("test data dir");
+    let state = AppState::new(data_dir.path().to_owned(), "test".to_owned());
+    let server = state
+        .start_server()
+        .await
+        .expect("fallback listener starts");
+    let effective = server.local_port();
+    assert_ne!(effective, REQUESTED_PORT);
+    *crate::server::lock_server(&state) = Some(server);
+    let health = crate::health::HealthInfo::from_state(&state);
+    assert_eq!(health.server.state, "altPort");
+    let info = connection_info(&state).expect("connection info");
+    assert_eq!(info.effective_port, effective);
+    assert!(
+        info.qrcode_uri
+            .contains(&format!("&port={effective}&token="))
+    );
+    assert!(!info.qrcode_uri.contains("&port=48650&"));
+    if let Some(mut server) = take_server(&state) {
+        server.shutdown().await;
+    }
 }
 
 #[test]

@@ -8,7 +8,9 @@ use mock_sender::config::{MockConfig, MockError};
 use mock_sender::faults::Faults;
 use serde::Serialize;
 
-use super::{TauriEventSink, close_reason_code, connection_closed_state, dispatch};
+use super::{
+    TauriEventSink, close_reason_code, connection_closed_state, dispatch, emit_health_if_changed,
+};
 use crate::server::{AppState, lock_server, take_server};
 
 #[derive(Default)]
@@ -24,6 +26,47 @@ impl TauriEventSink for CapturingSink {
                 serde_json::to_value(payload).expect("event payload serializes"),
             ));
     }
+}
+
+#[tokio::test]
+async fn health_event_emits_only_on_change_with_get_health_payload() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut state = AppState::new(dir.path().to_owned(), "test".to_owned());
+    let sink = CapturingSink::default();
+    let mut last = None;
+
+    emit_health_if_changed(&sink, &state, &mut last);
+    {
+        let events = sink.0.lock().unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].0, "health://changed");
+        assert_eq!(events[0].1["server"]["state"], "failed");
+        assert_eq!(events[0].1["server"]["effectivePort"], 0);
+    }
+
+    let server = lc_server::start(ServerConfig::for_tests(dir.path().to_owned(), false))
+        .await
+        .expect("test listener starts on an ephemeral port");
+    let effective_port = server.local_port();
+    state.requested_port = effective_port;
+    state.install_server(server);
+    let expected = crate::health::HealthInfo::from_state(&state);
+
+    emit_health_if_changed(&sink, &state, &mut last);
+    emit_health_if_changed(&sink, &state, &mut last);
+
+    {
+        let events = sink.0.lock().unwrap();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[1].0, "health://changed");
+        assert_eq!(events[1].1["server"]["state"], "listening");
+        assert_eq!(events[1].1["server"]["effectivePort"], effective_port);
+        assert_eq!(
+            events[1].1,
+            serde_json::to_value(expected).expect("health payload serializes")
+        );
+    }
+    state.stop_server().await;
 }
 
 #[test]
@@ -78,6 +121,7 @@ async fn mock_sender_pending_event_payload_is_secret_free() {
     let state = AppState::from_server(server, port, "F3-T13 test".to_owned());
     let sink = CapturingSink::default();
     let mut last_dropped = 0;
+    let mut last_health = None;
 
     let sender = tokio::spawn(mock_sender::session::run(MockConfig {
         hosts: vec!["127.0.0.1".to_owned()],
@@ -105,7 +149,7 @@ async fn mock_sender_pending_event_payload_is_secret_free() {
             match next {
                 Ok(event) => {
                     let is_pending = matches!(&event, ServerEvent::ApprovalRequested(_));
-                    dispatch(&sink, &state, event, &mut last_dropped);
+                    dispatch(&sink, &state, event, &mut last_dropped, &mut last_health);
                     if is_pending {
                         break;
                     }

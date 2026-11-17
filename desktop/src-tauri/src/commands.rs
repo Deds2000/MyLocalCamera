@@ -4,6 +4,7 @@ use lc_server::events::Decision;
 use serde::Serialize;
 use tauri::State;
 
+use crate::health::HealthInfo;
 use crate::server::{AppState, lock_server};
 
 #[path = "commands/network.rs"]
@@ -42,21 +43,6 @@ pub(crate) struct TrustedDeviceInfo {
     model: Option<String>,
     last_seen: u64,
     last_ip: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ServerHealth {
-    state: &'static str,
-    port: u16,
-    effective_port: u16,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct HealthInfo {
-    server: ServerHealth,
-    stubs: Vec<&'static str>,
 }
 
 #[tauri::command]
@@ -174,24 +160,40 @@ pub(crate) fn revoke_trusted(
 #[tauri::command]
 pub(crate) fn get_health(state: State<'_, AppState>) -> Result<HealthInfo, CommandError> {
     ensure_available(&state)?;
-    let server_guard = lock_server(&state);
-    let server = server_guard
-        .as_ref()
-        .ok_or(CommandError::ServerUnavailable)?;
-    let effective_port = server.local_port();
-    let state_name = if effective_port == state.requested_port {
-        "listening"
-    } else {
-        "altPort"
-    };
-    Ok(HealthInfo {
-        server: ServerHealth {
-            state: state_name,
-            port: state.requested_port,
-            effective_port,
-        },
-        stubs: vec!["em breve"],
-    })
+    Ok(HealthInfo::from_state(&state))
+}
+
+#[tauri::command]
+pub(crate) async fn restart_server(state: State<'_, AppState>) -> Result<(), CommandError> {
+    ensure_available(&state)?;
+    ensure_server_running(&state).await?;
+    Ok(())
+}
+
+async fn ensure_server_running(state: &AppState) -> Result<bool, CommandError> {
+    let _lifecycle = state.lifecycle.lock().await;
+    if lock_server(state).is_some() {
+        return Ok(false);
+    }
+    match state.start_server().await {
+        Ok(server) => install_restarted_server(state, server).await,
+        Err(error) => {
+            tracing::warn!(error = %error, "server restart failed");
+            Err(CommandError::ServerUnavailable)
+        }
+    }
+}
+
+async fn install_restarted_server(
+    state: &AppState,
+    mut server: lc_server::ServerHandle,
+) -> Result<bool, CommandError> {
+    if state.shutting_down.load(Ordering::Acquire) {
+        server.shutdown().await;
+        return Err(CommandError::ServerUnavailable);
+    }
+    *lock_server(state) = Some(server);
+    Ok(true)
 }
 
 fn decide_approval(

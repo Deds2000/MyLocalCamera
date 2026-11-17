@@ -18,6 +18,11 @@ export interface HealthIndicatorProps {
   detail: string;
   /** Clique abre a correção (comportamento do consumidor). */
   onClick?: () => void;
+  "aria-label"?: string;
+  "aria-expanded"?: boolean;
+  "aria-haspopup"?: "dialog";
+  "aria-controls"?: string;
+  buttonRef?: React.Ref<HTMLButtonElement>;
   className?: string;
 }
 
@@ -27,6 +32,11 @@ export function HealthIndicator({
   state,
   detail,
   onClick,
+  "aria-label": ariaLabel,
+  "aria-expanded": ariaExpanded,
+  "aria-haspopup": ariaHaspopup,
+  "aria-controls": ariaControls,
+  buttonRef,
   className,
 }: HealthIndicatorProps) {
   const content = (
@@ -51,8 +61,13 @@ export function HealthIndicator({
   return (
     <button
       type="button"
+      ref={buttonRef}
       data-kind={kind}
       onClick={onClick}
+      aria-label={ariaLabel}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHaspopup}
+      aria-controls={ariaControls}
       className={cn(
         base,
         "cursor-pointer text-left hover:bg-glass-strong",

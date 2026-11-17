@@ -6,11 +6,13 @@ use lc_server::stats::SessionStats;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
+use crate::health::HealthInfo;
 use crate::server::{AppState, lock_server};
 
 const CONNECTION_EVENT: &str = "session://connection";
 const STATS_EVENT: &str = "session://stats";
 const PENDING_EVENT: &str = "trust://pending";
+const HEALTH_EVENT: &str = "health://changed";
 const EMPTY_POLL_INTERVAL: Duration = Duration::from_millis(10);
 
 #[derive(Clone, Debug, Serialize)]
@@ -69,6 +71,7 @@ struct StatsPayload {
 pub(crate) fn spawn<R: Runtime>(app: AppHandle<R>) {
     tauri::async_runtime::spawn(async move {
         let mut last_dropped_frames = 0;
+        let mut last_health: Option<HealthInfo> = None;
         loop {
             let next = {
                 let state = app.state::<AppState>();
@@ -78,19 +81,27 @@ pub(crate) fn spawn<R: Runtime>(app: AppHandle<R>) {
                 let mut server = lock_server(&state);
                 match server.as_mut() {
                     Some(server) => server.events().try_recv(),
-                    None => break,
+                    None => Err(tokio::sync::mpsc::error::TryRecvError::Empty),
                 }
             };
 
             match next {
                 Ok(event) => {
                     let state = app.state::<AppState>();
-                    dispatch(&app, &state, event, &mut last_dropped_frames);
+                    dispatch(
+                        &app,
+                        &state,
+                        event,
+                        &mut last_dropped_frames,
+                        &mut last_health,
+                    );
                 }
                 Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
                     tokio::time::sleep(EMPTY_POLL_INTERVAL).await;
                 }
-                Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => break,
+                Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
+                    tokio::time::sleep(EMPTY_POLL_INTERVAL).await;
+                }
             }
         }
     });
@@ -111,18 +122,21 @@ fn dispatch<E: TauriEventSink>(
     state: &AppState,
     event: ServerEvent,
     last_dropped_frames: &mut u64,
+    last_health: &mut Option<HealthInfo>,
 ) {
     match event {
         ServerEvent::Listening { port } => {
             let mut payload = ConnectionPayload::state("listening");
             payload.effective_port = Some(port);
             emit(app, CONNECTION_EVENT, payload);
+            emit_health_if_changed(app, state, last_health);
         }
         ServerEvent::PortChanged { requested, actual } => {
             let mut payload = ConnectionPayload::state("altPort");
             payload.requested_port = Some(requested);
             payload.effective_port = Some(actual);
             emit(app, CONNECTION_EVENT, payload);
+            emit_health_if_changed(app, state, last_health);
         }
         ServerEvent::ConnectionOpened { peer, .. } => {
             let mut payload = ConnectionPayload::state("connecting");
@@ -216,6 +230,18 @@ fn dispatch<E: TauriEventSink>(
             emit(app, CONNECTION_EVENT, payload);
         }
         ServerEvent::UsbWindowOpened | ServerEvent::UsbWindowClosed { .. } => {}
+    }
+}
+
+fn emit_health_if_changed<E: TauriEventSink>(
+    app: &E,
+    state: &AppState,
+    last_health: &mut Option<HealthInfo>,
+) {
+    let health = HealthInfo::from_state(state);
+    if last_health.as_ref() != Some(&health) {
+        emit(app, HEALTH_EVENT, health.clone());
+        *last_health = Some(health);
     }
 }
 

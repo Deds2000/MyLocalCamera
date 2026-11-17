@@ -3,6 +3,7 @@ import Titlebar from "./Titlebar";
 import { panelWidth } from "./layout";
 import { ConnectionTab } from "@/features/connection/ConnectionTab";
 import { PreviewArea } from "@/features/preview/PreviewArea";
+import { HealthBar } from "@/features/health/HealthBar";
 
 /** Grade do app (F3-T01): titlebar 40 px · (preview + painel) · rodapé 32 px. */
 
@@ -37,7 +38,9 @@ export default function Shell() {
       <footer
         data-testid="footer"
         className="h-8 shrink-0 border-t border-glass-border bg-raised"
-      />
+      >
+        <HealthBar />
+      </footer>
     </div>
   );
 }

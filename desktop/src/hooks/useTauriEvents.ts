@@ -5,7 +5,7 @@ import { appStore, type AppStore, type CameraStateEvent } from "@/store";
 import type { StoreApi } from "zustand/vanilla";
 import { tauri } from "@/lib/tauri";
 
-/** The sole UI subscription point for session/trust events. */
+/** The sole UI subscription point for Tauri events used by the UI. */
 export function useTauriEvents(
   client: TauriClient = tauri,
   store: StoreApi<AppStore> = appStore,
@@ -15,6 +15,7 @@ export function useTauriEvents(
     const unlisteners: UnlistenFn[] = [];
     const subscribe = async () => {
       const subscriptions: Array<() => Promise<UnlistenFn>> = [
+        () => client.onHealthChanged((event) => store.getState().applyHealthEvent(event)),
         () => client.onConnection((event) => {
           store.getState().applyConnectionEvent(event);
           store.getState().confirmTrustFromConnection(event);
@@ -24,19 +25,24 @@ export function useTauriEvents(
         () => client.listen<CameraStateEvent>("session://state", (event) => store.getState().applyCameraState(event)),
       ];
 
-      for (const register of subscriptions) {
+      for (const [index, register] of subscriptions.entries()) {
         try {
           const unlisten = await register();
           if (disposed) unlisten();
-          else unlisteners.push(unlisten);
+          else {
+            unlisteners.push(unlisten);
+            if (index === 0) void store.getState().loadHealth();
+          }
         } catch {
-          store.getState().setConnectionError("EVENT_SUBSCRIPTION_FAILED");
+          if (!disposed) {
+            store.getState().setConnectionError("EVENT_SUBSCRIPTION_FAILED");
+            if (index === 0) void store.getState().loadHealth();
+          }
         }
       }
     };
 
     void store.getState().loadTrustedDevices();
-    void store.getState().loadHealth();
     void store.getState().loadConnectionInfo();
     void subscribe();
 

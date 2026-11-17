@@ -923,6 +923,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tempfile",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
