@@ -56,15 +56,22 @@ Regras: nenhuma frase vem da rede (só **códigos**); textos em pt-BR podem ser 
 | `desktop.empty.subtitle` | Escaneie o QR code com o app LocalCamera ou plugue o cabo USB. | Scan the QR code with the LocalCamera app or plug in a USB cable. |
 | `desktop.empty.network` | Rede: {{ip}} · Porta {{port}} | Network: {{ip}} · Port {{port}} |
 | `desktop.empty.usbHint` | Ative a depuração USB no celular e plugue o cabo. | Turn on USB debugging on your phone and plug in the cable. |
+| `desktop.empty.usbSeparator` | ou use o cabo USB | or use a USB cable |
 | `desktop.connection.pairTitle` | Parear novo aparelho | Pair a new device |
 | `desktop.connection.regenerate` | Regenerar QR code | Regenerate QR code |
 | `desktop.connection.regenerateConfirm` | Regenerar invalida o QR atual. Aparelhos já pareados continuam funcionando. | Regenerating invalidates the current QR. Already paired devices keep working. |
 | `desktop.connection.code` | Código de pareamento | Pairing code |
+| `desktop.connection.showCode` | Mostrar código de pareamento | Show pairing code |
+| `desktop.connection.hideCode` | Ocultar código de pareamento | Hide pairing code |
+| `desktop.connection.qrLabel` | QR code de pareamento LocalCamera | LocalCamera pairing QR code |
 | `desktop.connection.interface` | Interface de rede | Network interface |
+| `desktop.connection.interfaceAll` | Todas as redes disponíveis | All available networks |
 | `desktop.connection.disconnect` | Desconectar | Disconnect |
+| `desktop.connection.disconnectUnavailable` | A desconexão pelo PC ainda não está disponível. | Disconnecting from the PC is not available yet. |
 | `desktop.connection.usbTitle` | Aparelhos USB | USB devices |
 | `desktop.connection.usbNone` | Nenhum aparelho detectado. | No device detected. |
 | `desktop.connection.usbAuto` | Conectar automaticamente ao plugar | Connect automatically when plugged in |
+| `desktop.connection.usbAutoHelp` | A conexão USB estará disponível em uma atualização futura. | USB connection will be available in a future update. |
 | `desktop.connection.connect` | Conectar | Connect |
 | `desktop.adb.ready` | Pronto | Ready |
 | `desktop.adb.unauthorized` | Autorize no celular | Authorize on your phone |
@@ -190,6 +197,22 @@ Regras: nenhuma frase vem da rede (só **códigos**); textos em pt-BR podem ser 
 | `desktop.health.adb.ok` | ADB v{{version}} | ADB v{{version}} |
 | `desktop.health.adb.missing` | ADB ausente | ADB missing |
 | `desktop.health.soon` | Em breve | Coming soon |
+| `desktop.health.label.server` | Servidor | Server |
+| `desktop.health.label.discovery` | Descoberta | Discovery |
+| `desktop.health.label.vcam` | Câmera virtual | Virtual camera |
+| `desktop.health.label.mic` | Microfone virtual | Virtual microphone |
+| `desktop.health.label.adb` | ADB | ADB |
+| `desktop.health.soonItem` | {{item}} — {{soon}} | {{item}} — coming soon |
+| `desktop.health.openSettings` | Abrir Ajustes | Open settings |
+| `desktop.health.settingsSoon` | Os Ajustes estarão disponíveis em breve. | Settings will be available soon. |
+| `desktop.health.retry` | Tentar novamente | Try again |
+| `desktop.health.retrying` | Reiniciando… | Restarting… |
+| `desktop.health.retryFailed` | Não foi possível reiniciar o servidor. Tente novamente. | The server could not be restarted. Try again. |
+| `desktop.health.detail.ok` | O servidor está escutando na porta {{port}}. | The server is listening on port {{port}}. |
+| `desktop.health.detail.altPort` | A porta solicitada está indisponível. O servidor está escutando na porta {{port}}. | The requested port is unavailable. The server is listening on port {{port}}. |
+| `desktop.health.detail.down` | O servidor não está em execução. | The server is not running. |
+| `desktop.health.aria.bar` | Estado de saúde | Health status |
+| `desktop.health.aria.serverDetails` | Detalhes do servidor | Server details |
 | `desktop.wizard.title` | Vamos deixar tudo pronto | Let's get everything ready |
 | `desktop.wizard.step.network` | Rede | Network |
 | `desktop.wizard.step.camera` | Câmera virtual | Virtual camera |

@@ -5,59 +5,16 @@
 //! (mesmo `deviceId`) sinaliza a antiga via `oneshot` — quem é chutado
 //! envia `BYE{reason:"replaced"}` e fecha com [`crate::events::CloseReason::Replaced`].
 
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use tokio::sync::oneshot;
+use lc_protocol::Message;
+use tokio::sync::{mpsc, oneshot};
 
-/// Contadores da sessão (F1-T09b/F1-T10): o socket de áudio escreve
-/// `audio_*`, o laço principal escreve `video_*`/`rtt_ewma_ms`; a
-/// UI/`STATS` lêem sem lock (`AtomicU64`).
-///
-/// Índices dos vetores por stream: `0` = stream 1, `1` = stream 2,
-/// `2` = reservado.
-#[derive(Debug, Default)]
-pub struct SessionCounters {
-    /// Quadros de vídeo recebidos, por stream.
-    pub video_frames: [AtomicU64; 3],
-    /// Bytes de vídeo recebidos, por stream.
-    pub video_bytes: [AtomicU64; 3],
-    /// Keyframes recebidos (qualquer stream).
-    pub keyframes: AtomicU64,
-    /// Blocos de áudio recebidos.
-    pub audio_blocks: AtomicU64,
-    /// Bytes de áudio recebidos.
-    pub audio_bytes: AtomicU64,
-    /// `ptsUs` do último bloco de áudio.
-    pub last_audio_pts: AtomicU64,
-    /// RTT (EWMA) do socket principal, em ms; `0` = ainda não medido
-    /// (F1-T10; o laço principal grava a cada `PONG`).
-    pub rtt_ewma_ms: AtomicU32,
-}
-
-impl SessionCounters {
-    /// Snapshot sem lock dos contadores (F1-T10): alimenta
-    /// [`crate::stats::compute_stats`] a cada `stats_interval`.
-    #[must_use]
-    pub fn snapshot(&self) -> crate::stats::Snapshot {
-        let [f0, f1, f2] = &self.video_frames;
-        let [b0, b1, b2] = &self.video_bytes;
-        crate::stats::Snapshot {
-            video_frames: [
-                f0.load(Ordering::Relaxed),
-                f1.load(Ordering::Relaxed),
-                f2.load(Ordering::Relaxed),
-            ],
-            video_bytes: [
-                b0.load(Ordering::Relaxed),
-                b1.load(Ordering::Relaxed),
-                b2.load(Ordering::Relaxed),
-            ],
-            audio_blocks: self.audio_blocks.load(Ordering::Relaxed),
-            audio_bytes: self.audio_bytes.load(Ordering::Relaxed),
-        }
-    }
-}
+mod commands;
+mod counters;
+pub use commands::SessionCommandError;
+use commands::COMMAND_QUEUE_CAPACITY;
+pub use counters::SessionCounters;
 
 /// Sessão ativa.
 #[derive(Debug)]
@@ -77,6 +34,8 @@ pub struct ActiveSession {
     /// ele fecha com `Replaced` — ou ao liberar a sessão — ele fecha
     /// com `PeerClosed`). `None` sem áudio aberto.
     pub audio_kick: Option<oneshot::Sender<()>>,
+    /// Único produtor da fila PC→celular; o laço da sessão é o escritor.
+    pub commands: mpsc::Sender<Message>,
 }
 
 /// Resultado de [`SessionRegistry::claim`].
@@ -90,6 +49,7 @@ pub enum Claim {
     Granted {
         kicked: bool,
         kick_rx: oneshot::Receiver<()>,
+        command_rx: mpsc::Receiver<Message>,
     },
     /// Há sessão ativa de **outro** `deviceId`.
     Busy,
@@ -121,10 +81,14 @@ impl SessionRegistry {
         let mut guard = self.current.lock().unwrap_or_else(|p| p.into_inner());
         match guard.as_ref() {
             None => {
-                *guard = Some(Self::entry(session_id, device_id, conn_id, kick_tx));
+                let (command_tx, command_rx) = mpsc::channel(COMMAND_QUEUE_CAPACITY);
+                *guard = Some(Self::entry(
+                    session_id, device_id, conn_id, kick_tx, command_tx,
+                ));
                 Claim::Granted {
                     kicked: false,
                     kick_rx,
+                    command_rx,
                 }
             }
             Some(old) if old.device_id == device_id => {
@@ -139,10 +103,14 @@ impl SessionRegistry {
                 if let Some(audio) = old.audio_kick {
                     let _ = audio.send(());
                 }
-                *guard = Some(Self::entry(session_id, device_id, conn_id, kick_tx));
+                let (command_tx, command_rx) = mpsc::channel(COMMAND_QUEUE_CAPACITY);
+                *guard = Some(Self::entry(
+                    session_id, device_id, conn_id, kick_tx, command_tx,
+                ));
                 Claim::Granted {
                     kicked: true,
                     kick_rx,
+                    command_rx,
                 }
             }
             // Outro dispositivo: a sessão ativa **não** é tocada.
@@ -223,6 +191,7 @@ impl SessionRegistry {
         device_id: &str,
         conn_id: u64,
         kick: oneshot::Sender<()>,
+        commands: mpsc::Sender<Message>,
     ) -> ActiveSession {
         ActiveSession {
             session_id,
@@ -231,6 +200,7 @@ impl SessionRegistry {
             kick,
             counters: Arc::new(SessionCounters::default()),
             audio_kick: None,
+            commands,
         }
     }
 }
@@ -283,7 +253,9 @@ mod tests {
     fn kick_fires_on_replacement() {
         let reg = SessionRegistry::new();
         let mut first = match reg.claim("s1".to_owned(), "dev-1", 1) {
-            Claim::Granted { kicked, kick_rx } => {
+            Claim::Granted {
+                kicked, kick_rx, ..
+            } => {
                 assert!(!kicked);
                 kick_rx
             }

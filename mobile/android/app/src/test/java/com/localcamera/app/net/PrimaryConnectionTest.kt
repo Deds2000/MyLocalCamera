@@ -214,13 +214,16 @@ class PrimaryConnectionTest {
             when (idx) {
                 1 -> { frame: Frame ->
                     if (frame.type == MessageType.HELLO) {
-                        s.sendTestFrame(welcomeFrame("s4", pc1))
+                        s.sendTestFrame(welcomeFrame("s4", pc1, deviceKeyHex))
                         s.sendTestFrame(pingFrame(7L)) // o PC também pinga
                         // mas nunca responde PONG aos nossos PINGs
                     }
                 }
                 2 -> { frame: Frame ->
                     if (frame.type == MessageType.HELLO) {
+                        val retryHello = decodeHello(frame.payload)
+                        assertTrue("retry deve usar Auth.Device após salvar a chave", retryHello.auth is Auth.Device)
+                        assertEquals(deviceKeyHex, (retryHello.auth as Auth.Device).key)
                         s.sendTestFrame(byeFrame("busy"))
                         s.close()
                     }
@@ -325,6 +328,38 @@ class PrimaryConnectionTest {
                 rig.clock.delays.take(22),
             )
             assertEquals(0, rig.events.size) // falha de rede não gera eventos
+        } finally {
+            rig.shutdown(job)
+        }
+    }
+
+    // Falhas transitórias da fábrica (incluindo uma Network em cache obsoleta)
+    // não encerram o laço: após N tentativas, um socket novo completa o HELLO.
+    @Test
+    fun retriesAfterSocketFactoryFailsNTimes() = runTest {
+        val failures = 3
+        val rig = makeRig(
+            listOf(addr1),
+            script = { idx, server ->
+                if (idx == failures + 1) {
+                    { frame: Frame ->
+                        if (frame.type == MessageType.HELLO) {
+                            server.sendTestFrame(welcomeFrame("s-retry", pc1))
+                        }
+                    }
+                } else {
+                    { _: Frame -> }
+                }
+            },
+            failAttempts = failures,
+            launchServer = { launch { it() } },
+        )
+        val job = launch { rig.conn.start(hello) }
+        try {
+            awaitEvent(rig.events) { it is ConnectionEvent.Welcome }
+
+            assertEquals("s-retry", rig.events.filterIsInstance<ConnectionEvent.Welcome>().single().sessionId)
+            assertEquals(failures + 1, rig.calls())
         } finally {
             rig.shutdown(job)
         }

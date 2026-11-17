@@ -2,7 +2,8 @@ import { Camera, Check, ChevronDown, Copy, Globe, Minus, Square, X } from "lucid
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { resolveLanguage, savedLanguage, storeLanguage, type LanguageChoice } from "./lang";
+import { resolveLanguage, type LanguageChoice } from "./lang";
+import { selectLanguage as selectSettingLanguage, useAppStore } from "@/store";
 
 /**
  * Titlebar de 40 px (F3-T01).
@@ -21,7 +22,8 @@ const windowButton =
 export default function Titlebar() {
   const { t, i18n } = useTranslation();
   const [maximized, setMaximized] = useState(false);
-  const [choice, setChoice] = useState<LanguageChoice>(() => savedLanguage());
+  const choice = useAppStore(selectSettingLanguage);
+  const setLanguage = useAppStore((state) => state.setLanguage);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const win = isTauri ? getCurrentWindow() : null;
@@ -58,8 +60,7 @@ export default function Titlebar() {
   }, [menuOpen]);
 
   const selectLanguage = (next: LanguageChoice) => {
-    setChoice(next);
-    storeLanguage(next);
+    setLanguage(next);
     void i18n.changeLanguage(resolveLanguage(next));
     setMenuOpen(false);
   };
@@ -139,7 +140,12 @@ export default function Titlebar() {
           )}
         </div>
 
-        <button type="button" aria-label={t("desktop.window.minimize")} onClick={() => void win?.minimize()} className={windowButton}>
+        <button
+          type="button"
+          aria-label={t("desktop.window.minimize")}
+          onClick={() => void win?.minimize()}
+          className={windowButton}
+        >
           <Minus className="size-4" aria-hidden />
         </button>
         <button
@@ -148,7 +154,11 @@ export default function Titlebar() {
           onClick={() => void (maximized ? win?.unmaximize() : win?.maximize())}
           className={windowButton}
         >
-          {maximized ? <Copy className="size-4" aria-hidden /> : <Square className="size-4" aria-hidden />}
+          {maximized ? (
+            <Copy className="size-4" aria-hidden />
+          ) : (
+            <Square className="size-4" aria-hidden />
+          )}
         </button>
         <button
           type="button"

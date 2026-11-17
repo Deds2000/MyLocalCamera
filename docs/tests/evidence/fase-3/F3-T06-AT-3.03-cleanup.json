@@ -1,0 +1,42 @@
+{
+  "test": "F3-T06 selective cleanup",
+  "result": "CLEANUP_BLOCKED",
+  "deviceName": "F3-T06-8c7df0d3",
+  "deviceId": "withheld",
+  "matchingTrustedRecordsBefore": null,
+  "matchingTrustedRecordsAfter": null,
+  "uiaRemoveAction": "not-started",
+  "cancelInitiallyFocused": false,
+  "cancelPreservedEntry": false,
+  "uiaConfirmAction": "not-started",
+  "directTauriCleanupFallback": false,
+  "cleanupTargetUnique": null,
+  "otherTrustedRecordsUntouched": true,
+  "failureStage": "identify-owned-record",
+  "failureExceptionType": "System.Net.Http.HttpRequestException",
+  "runtimeNotRestarted": true,
+  "stateFileContents": "not read",
+  "screenshots": "none",
+  "trustedListBeforeSucceeded": false,
+  "trustedListAfterSucceeded": false,
+  "cleanupCommandSent": false,
+  "cleanupFailureDetail": "CDP loopback request failed before list_trusted; desktop/Vite processes were absent on read-only process check",
+  "ownedDevicePreviouslyObservedByUIA": true,
+  "manualActionRequested": false,
+  "uiTrigger": {
+    "controlType": "Button",
+    "exactName": "Remover F3-T06-8c7df0d3",
+    "scrollItemPatternUsed": true,
+    "windowAndButtonReacquiredAfterScroll": true,
+    "offscreenBeforeScroll": true,
+    "offscreenAfterScroll": false,
+    "supportedPatternNamesAfterRefresh": [
+      "ExpandCollapsePatternIdentifiers.Pattern",
+      "ScrollItemPatternIdentifiers.Pattern"
+    ],
+    "invokePatternPresent": false,
+    "legacyIAccessiblePatternPresent": false
+  },
+  "physicalClickIssued": false,
+  "desktopAndVitePresentOnFinalCheck": false
+}

@@ -1,6 +1,7 @@
 package com.localcamera.app.net
 
 import android.util.Log
+import com.localcamera.app.protocol.Auth
 import com.localcamera.app.protocol.Bye
 import com.localcamera.app.protocol.Frame
 import com.localcamera.app.protocol.FrameReader
@@ -163,21 +164,43 @@ class PrimaryConnection(
     private suspend fun CoroutineScope.loop(hello: Hello) {
         while (!closing) {
             currentCoroutineContext().ensureActive()
-            when (val outcome = attemptOnce(hello)) {
+            val attemptHello = helloForAttempt(hello)
+            val authMode = when (attemptHello.auth) {
+                is Auth.Pair -> "pair"
+                is Auth.Device -> "device"
+            }
+            log("nova tentativa de conexão auth=$authMode")
+            when (val outcome = attemptOnce(attemptHello)) {
                 is Outcome.Terminal -> {
                     log("definitivo: ${outcome.why}")
                     return
                 }
                 Outcome.SessionEnded -> {
                     if (closing) return
+                    log("sessão perdida; nova tentativa")
                     onEvent(ConnectionEvent.Lost)
                     backoff.reset() // sessão bem-sucedida → volta a 1 s
                 }
-                Outcome.Retry -> Unit // falha de rede: reconecta calado
+                Outcome.Retry -> log("tentativa sem sessão; nova tentativa")
             }
             currentCoroutineContext().ensureActive()
             delayBackoff(backoff.next())
         }
+    }
+
+    /**
+     * O servidor rotaciona o token de pareamento após aprovação. Depois que
+     * `WELCOME` persiste a deviceKey, retries devem autenticar como dispositivo
+     * confiável, não reutilizar o token do QR armazenado no HELLO inicial.
+     */
+    private fun helloForAttempt(hello: Hello): Hello {
+        val key = pairingStore?.deviceKey(pcId) ?: return hello
+        val keyHex = try {
+            key.toHex()
+        } finally {
+            key.fill(0)
+        }
+        return hello.copy(auth = Auth.Device(hello.device.id, keyHex))
     }
 
     /** Aguarda o backoff em passos curtos para [close] ser notado logo. */
@@ -256,6 +279,7 @@ class PrimaryConnection(
                 val s = socketFactory(addr)
                 created = s
                 s.connect(addr, CONNECT_TIMEOUT_MS.toInt())
+                log("socket TCP conectado")
                 s
             }
         } catch (e: Exception) {
@@ -290,5 +314,14 @@ class PrimaryConnection(
 
         /** `reason` que param a reconexão (F2-T09). */
         val TERMINAL_REASONS: Set<String> = setOf("revoked", "version_mismatch")
+
+        private const val HEX = "0123456789abcdef"
+    }
+
+    private fun ByteArray.toHex(): String = buildString(size * 2) {
+        for (b in this@toHex) {
+            append(HEX[(b.toInt() ushr 4) and 0xF])
+            append(HEX[b.toInt() and 0xF])
+        }
     }
 }

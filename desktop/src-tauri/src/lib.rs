@@ -1,6 +1,13 @@
+mod commands;
+mod events_pump;
+pub mod health;
+pub mod server;
 mod window;
 
-use tauri::{Manager, WindowEvent};
+use std::sync::atomic::Ordering;
+
+use lc_server::events::Decision;
+use tauri::{Manager, RunEvent, WindowEvent};
 
 use crate::window as window_state;
 
@@ -16,6 +23,16 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![
+            commands::get_connection_info,
+            commands::regenerate_token,
+            commands::approve,
+            commands::reject,
+            commands::list_trusted,
+            commands::revoke_trusted,
+            commands::get_health,
+            commands::restart_server,
+        ])
         .setup(|app| {
             // Restaura tamanho/posição/estado salvos (validando o monitor).
             let window = app
@@ -35,6 +52,25 @@ pub fn run() {
                 }
             }
 
+            let server = server::AppState::new(
+                data_dir.clone(),
+                std::env::var("COMPUTERNAME")
+                    .ok()
+                    .filter(|name| !name.trim().is_empty())
+                    .unwrap_or_else(|| "LocalCamera PC".to_owned()),
+            );
+            app.manage(server);
+            {
+                let state = app.state::<server::AppState>();
+                match tauri::async_runtime::block_on(state.start_server()) {
+                    Ok(handle) => *server::lock_server(&state) = Some(handle),
+                    Err(error) => {
+                        tracing::warn!(error = %error, "initial server start failed");
+                    }
+                }
+            }
+            events_pump::spawn(app.handle().clone());
+
             // Salva o estado em CloseRequested e em maximize/restore (Resized).
             let saved_window = window.clone();
             window.on_window_event(move |event| match event {
@@ -45,6 +81,22 @@ pub fn run() {
             });
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let RunEvent::Exit = event {
+                let state = app.state::<server::AppState>();
+                state.shutting_down.store(true, Ordering::Release);
+                tauri::async_runtime::block_on(async {
+                    let _lifecycle = state.lifecycle.lock().await;
+                    let pending_id = state.pending_request_id.swap(0, Ordering::AcqRel);
+                    if let Some(mut server) = server::take_server(&state) {
+                        if pending_id != 0 {
+                            let _ = server.decide(pending_id, Decision::Reject);
+                        }
+                        server.shutdown().await;
+                    }
+                });
+            }
+        });
 }

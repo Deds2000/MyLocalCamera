@@ -31,8 +31,12 @@ pub(crate) type Writer = Arc<Mutex<FaultyWriter>>;
 
 /// Envia uma mensagem completa pelo socket (encode + flush).
 pub(crate) async fn send_msg(writer: &Writer, msg: &Message) -> io::Result<()> {
+    let pts_us = match msg {
+        Message::Video { pts_us, .. } | Message::Audio { pts_us, .. } => *pts_us,
+        _ => 0,
+    };
     let bytes = msg
-        .encode(0)
+        .encode(pts_us)
         .map_err(|e| io::Error::other(format!("encode: {e}")))?;
     send_raw(writer, &bytes).await
 }

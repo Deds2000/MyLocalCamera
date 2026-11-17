@@ -8,13 +8,22 @@ export interface QRCardProps {
   hosts: string[];
   port: number;
   className?: string;
+  size?: number;
+  showNetworkDetails?: boolean;
 }
 
 /**
  * QR de 220 px com margem clara de 16 px (zona silenciosa, contraste para
  * leitura) + hosts/porta exibidos. O consumo do QR é da F3-T04.
  */
-export function QRCard({ uri, hosts, port, className }: QRCardProps) {
+export function QRCard({
+  uri,
+  hosts,
+  port,
+  className,
+  size = 220,
+  showNetworkDetails = true,
+}: QRCardProps) {
   return (
     <div
       data-testid="qr-card"
@@ -24,16 +33,18 @@ export function QRCard({ uri, hosts, port, className }: QRCardProps) {
       )}
     >
       <div data-testid="qr-margin" className="rounded-lg bg-white p-4">
-        <QRCodeSVG value={uri} size={220} />
+        <QRCodeSVG value={uri} size={size} />
       </div>
-      <div className="flex flex-col items-center gap-0.5 text-xs text-text-muted">
-        <span data-testid="qr-hosts" className="font-mono">
-          {hosts.join(" · ")}
-        </span>
-        <span data-testid="qr-port" className="font-mono">
-          {port}
-        </span>
-      </div>
+      {showNetworkDetails && (
+        <div className="flex flex-col items-center gap-0.5 text-xs text-text-muted">
+          <span data-testid="qr-hosts" className="font-mono">
+            {hosts.join(" · ")}
+          </span>
+          <span data-testid="qr-port" className="font-mono">
+            {port}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { renderWithProviders } from "@localcamera/shared/test";
 import { beforeEach, describe, expect, it } from "vitest";
 import App from "./App";
 import { panelWidth, previewPadding } from "./app/layout";
+import { appStore } from "./store";
 
 function setWindowWidth(width: number) {
   Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: width });
@@ -12,6 +13,7 @@ function setWindowWidth(width: number) {
 
 beforeEach(() => {
   localStorage.clear();
+  appStore.setState({ settings: { ...appStore.getState().settings, language: "system" } });
   setWindowWidth(1024);
 });
 
@@ -61,7 +63,9 @@ describe("App (desktop) — shell (F3-T01)", () => {
     await user.click(screen.getByRole("menuitem", { name: "English" }));
 
     // textos visíveis mudam na hora
-    await waitFor(() => expect(screen.getByTestId("status-pill")).toHaveTextContent("Disconnected"));
+    await waitFor(() =>
+      expect(screen.getByTestId("status-pill")).toHaveTextContent("Disconnected"),
+    );
     expect(await screen.findByRole("button", { name: "English" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Maximize" })).toBeInTheDocument();
     expect(localStorage.getItem("lang")).toBe("en");
@@ -83,7 +87,9 @@ describe("App (desktop) — shell (F3-T01)", () => {
     expect(systemItem.querySelector("svg")).toBeInTheDocument();
 
     await user.click(screen.getByRole("menuitem", { name: "Português" }));
-    await waitFor(() => expect(screen.getByTestId("status-pill")).toHaveTextContent("Desconectado"));
+    await waitFor(() =>
+      expect(screen.getByTestId("status-pill")).toHaveTextContent("Desconectado"),
+    );
     expect(localStorage.getItem("lang")).toBe("pt-BR");
   });
 });

@@ -18,6 +18,11 @@ export interface HealthIndicatorProps {
   detail: string;
   /** Clique abre a correção (comportamento do consumidor). */
   onClick?: () => void;
+  "aria-label"?: string;
+  "aria-expanded"?: boolean;
+  "aria-haspopup"?: "dialog";
+  "aria-controls"?: string;
+  buttonRef?: React.Ref<HTMLButtonElement>;
   className?: string;
 }
 
@@ -27,32 +32,40 @@ export function HealthIndicator({
   state,
   detail,
   onClick,
+  "aria-label": ariaLabel,
+  "aria-expanded": ariaExpanded,
+  "aria-haspopup": ariaHaspopup,
+  "aria-controls": ariaControls,
+  buttonRef,
   className,
 }: HealthIndicatorProps) {
   const content = (
     <>
-      <span
-        aria-hidden="true"
-        className={cn("h-2 w-2 shrink-0 rounded-full", DOT_COLOR[state])}
-      />
+      <span aria-hidden="true" className={cn("h-2 w-2 shrink-0 rounded-full", DOT_COLOR[state])} />
       <span className="truncate text-xs text-text">{detail}</span>
     </>
   );
 
-  const base = cn(
-    "flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1",
-    className,
-  );
+  const base = cn("flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1", className);
 
   if (!onClick) {
-    return <div data-kind={kind} className={base}>{content}</div>;
+    return (
+      <div data-kind={kind} className={base}>
+        {content}
+      </div>
+    );
   }
 
   return (
     <button
       type="button"
+      ref={buttonRef}
       data-kind={kind}
       onClick={onClick}
+      aria-label={ariaLabel}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHaspopup}
+      aria-controls={ariaControls}
       className={cn(
         base,
         "cursor-pointer text-left hover:bg-glass-strong",

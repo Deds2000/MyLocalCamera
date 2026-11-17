@@ -2,6 +2,7 @@
 //! modos de falha (F1-T11b).
 
 use std::net::SocketAddr;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant};
 
@@ -152,6 +153,7 @@ async fn run_once(cfg: MockConfig) -> Result<Summary, MockError> {
 
     let counters = Arc::new(Counters::default());
     let closed_by: Arc<StdMutex<Option<String>>> = Arc::new(StdMutex::new(None));
+    let request_keyframe = Arc::new(AtomicBool::new(false));
 
     let mut reader_task = Some(tokio::spawn(media::reader_loop(
         msg_reader,
@@ -159,6 +161,7 @@ async fn run_once(cfg: MockConfig) -> Result<Summary, MockError> {
         closed_by.clone(),
         cfg.faults.no_pong,
         cfg.faults.drop_ping,
+        request_keyframe.clone(),
     )));
 
     let mut video_task = if let Some(path) = &cfg.file {
@@ -184,6 +187,7 @@ async fn run_once(cfg: MockConfig) -> Result<Summary, MockError> {
             writer.clone(),
             counters.clone(),
             cfg.faults.unknown_type,
+            request_keyframe,
         )))
     } else {
         None

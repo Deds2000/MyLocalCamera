@@ -9,7 +9,6 @@ import android.util.Log
 import java.net.Socket
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Vínculo de rede Wi-Fi do socket principal (F2-T16, targetSdk 36).
@@ -64,7 +63,7 @@ class WifiNetwork(
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     /** Wi-Fi em uso; `null` = rede padrão. CAS: `onAvailable`/`onLost`/`acquire`. */
-    private val current = AtomicReference<Network?>(null)
+    private val current = NetworkCache<Network>()
 
     /** Serializa "pedido em voo" (1 `requestNetwork` ativo por vez). */
     private val lock = Any()
@@ -97,7 +96,7 @@ class WifiNetwork(
             val latch = CountDownLatch(1)
             val callback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
-                    if (current.compareAndSet(null, network)) {
+                    if (current.onAvailable(network)) {
                         unavailableSinceMs = 0L
                         log("Wi-Fi vinculado")
                     }
@@ -106,7 +105,8 @@ class WifiNetwork(
 
                 override fun onLost(network: Network) {
                     // Wi-Fi caiu/trocou: zera e o próximo socket re-adquire.
-                    if (current.compareAndSet(network, null)) {
+                    // Um onAvailable novo substitui cache obsoleto antes deste callback.
+                    if (current.onLost(network)) {
                         log("Wi-Fi perdido: rede padrão até re-adquirir")
                         latch.countDown()
                     }
@@ -161,7 +161,7 @@ class WifiNetwork(
         val cb = synchronized(lock) {
             val old = activeCallback
             activeCallback = null
-            current.set(null)
+            current.clear()
             unavailableSinceMs = 0L
             released = true
             old

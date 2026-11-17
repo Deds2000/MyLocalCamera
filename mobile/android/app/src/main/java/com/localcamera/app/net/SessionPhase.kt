@@ -46,7 +46,10 @@ internal class SessionPhase(
         reader: FrameReader,
         data: Channel<ByteArray>,
     ): Outcome {
-        if (!send(Frame(MessageType.HELLO.code, 0, 0, 0, encodeHello(hello)))) return Outcome.Retry
+        if (!send(Frame(MessageType.HELLO.code, 0, 0, 0, encodeHello(hello)))) {
+            log("HELLO não enfileirado")
+            return Outcome.Retry
+        }
         return handshake(send, reader, data)
     }
 
@@ -81,6 +84,7 @@ internal class SessionPhase(
             }
         }
         // Canal fechado: o peer fechou antes do WELCOME → reconectar.
+        log("peer fechou antes do WELCOME")
         return Outcome.Retry
     }
 
@@ -91,9 +95,14 @@ internal class SessionPhase(
         data: Channel<ByteArray>,
         carry: List<Frame>,
     ): Outcome {
-        val w: Welcome = runCatching { decodeWelcome(f.payload) }.getOrNull() ?: return Outcome.Retry
+        val w: Welcome = runCatching { decodeWelcome(f.payload) }.getOrNull() ?: run {
+            log("WELCOME inválido")
+            return Outcome.Retry
+        }
         if (!w.accepted) {
             val reason = w.reason ?: "protocol_error"
+            val safeReason = reason.takeIf { it in SAFE_WELCOME_REASONS } ?: "other"
+            log("WELCOME negado: $safeReason")
             onEvent(ConnectionEvent.Denied(reason))
             return if (reason in PrimaryConnection.TERMINAL_REASONS) {
                 pairingStore?.deleteDeviceKey(pcId) // §6.3: pede novo pareamento por QR
@@ -240,5 +249,15 @@ internal class SessionPhase(
         const val DEVICE_KEY_HEX_LEN = 64
         const val DEVICE_KEY_BYTES = 32
         const val READ_BUF_BYTES = 64 * 1024
+        val SAFE_WELCOME_REASONS = setOf(
+            "bad_token",
+            "not_approved",
+            "revoked",
+            "busy",
+            "version_mismatch",
+            "bad_audio_ticket",
+            "timeout",
+            "protocol_error",
+        )
     }
 }

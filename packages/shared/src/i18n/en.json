@@ -60,18 +60,25 @@
       "title": "Connect your phone",
       "subtitle": "Scan the QR code with the LocalCamera app or plug in a USB cable.",
       "network": "Network: {{ip}} · Port {{port}}",
-      "usbHint": "Turn on USB debugging on your phone and plug in the cable."
+      "usbHint": "Turn on USB debugging on your phone and plug in the cable.",
+      "usbSeparator": "or use a USB cable"
     },
     "connection": {
       "pairTitle": "Pair a new device",
       "regenerate": "Regenerate QR code",
       "regenerateConfirm": "Regenerating invalidates the current QR. Already paired devices keep working.",
       "code": "Pairing code",
+      "showCode": "Show pairing code",
+      "hideCode": "Hide pairing code",
+      "qrLabel": "LocalCamera pairing QR code",
       "interface": "Network interface",
+      "interfaceAll": "All available networks",
       "disconnect": "Disconnect",
+      "disconnectUnavailable": "Disconnecting from the PC is not available yet.",
       "usbTitle": "USB devices",
       "usbNone": "No device detected.",
       "usbAuto": "Connect automatically when plugged in",
+      "usbAutoHelp": "USB connection will be available in a future update.",
       "connect": "Connect"
     },
     "adb": {
@@ -87,7 +94,15 @@
       "title": "Trusted devices",
       "empty": "No paired devices.",
       "lastSeen": "Last seen {{when}}",
-      "removeConfirm": "Remove \"{{name}}\"? It will need to be paired and approved again."
+      "removeConfirm": "Remove \"{{name}}\"? It will need to be paired and approved again.",
+      "remove": "Remove {{name}}",
+      "removing": "Removing…",
+      "refresh": "Refresh list",
+      "refreshing": "Refreshing…",
+      "refreshPresent": "The device is still listed. You can confirm removal again.",
+      "loading": "Loading trusted devices…",
+      "loadFailed": "Couldn't load trusted devices.",
+      "revokeFailed": "Couldn't confirm the removal. Check the list and try again."
     },
     "approval": {
       "title": "Allow \"{{name}}\" to connect?",
@@ -216,7 +231,29 @@
         "ok": "ADB v{{version}}",
         "missing": "ADB missing"
       },
-      "soon": "Coming soon"
+      "soon": "Coming soon",
+      "label": {
+        "server": "Server",
+        "discovery": "Discovery",
+        "vcam": "Virtual camera",
+        "mic": "Virtual microphone",
+        "adb": "ADB"
+      },
+      "soonItem": "{{item}} — coming soon",
+      "openSettings": "Open settings",
+      "settingsSoon": "Settings will be available soon.",
+      "retry": "Try again",
+      "retrying": "Restarting…",
+      "retryFailed": "The server could not be restarted. Try again.",
+      "detail": {
+        "ok": "The server is listening on port {{port}}.",
+        "altPort": "The requested port is unavailable. The server is listening on port {{port}}.",
+        "down": "The server is not running."
+      },
+      "aria": {
+        "bar": "Health status",
+        "serverDetails": "Server details"
+      }
     },
     "wizard": {
       "title": "Let's get everything ready",

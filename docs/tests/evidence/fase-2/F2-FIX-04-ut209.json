@@ -1,0 +1,49 @@
+{
+  "evidence_id": "F2-FIX-04-ut209",
+  "kind": "sanitized-junit-summary",
+  "test": {
+    "classname": "com.localcamera.app.net.PrimaryConnectionTest",
+    "name": "ut209_revokedApagaChaveENaoReconecta",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "time_seconds": 0.183,
+    "timestamp_utc": "2026-11-16T20:54:20.636Z"
+  },
+  "execution": {
+    "command": ".\\gradlew.bat :app:testDebugUnitTest --tests com.localcamera.app.net.PrimaryConnectionTest.ut209_revokedApagaChaveENaoReconecta",
+    "working_directory": "mobile/android",
+    "gradle_result": "BUILD SUCCESSFUL",
+    "gradle_duration_seconds": 16,
+    "tasks": {
+      "executed": 1,
+      "up_to_date": 79
+    }
+  },
+  "source": {
+    "file": "mobile/android/app/src/test/java/com/localcamera/app/net/PrimaryConnectionTest.kt",
+    "test_line": 151,
+    "assertions_relevant_to_revoked": [
+      "line 167: emits ConnectionEvent.Denied(\"revoked\")",
+      "line 168: asserts rig.store.deviceKey(pc1) is null",
+      "line 169: asserts one connection attempt (no reconnect)"
+    ]
+  },
+  "junit_xml": {
+    "path": "mobile/android/app/build/test-results/testDebugUnitTest/TEST-com.localcamera.app.net.PrimaryConnectionTest.xml",
+    "sha256": "DBF9D3F767C96564099C5793BA1287484D1505EAB4BFFF7D09B75447170B4D92",
+    "note": "Only XML suite/testcase attributes were extracted; system-out/stderr and all XML bodies were excluded."
+  },
+  "repository": {
+    "head": "a605941c104ea7ffd4ac7a708ce9cff874ac7bd0",
+    "working_tree_dirty_at_capture": true
+  },
+  "scope": {
+    "execution_environment": "JVM unit test on PC; fake local peer and fake PairingStore/SecureStore",
+    "doesNotCoverDesktopUI": true,
+    "doesNotCoverAndroidKeyStore": true,
+    "approvesAT208": false,
+    "interpretation": "Partial technical evidence only: client handling of a synthetic revoked response, deletion in the fake store, and no retry. Not an Android device execution or desktop trusted-list revocation."
+  }
+}

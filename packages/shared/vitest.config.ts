@@ -10,6 +10,10 @@ export default defineConfig({
     // diretamente para o arquivo (apenas para o teste, não para produção).
     alias: [
       {
+        find: /^@\//,
+        replacement: `${path.resolve(import.meta.dirname, "../../desktop/src")}/`,
+      },
+      {
         find: "@localcamera/desktop-shell",
         replacement: path.resolve(import.meta.dirname, "../../desktop/src/app/Shell.tsx"),
       },

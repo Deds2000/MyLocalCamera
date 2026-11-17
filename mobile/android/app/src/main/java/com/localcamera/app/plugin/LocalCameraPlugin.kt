@@ -257,7 +257,9 @@ class LocalCameraPlugin : Plugin() {
 
     private fun buildConnectUri(call: PluginCall): ConnectSpec {
         val pcId = call.getString(KEY_PC_ID)
-        if (pcId != null) return knownPcUri(pcId)
+        val hasPairingFields = call.getArray(KEY_HOSTS) != null ||
+            call.getInt(KEY_PORT) != null || call.getString(KEY_TOKEN) != null
+        if (pcId != null && !hasPairingFields) return knownPcUri(pcId)
 
         val hosts = call.getArray(KEY_HOSTS)?.let { arr ->
             try {
@@ -270,7 +272,7 @@ class LocalCameraPlugin : Plugin() {
         // O token do pareamento é minúsculo no parser (F2-T05a); input em
         // maiúsculo (tela Manual) é o mesmo código → normaliza.
         val token = call.getString(KEY_TOKEN)?.lowercase().orEmpty()
-        return pairingUri(hosts, port, token, pc = null, name = null)
+        return pairingUri(hosts, port, token, pc = pcId, name = null)
     }
 
     /** PC conhecido (F2-T05): hosts/porta do [PairingStore]; auth por `deviceKey`. */
@@ -295,6 +297,7 @@ class LocalCameraPlugin : Plugin() {
         if (hosts.isEmpty() || hosts.size > MAX_HOSTS) return ConnectSpec.ConnectError(ERROR_INVALID_ARGS)
         if (port !in 1..MAX_PORT) return ConnectSpec.ConnectError(ERROR_INVALID_ARGS)
         if (!TOKEN_RE.matches(token)) return ConnectSpec.ConnectError(ERROR_INVALID_ARGS)
+        if (pc != null && !PC_ID_RE.matches(pc)) return ConnectSpec.ConnectError(ERROR_INVALID_ARGS)
 
         val q = StringBuilder("v=$PROTOCOL_V&hosts=${hosts.joinToString(",")}&port=$port&token=$token")
         if (pc != null) q.append("&pc=").append(pc)
@@ -374,6 +377,7 @@ class LocalCameraPlugin : Plugin() {
         const val MAX_HOSTS = 4
         const val MAX_PORT = 65535
         val TOKEN_RE = Regex("^[0-9a-f]{32}$")
+        val PC_ID_RE = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
         /** 32 hex nulos: satisfaz o parser; a auth real é a `deviceKey`. */
         const val PLACEHOLDER_TOKEN = "00000000000000000000000000000000"
     }

@@ -1,0 +1,50 @@
+{
+  "test": "AT-3.03",
+  "result": "BLOCKED",
+  "stage": "approve-permanent",
+  "exceptionType": "System.Management.Automation.RuntimeException",
+  "line": "9",
+  "mockExitCode": 0,
+  "mockExitReason": "success",
+  "hostsNormalizedToLoopback": true,
+  "mockInvocation": {
+    "executable": "D:\\Repositorios\\MyLocalCamera\\target\\debug\\mock-sender.exe",
+    "workingDirectory": "D:\\Repositorios\\MyLocalCamera",
+    "argumentCount": 8,
+    "argumentFlags": [
+      "--uri",
+      "--state-file",
+      "--name",
+      "--seconds"
+    ],
+    "argumentValues": "withheld"
+  },
+  "ownedTrustedDeviceCleanup": "agent-cleanup-required",
+  "ownedDeviceName": "F3-T06-8c7df0d3",
+  "uri": "withheld",
+  "failurePoint": "trusted row was not detected by bounded UIA wait after approved mock ended",
+  "trustedRowFoundAfterFailure": true,
+  "trustedRowOffscreen": true,
+  "ownedTrustedDeviceRemains": true,
+  "cleanupStatus": "agent-cleanup-pending-ui-foreground-blocked",
+  "cleanupAttempts": [
+    {
+      "result": "unsupported on exact button",
+      "method": "UIA InvokePattern"
+    },
+    {
+      "result": "scrolled target into viewport",
+      "method": "UIA ScrollItemPattern"
+    },
+    {
+      "result": "foreground verified within same command",
+      "method": "UIA window SetFocus"
+    },
+    {
+      "result": "blocked because foreground was lost between shell commands; no click issued",
+      "method": "UIA-guided point click"
+    }
+  ],
+  "manualActionRequested": false,
+  "screenshotsCaptured": false
+}

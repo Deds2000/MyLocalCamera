@@ -62,6 +62,12 @@ fixtures/           (fora do Git) arquivos de teste gerados
 | 7F | BYE | ambos | ambos | JSON `{reason}` |
 Tipo desconhecido → **pular** (usar `length`) e logar; **nunca** derrubar a conexão por isso.
 
+API desktop (`lc-server`), sem mudança da wire: `ServerHandle::video_frames()`
+→ `VideoFrameSource::recv()` entrega metadados + access unit; fila local de 4,
+com descarte do não-chave mais antigo e indicação via
+`take_keyframe_requests()`. `request_keyframe()` / `send_set()` enfileiram
+comandos por sessão (capacidade 16), serializados pelo único escritor da sessão.
+
 ## Códigos `reason` (WELCOME recusado / BYE)
 `bad_token`, `not_approved`, `revoked`, `busy`, `version_mismatch`, `bad_audio_ticket`, `timeout`, `protocol_error`
 
