@@ -4,6 +4,7 @@
 //! slowloris/`HelloTimeout` (FT-1.01), limite de não autenticadas (FT-1.02),
 //! magic inválido e payload acima do limite (IT) e shutdown (IT).
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use lc_protocol::types::MAGIC;
@@ -15,8 +16,13 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 
 fn test_config() -> ServerConfig {
-    // `auto_approve: false` — os testes do listener não chegam ao handshake.
-    ServerConfig::for_tests(std::env::temp_dir().join("lc-server-test"), false)
+    // Use a per-test data directory: TrustStore writes trust.json.tmp atomically,
+    // so a shared directory races when listener tests run in parallel.
+    static NEXT_TEST_DIR: AtomicU64 = AtomicU64::new(0);
+    let test_id = NEXT_TEST_DIR.fetch_add(1, Ordering::Relaxed);
+    let data_dir =
+        std::env::temp_dir().join(format!("lc-server-test-{}-{test_id}", std::process::id()));
+    ServerConfig::for_tests(data_dir, false)
 }
 
 async fn next_event(rx: &mut mpsc::Receiver<ServerEvent>) -> ServerEvent {
