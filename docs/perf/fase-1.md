@@ -10,7 +10,7 @@ FT-1.09, PT-1.02).
 | PT-1.01 | Vazão do `FrameReader` (1 GiB de quadros `VIDEO` de 64 KiB, 1 thread, `--release`) | ≥ 500 MiB/s | **45 939 MiB/s** (F1-T13); re-medido no portão: **36 201 MiB/s** (variação de carga) | ✅ |
 | PT-1.02 | 500 handshakes `hello_device` a 50/s: p95 (connect → `WELCOME`) | p95 ≤ 20 ms, zero falhas | **p95 = 5,88 ms** (n = 500, 0 erros; execuções: 6,78 / 9,78 / 5,88 ms) | ✅ |
 | PT-1.03 | CPU do servidor ≤ 3% de 1 núcleo (8 Mbps + áudio, 5 min) | ≤ 3% | **média 0,32% de 1 núcleo** (máx 1,6%) — do soak de 30 min | ✅ |
-| LT-1.01 | Soak 30 min: memória ≤ +5 MB (após 1 min de aquecimento), handles ±5% | ver `scripts/soak.ps1` | ws 7,5 → 8,6 MB (**+1,1**), handles 110 → 112 (**+1,8%**), CPU máx 0,1% (máq.), 0 erros nos logs; `soak-f1.csv` | ✅ |
+| LT-1.01 | Soak 30 min: memória ≤ +5 MB (após 1 min de aquecimento), handles ±5% | ver `scripts/soak.ps1` | ws 7,5 → 8,6 MB (**+1,1**), handles 110 → 112 (**+1,8%**), CPU máx 0,1% (máq.), 0 erros nos logs; `docs/perf/soak-f1.csv` | ✅ |
 | ST-1.06 | `auto_approve` ignorado em build release (`effective_auto_approve`) | aprovado em release | `cargo test -p lc-server --release approval`: `auto_approve_only_in_debug` (unit) e `approval_timeout_denies` (integração) passam em `--release` | ✅ |
 
 Referências de cobertura correlatas (já existentes, confirmadas):

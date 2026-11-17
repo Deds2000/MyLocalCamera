@@ -80,14 +80,14 @@ IT-1.06/AT-1.08 e AT-1.01 (vetores).
 | FT-1.10 | FT | OK | `AUDIO_HELLO` antes do `WELCOME` → `bad_audio_ticket` | `crates/lc-server/tests/handshake.rs` → `audio_hello_before_welcome_denied`; `tests/audio_socket.rs` → `audio_hello_without_session_denied` | |
 | PT-1.01 | PT | OK | 36 201 MiB/s (re-medido no portão) / 45 939 MiB/s (F1-T13) × meta 500 MiB/s (1 thread, release) | `crates/lc-protocol/tests/perf.rs` → `frame_reader_throughput_ge_500_mib_s` (`#[ignore]`; `--release --ignored --nocapture`); `docs/perf/fase-1.md` | variação de carga entre medições; ambas ≫ meta |
 | PT-1.02 | PT | OK | p95 = 5,88 ms × meta 20 ms (n = 500, 0 erros; execuções 6,78/9,78/5,88 ms) | `crates/lc-server/tests/integration.rs` → `handshake_p95_under_20ms` (`#[ignore]`; `--ignored --nocapture`); `docs/perf/fase-1.md` | |
-| PT-1.03 | PT | OK | média **0,32%** de 1 núcleo (máx 1,6%) × meta ≤ 3% — 30 min com 8 Mbps + áudio | `scripts/soak.ps1` + `crates/lc-server/examples/soak_server.rs`; evidência: `soak-f1.csv` + `docs/perf/fase-1.md` | derivado do CSV limpo (16 núcleos) |
+| PT-1.03 | PT | OK | média **0,32%** de 1 núcleo (máx 1,6%) × meta ≤ 3% — 30 min com 8 Mbps + áudio | `scripts/soak.ps1` + `crates/lc-server/examples/soak_server.rs`; evidência: `docs/perf/soak-f1.csv` + `docs/perf/fase-1.md` | derivado do CSV limpo (16 núcleos) |
 | ST-1.01 | ST | OK | nenhum segredo completo nos logs (TRACE) nem no arquivo de confiança | `crates/lc-server/tests/log_redaction.rs` → `logs_never_contain_full_secrets`; `tests/trust.rs` → `debug_does_not_leak` | |
 | ST-1.02 | ST | OK | 6 tentativas/min: bloqueio do IP, resposta uniforme | `crates/lc-server/tests/ratelimit.rs` → `bruteforce_6_attempts_per_minute_blocked` | |
 | ST-1.03 | ST | OK | reuso de `audioTicket` e de `deviceKey` revogada recusados | `tests/trust.rs` → `token_rotates_and_old_is_rejected`, `revoke_makes_device_unknown`, `bad_key_detected`; `tests/audio_socket.rs` → `audio_ticket_flow_and_reuse_denied`; detalhes em `docs/perf/fase-1.md` | |
 | ST-1.04 | ST | OK | `PING`/`SET`/`VIDEO` antes do `WELCOME` → encerrada sem resposta | `crates/lc-server/tests/handshake.rs` → `message_before_welcome_closes` | |
 | ST-1.05 | ST | OK | segredos reutilizados recusados (cobertura de teste) | `tests/trust.rs` + `tests/audio_socket.rs` (conforme registro F1-T13; detalhes em `docs/perf/fase-1.md`) | parte de ferramentas (`cargo audit` + `cargo deny check licenses`): **não executado** — não aprovado pelo usuário (cartão F1-T13, passo 5: "se não aprovado, registre 'não executado'") |
 | ST-1.06 | ST | OK | `--auto-approve` ignorado em release (verde em `--release`) | `tests/approval.rs` → `auto_approve_ignored_in_release`; `src/trust/approval.rs` → `auto_approve_only_in_debug`; `docs/perf/fase-1.md` | |
-| LT-1.01 | LT | OK | ws 7,5 → 8,6 MB (**+1,1** × meta +5), handles 110 → 112 (**+1,8%** × meta ±5%), 0 erros nos logs | `scripts/soak.ps1 -Minutes 30` + `crates/lc-server/examples/soak_server.rs`; evidência: `soak-f1.csv` + `docs/perf/fase-1.md` | 1ª execução teve CSV corrompido (cultura pt-BR no `soak.ps1`); script corrigido e soak reexecutado limpo (180 amostras) |
+| LT-1.01 | LT | OK | ws 7,5 → 8,6 MB (**+1,1** × meta +5), handles 110 → 112 (**+1,8%** × meta ±5%), 0 erros nos logs | `scripts/soak.ps1 -Minutes 30` + `crates/lc-server/examples/soak_server.rs`; evidência: `docs/perf/soak-f1.csv` + `docs/perf/fase-1.md` | 1ª execução teve CSV corrompido (cultura pt-BR no `soak.ps1`); script corrigido e soak reexecutado limpo (180 amostras) |
 | LT-1.02 | LT | N/A | item opcional do cartão F1-T13 — não executado | — | cenário de reconexão sem vazamento coberto por IT-1.03 (20 reconexões, `reconnect_20_no_leak`) |
 
 ## Defeitos encontrados
@@ -115,14 +115,14 @@ verificados: magic `43 4C`, cabeçalho 18 bytes, códigos de tipo (0x01–0x7F),
 
 ## Observações
 - **Soak LT-1.01 concluído** (17:04–17:34, 180 amostras, máquina livre): números de PT-1.03,
-  LT-1.01 e evidência em `soak-f1.csv` + `docs/perf/fase-1.md`. A 1ª execução teve o CSV
+  LT-1.01 e evidência em `docs/perf/soak-f1.csv` + `docs/perf/fase-1.md`. A 1ª execução teve o CSV
   corrompido pela cultura pt-BR no `soak.ps1` (bug do próprio script); corrigido
   (cultura invariável) e reexecutado limpo.
 - **ST-1.05 (parte de ferramentas):** `cargo audit` + `cargo deny check licenses` (cartão
   F1-T13, passo 5) **não executados** — o cartão manda registrar "não executado" quando a
   instalação das ferramentas não é aprovada pelo usuário; a parte de segredos do ST-1.05
   está coberta por `tests/trust.rs` + `tests/audio_socket.rs`.
-- Evidências: `soak-f1.csv` (raiz; execução limpa de 30 min) e `docs/perf/fase-1.md`
+- Evidências: `docs/perf/soak-f1.csv` (execução limpa de 30 min) e `docs/perf/fase-1.md`
   (PT-1.01/PT-1.02/PT-1.03/ST-1.06 e detalhes de IT-1.01, AT-1.15, FT-1.09, ST-1.03).
 - **Portão verde (2026-10-29):** `scripts/ci.ps1` completo OK (lint, typecheck, testes
   JS/Rust/Android, fmt, clippy — Android unit+lint 33,7 s; a 1ª execução travou num daemon
