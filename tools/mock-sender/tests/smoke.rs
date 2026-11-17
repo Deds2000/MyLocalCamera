@@ -168,9 +168,10 @@ async fn keyframe_request_makes_mock_sender_emit_idr() {
 
     let sender = tokio::spawn(run(cfg));
     let session_id = loop {
-        match handle.events().recv().await.expect("session event") {
-            ServerEvent::SessionStarted { session_id, .. } => break session_id,
-            _ => {}
+        if let ServerEvent::SessionStarted { session_id, .. } =
+            handle.events().recv().await.expect("session event")
+        {
+            break session_id;
         }
     };
 
